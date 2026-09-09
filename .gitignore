@@ -1,0 +1,44 @@
+# secrets
+.env
+.env.*
+!.env.example
+
+# Python
+.tools/
+*.tsbuildinfo
+test-results/
+playwright-report/
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Node
+node_modules/
+.next/
+.next-dev/
+.next-e2e/
+dist/
+coverage/
+
+# IDE / OS
+.DS_Store
+.vscode/
+.idea/
+
+# Runtime / private data
+app-data/
+uploads/
+backups/
+private_fixtures/
+*.log
+
+# Real business exports (keep out of Git)
+*销售单导出*.xls*
+*购货单导出*.xls*
+*客户导出*.xls*
+*供应商导出*.xls*
+*利润表*.xls*
+*资产负债表*.xls*

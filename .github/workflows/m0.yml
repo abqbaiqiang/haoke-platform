@@ -1,0 +1,29 @@
+name: M0 and M1 acceptance
+on: [push, pull_request, workflow_dispatch]
+jobs:
+  m0:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: apps/frontend/package-lock.json
+      - run: python scripts/init_env.py
+      - run: pip install -r requirements-test.lock
+      - run: python -m ruff check apps/backend apps/worker tests scripts
+      - run: docker compose --profile test run --build --rm backend-tests
+      - run: python scripts/docker_acceptance.py --allow-recreate
+      - run: docker compose exec -T backend python -m app.cli seed-demo
+      - run: npm ci && npm run typecheck
+        working-directory: apps/frontend
+      - run: npx playwright install --with-deps chromium
+        working-directory: apps/frontend
+      - run: python scripts/run_e2e.py
+      - if: always()
+        run: docker compose down

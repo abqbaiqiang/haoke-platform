@@ -1,0 +1,16 @@
+.git
+.env
+.env.*
+!.env.example
+.venv
+.tools
+app-data
+private_fixtures
+**/node_modules
+**/.next
+**/.next-dev
+**/__pycache__
+**/.pytest_cache
+**/test-results
+**/playwright-report
+**/*.log

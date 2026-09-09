@@ -1,0 +1,156 @@
+name: songmao-platform
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+x-backend: &backend
+  build:
+    context: .
+    dockerfile: apps/backend/Dockerfile
+    target: runtime
+  env_file: .env
+  environment:
+    DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+  networks: [internal]
+  logging: *logging
+
+services:
+  postgres:
+    image: postgres:18.4-bookworm
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?Configure .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Configure .env}
+      POSTGRES_DB: ${POSTGRES_DB:?Configure .env}
+      TZ: Asia/Shanghai
+    volumes:
+      - ${DATA_ROOT:-./app-data}/postgres:/var/lib/postgresql
+    networks: [internal]
+    restart: unless-stopped
+    logging: *logging
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  migrate:
+    <<: *backend
+    command: [sh, -c, 'alembic -c apps/backend/alembic.ini upgrade head && python -m app.cli bootstrap-admin']
+    depends_on:
+      postgres: {condition: service_healthy}
+    restart: "no"
+
+  backend:
+    <<: *backend
+    volumes:
+      - ${DATA_ROOT:-./app-data}/uploads:${UPLOAD_ROOT:-/app-data/uploads}
+      - ${DATA_ROOT:-./app-data}/backups:${BACKUP_ROOT:-/app-data/backups}
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+      storage-init: {condition: service_completed_successfully}
+    restart: unless-stopped
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=4)"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  worker:
+    <<: *backend
+    command: [python, apps/worker/main.py]
+    volumes:
+      - ${DATA_ROOT:-./app-data}/uploads:${UPLOAD_ROOT:-/app-data/uploads}
+      - ${DATA_ROOT:-./app-data}/backups:${BACKUP_ROOT:-/app-data/backups}
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+      storage-init: {condition: service_completed_successfully}
+    restart: unless-stopped
+    healthcheck:
+      test: [CMD, python, -c, "import time,pathlib; assert time.time()-pathlib.Path('/tmp/worker-heartbeat').stat().st_mtime < 90"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  storage-init:
+    <<: *backend
+    user: '0:0'
+    command: [python, -m, app.storage_init]
+    volumes:
+      - ${DATA_ROOT:-./app-data}/uploads:${UPLOAD_ROOT:-/app-data/uploads}
+      - ${DATA_ROOT:-./app-data}/backups:${BACKUP_ROOT:-/app-data/backups}
+    restart: "no"
+
+  frontend:
+    build:
+      context: .
+      dockerfile: apps/frontend/Dockerfile
+    networks: [internal]
+    depends_on:
+      backend: {condition: service_healthy}
+    restart: unless-stopped
+    logging: *logging
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:3000').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  reverse-proxy:
+    image: caddy:2.10.2-alpine
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:-:80}
+    ports:
+      - ${HTTP_BIND:-127.0.0.1}:${HTTP_PORT:-8080}:80
+      - ${HTTPS_BIND:-127.0.0.1}:${HTTPS_PORT:-8443}:443
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ${DATA_ROOT:-./app-data}/caddy-data:/data
+      - ${DATA_ROOT:-./app-data}/caddy-config:/config
+    networks: [internal, edge]
+    depends_on:
+      frontend: {condition: service_healthy}
+    restart: unless-stopped
+    logging: *logging
+    healthcheck:
+      test: [CMD-SHELL, 'wget -q -O /dev/null http://127.0.0.1:2019/config/']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  postgres-test:
+    image: postgres:18.4-bookworm
+    profiles: [test]
+    environment:
+      POSTGRES_USER: songmao_test
+      POSTGRES_PASSWORD: ${TEST_DB_PASSWORD:?Configure test password in .env}
+      POSTGRES_DB: songmao_test
+    tmpfs: [/var/lib/postgresql]
+    networks: [internal]
+    logging: *logging
+    healthcheck:
+      test: [CMD, pg_isready, -U, songmao_test, -d, songmao_test]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  backend-tests:
+    <<: *backend
+    profiles: [test]
+    build:
+      context: .
+      dockerfile: apps/backend/Dockerfile
+      target: test
+    environment:
+      APP_ENV: test
+      TEST_DATABASE_URL: postgresql+psycopg://songmao_test:${TEST_DB_PASSWORD}@postgres-test:5432/songmao_test
+    depends_on:
+      postgres-test: {condition: service_healthy}
+
+networks:
+  internal:
+    internal: true
+  edge: {}
+
