@@ -5,6 +5,7 @@ from app.config import get_settings
 from app.models import Base
 from app import data_models  # noqa: F401
 from app import crm_models  # noqa: F401
+from app import bi_models  # noqa: F401
 
 target_metadata = Base.metadata
 

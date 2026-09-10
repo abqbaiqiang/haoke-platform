@@ -22,12 +22,14 @@
 - [ ] M0 business-user manual acceptance
 - [x] M1 Data center implementation and native automated acceptance
 - [ ] M1 business-user reconciliation and finance blank policy confirmation
-- [ ] M2 Lightweight CRM
-- [ ] M3 Sales workbench + sales BI
+- [x] M2 Lightweight CRM implementation, native automated acceptance and local delivery
+- [ ] M2 business-user manual acceptance
+- [x] M3 core sales workbench + sales BI implementation and local delivery
+- [ ] M3 full milestone business acceptance and remaining follow-ups
 - [ ] M4 Business/finance BI + risks
 - [ ] M5 Jingdouyun API / AI enhancements
 
-**Current gate:** M1_LOCAL_PASSED_BUSINESS_DOCKER_PENDING. The user's subsequent continue instructions authorized M1. M0 remains regression-tested; the explicit Docker deferral remains in force. Do not enter M2 without M1 business acceptance and a new instruction.
+**Current gate:** M3_CORE_LOCAL_PASSED_BUSINESS_DOCKER_PENDING. On 2026-09-10 the user asked to continue; this task resumed unfinished M3 application code, fixed defects and delivered its core workbench/analysis locally. Native regression, browser verification, offline backup/migration and five-role desktop/mobile smoke checks passed. M1/M2/M3 manual acceptance, real sales/finance policy decisions, M3 follow-ups and Docker/NAS acceptance remain pending. No M4 work has started.
 
 ## M0 verification — 2026-09-08
 
@@ -123,3 +125,51 @@ The user explicitly stated that manual reconciliation has not yet been performed
 - [ ] Business manual sales reconciliation and finance blank policy remain pending; preview availability is not business acceptance
 - [ ] Docker/NAS startup, recreation and persistence — 待绿联 NAS/具备 Docker 环境后补验
 - [ ] M2 remains not started
+
+## M2 CRM implementation and interrupted-delivery closure — 2026-09-09
+
+The later explicit CRM instruction supersedes the earlier M1-only development gate; historical M1 entries above describe the state at their dates.
+
+- [x] Customer list/360, prospects, ERP binding, contacts, tags, followups, next-step tasks, opportunities, transfer/public pool and audit history
+- [x] Five-role backend scope, cross-owner denial, finance process redaction, concurrent claim, transfer/binding history and Decimal/date boundaries
+- [x] 144 pytest cases passed on current code; empty migration, migration round trip and model comparison included
+- [x] 32 desktop/mobile browser tests passed, including M0/M1 regression; Ruff, TypeScript, production build and 20 browser JS secret checks passed
+- [x] Existing local M1 database backed up offline: 1,686 snapshot files checked; Alembic 0002_m1 -> 0004_m2
+- [x] Existing business/configuration columns and seven upload hashes unchanged; private evidence in `app-data/m2-local-upgrade.json`
+- [x] Frontend/backend/worker started; health HTTP 200; existing owner/sales/admin/finance login/logout and CRM access checked on desktop/mobile
+- [x] Both pending real financial previews still readable; smoke checks created no contacts, followups, tasks or opportunities
+- [x] README, CHANGELOG and M2 report synchronized; local customer/task screenshots saved privately
+- [ ] M2 sales/manager manual workflow acceptance and real staff mapping
+- [ ] M1 manual reconciliation and finance blank policy; Docker/NAS and production restore exercise remain pending
+
+This closing task completed verification and local delivery of the existing M2 implementation, without adding M3 features. The first sandbox pytest run encountered a Windows temporary-directory cleanup permission error; the authorized rerun completed successfully. Browser cases passed; cleanup reported a process-tree permission warning, but the helper exited successfully and both isolated service ports (3100/8100) were subsequently confirmed closed.
+
+Report and manual checklist: `docs/16_M2轻量CRM实施与验收.md`. Trial URL on this computer: http://localhost:3000, then “客户与待办”.
+
+## M3 preparation — 2026-09-09
+
+- [x] Reviewed M3 metrics, existing data models, permission model and import boundaries
+- [x] Read-only local readiness check: existing sales are unverified and unassigned salespeople remain; private evidence in `app-data/m3-readiness.json`
+- [x] Concrete phased implementation and test plan in `docs/17_M3销售工作台与销售BI实施计划.md`
+- [ ] M2 manual acceptance or explicit instruction to develop M3 with acceptance deferred
+- [ ] M3 implementation has not started; no application or schema changes in this preparation task
+
+Formal operating-sales activation remains conditional on verified valid/return/void/export coverage; unknown rows are neither silently accepted nor displayed as true zero. Unrelated target/calendar/CRM work can proceed after stage scope is confirmed.
+
+
+## M3 resumed implementation — 2026-09-10
+
+- [x] Monthly targets, work calendar/parameters, individual workbench and team execution
+- [x] Scoped sales metrics, daily chart, customer/product/person contribution, source-order drilldown and customer attention
+- [x] Explicit sales-scope attestations with import locking, stale-fact invalidation and full-history guards; actual local sales remain unverified
+- [x] Alembic 0005_m3 additive migration, empty roundtrip/model comparison and refusal to discard existing M3 data
+- [x] 172 pytest passed; Ruff, TypeScript, production build and 21 browser JavaScript secret checks passed
+- [x] Browser coverage: 32 M0–M2 cases passed in the full run; all six corrected M3 desktop/mobile cases passed in final rerun
+- [x] Offline snapshot: 1,734 files verified; 0004_m2 → 0005_m3; old business columns and seven upload hashes unchanged
+- [x] Frontend/backend/worker started; M3 health HTTP 200; five-role desktop/mobile read-only smoke and both pending finance previews passed
+- [x] Real sales remain unverified; no local targets/calendar/sales attestations were fabricated; isolated browser ports closed
+- [ ] M3 manual acceptance and real sales coverage/status/staff verification
+- [ ] Product brand/category source mapping, continuous monthly trend and richer workbench CRM shortcuts remain follow-ups
+- [ ] Production-scale P95 measurement, Docker/NAS and business acceptance remain pending
+
+Report: `docs/18_M3实施与验收.md`. This task does not confirm real sales/financial policy or advance to M4.

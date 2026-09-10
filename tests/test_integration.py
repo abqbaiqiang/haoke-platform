@@ -125,7 +125,7 @@ def test_no_secrets_in_logs(client, sign_in, caplog):
 
 def test_health_and_schema(db, client):
     assert client.get("/health").status_code == 200
-    assert db.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "0004_m2"
+    assert db.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "0005_m3"
     tables = set(inspect(db.bind).get_table_names())
     assert {"sys_user", "sys_permission_scope", "sys_session", "activity_log", "sys_login_throttle"} <= tables
     assert {"customer", "sales_order", "import_batch"} <= tables

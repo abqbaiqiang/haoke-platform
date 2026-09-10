@@ -38,7 +38,7 @@ children = []
 try:
     for index, command in enumerate(commands):
         children.append(subprocess.Popen(command, cwd=ROOT / "apps/frontend" if index == 2 else ROOT))
-    print("M2 local services: http://localhost:3000 (Ctrl+C stops services)", flush=True)
+    print("M3 local services: http://localhost:3000 (Ctrl+C stops services)", flush=True)
     while all(child.poll() is None for child in children):
         time.sleep(1)
     raise RuntimeError("One service exited; stopping remaining services")

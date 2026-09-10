@@ -5,3 +5,53 @@
 .orders-dialog{width:min(960px,calc(100% - 24px));max-height:90dvh;padding:0;border:1px solid var(--line);border-radius:14px;color:var(--ink);background:#fff;box-shadow:0 24px 80px #19362c33}.orders-dialog[open]{display:flex;flex-direction:column}.orders-dialog::backdrop{background:#19362c66}.orders-dialog-header{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:18px 24px;border-bottom:1px solid var(--line);flex-shrink:0}.orders-dialog-header h2,.orders-dialog-header p{margin:0}.orders-dialog-header button{border:1px solid var(--line);border-radius:6px;padding:10px 16px;flex-shrink:0}.orders-dialog-body{padding:8px 24px 20px;overflow:auto;overscroll-behavior:contain;min-height:100px}.orders-dialog-body h3{overflow-wrap:anywhere}.orders-dialog .table-scroll{margin:12px 0}.orders-dialog .data-toolbar{justify-content:space-between}.orders-dialog button{min-height:44px}.orders-dialog .orders-back{padding:8px 0}.orders-dialog button:disabled{cursor:default}@media(max-width:600px){.orders-dialog-header{padding:16px}.orders-dialog-body{padding:8px 16px 16px}.orders-dialog-header h2{font-size:20px}.orders-dialog .table-scroll table{min-width:440px}}
 
 .crm input:not([type=checkbox]),.crm select,.crm textarea{font:inherit;display:block;width:100%;min-width:0;padding:10px;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--ink);margin:8px 0}.crm textarea{min-height:88px;resize:vertical}.crm input[type=checkbox]{margin:8px}.crm button{min-height:44px}.crm-search,.crm-search form,.crm-actions{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin:12px 0}.crm-search label{flex:1;min-width:150px}.crm-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 20px}.crm-form{margin:20px 0;padding:20px;background:#f5f8f3;border:1px solid var(--line);border-radius:8px;scroll-margin:20px}.crm-form label{margin:8px 0}.crm-form .primary{width:auto;margin:0;padding:12px 22px}.crm-list{display:grid;gap:12px}.crm-item{background:white;border:1px solid var(--line);border-radius:8px;padding:18px;overflow-wrap:anywhere}.crm-item h3{margin:0 0 8px}.crm-item p{margin:8px 0}.crm .muted{font-size:14px}.crm .card{overflow-wrap:anywhere}.crm .data-section p{font-size:14px}.crm-actions span{font-size:13px}@media(max-width:600px){.crm-fields{grid-template-columns:1fr}.crm-form{padding:14px}.crm-search form{width:100%}.crm .data-tabs{gap:4px}.crm .data-tabs button{padding:10px}.crm-item{padding:14px}}
+/* M3 analysis stays readable on narrow screens; wide tables scroll within their cards. */
+.bi { min-width: 0; }
+.bi-tabs, .bi-toolbar, .bi-pages { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; margin: 20px 0; }
+.bi-tabs button[aria-current="page"] { color: #23583f; border-bottom: 2px solid #23583f; font-weight: 700; }
+.bi-toolbar label { flex: 1 1 170px; max-width: 270px; }
+.bi select, .bi input, .bi textarea, .bi-dialog input { max-width: 100%; box-sizing: border-box; }
+.bi select, .bi-dialog select { width: 100%; padding: 12px; border: 1px solid #d7e1d7; border-radius: 6px; background: white; color: #203d35; }
+.bi .card { margin-bottom: 18px; min-width: 0; }
+.bi-metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; margin: 22px 0; }
+.bi-metrics .card { margin: 0; padding: 22px; }
+.bi-metrics strong { display: block; font-size: 27px; margin: 16px 0; overflow-wrap: anywhere; }
+.bi-metrics strong small { font-size: 13px; font-weight: 400; }
+.bi-metrics details { color: #63766d; font-size: 12px; }
+.bi-notes { background: #f4eedf; border-left: 3px solid #bfa66b; padding: 10px 18px; line-height: 1.7; }
+.bi-notes p { margin: 8px 0; }
+.bi-summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 20px; }
+.bi-summary button { padding: 22px; background: #eaf0e8; text-align: left; border-radius: 8px; }
+.bi-summary strong { display: block; margin-top: 10px; font-size: 28px; }
+.bi-table-wrap { max-width: 100%; overflow-x: auto; }
+.bi table, .bi-dialog table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.bi th, .bi td, .bi-dialog th, .bi-dialog td { padding: 14px 12px; text-align: left; border-bottom: 1px solid #e4e9e3; white-space: nowrap; }
+.bi th, .bi-dialog th { color: #567061; background: #f4f7f2; font-weight: 500; }
+.bi-chart { width: 100%; height: 320px; }
+.bi-form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 16px; margin: 18px 0; }
+.bi-checks { display: flex; flex-wrap: wrap; gap: 12px 22px; margin: 16px 0; }
+.bi-checks label { display: flex; align-items: center; gap: 7px; }
+.bi-checks input { width: auto; margin: 0; }
+.bi fieldset { border: 1px solid #d7e1d7; border-radius: 6px; margin-top: 18px; }
+.bi-calendar-list { max-height: 280px; overflow: auto; padding-left: 24px; }
+.bi-calendar-list li { padding: 8px 0; }
+.bi-calendar-list button { margin-left: 16px; }
+.bi-attention { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; }
+.bi-dialog { width: min(1000px, calc(100vw - 32px)); max-height: 85vh; overflow: auto; border: 1px solid #d6e0d3; border-radius: 12px; padding: 24px; color: #203d35; }
+.bi-dialog::backdrop { background: rgb(12 30 23 / 45%); }
+.bi-dialog-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.bi-dialog label { display: block; margin-bottom: 16px; }
+.bi-dialog input { display: block; padding: 10px; }
+@media (max-width: 640px) {
+  .bi-summary { grid-template-columns: repeat(2, 1fr); }
+  .bi-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .bi-metrics .card { padding: 16px 12px; }
+  .bi-metrics strong { font-size: 22px; }
+  .bi-toolbar label { max-width: none; }
+  .bi .card { padding: 20px 14px; }
+  .bi-dialog { padding: 16px; }
+}
+
+.bi input:not([type=checkbox]), .bi textarea { display: block; width: 100%; min-width: 0; padding: 12px; margin-top: 8px; font: inherit; color: var(--ink); border: 1px solid var(--line); border-radius: 6px; background: white; }
+.bi button, .bi-dialog button { min-height: 44px; }
+.bi textarea { resize: vertical; min-height: 90px; }

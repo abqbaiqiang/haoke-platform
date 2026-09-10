@@ -247,3 +247,23 @@ def test_finance_preview_balance_and_invalid_batches(client, setup_m1, db):
     assert client.get(f"/api/data/imports/{failed['id']}/finance-preview").status_code == 409
     assert client.get(f'/api/data/imports/{uuid4()}/finance-preview').status_code == 404
     assert db.scalar(select(func.count()).select_from(FinancialMetric)) == 0
+
+
+def test_bi_refreshes_after_import_without_duplicate_or_old_lines(client, setup_m1, sign_in):
+    source, upload, confirm = setup_m1
+    body = sales()
+    assert confirm(upload('sales', body)).status_code == 200
+    params = {'source_id':source, 'month':'2026-08-01', 'dimension':'product'}
+    sign_in('Owner')
+    first = client.get('/api/bi/sales', params=params).json()
+    assert first['rows'][0]['current'] == '0.30'
+    sign_in('Admin')
+    assert confirm(upload('sales', body)).status_code == 200
+    sign_in('Owner')
+    assert client.get('/api/bi/sales', params=params).json() == first
+    sign_in('Admin')
+    assert confirm(upload('sales', sales(stamp='2026-08-02 10:00:00', prices=('0.40',)))).status_code == 200
+    sign_in('Owner')
+    final = client.get('/api/bi/sales', params=params).json()
+    assert final['rows'][0]['current'] == '0.40'
+    assert final['line_difference'] == '0.00'

@@ -32,6 +32,7 @@ def fingerprint(engine, columns):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--pg-bin', type=Path, required=True)
+    parser.add_argument('--milestone', choices=['M2', 'M3'], default='M2')
     args = parser.parse_args()
     load_dotenv(ROOT/'.env')
     url = make_url(os.environ['DATABASE_URL'])
@@ -65,7 +66,9 @@ def main():
             uploads[row['storage_path']] = digest
     engine.dispose()
     stamp = datetime.now().strftime('%Y%m%d-%H%M%S')
-    backup = ROOT/'app-data/backups'/f'pre-m2-postgres-{stamp}'
+    label = args.milestone.lower()
+    target_revision = {'M2': '0004_m2', 'M3': '0005_m3'}[args.milestone]
+    backup = ROOT/'app-data/backups'/f'pre-{label}-postgres-{stamp}'
     backup.parent.mkdir(parents=True,exist_ok=True)
     report = {'from_revision':version,'backup':str(backup),'before':before,'upload_count':len(uploads)}
     subprocess.run([str(executable),'-D',str(data),'-m','fast','-w','stop'],check=True)
@@ -77,11 +80,11 @@ def main():
                 raise RuntimeError('Offline database snapshot differs from its source')
         (backup.parent/f'{backup.name}.sha256.json').write_text(json.dumps(manifest),encoding='utf-8')
     finally:
-        with (ROOT/'app-data/m2-postgres-start.log').open('wb') as log:
+        with (ROOT/f'app-data/{label}-postgres-start.log').open('wb') as log:
             subprocess.run([str(executable),'-D',str(data),'-l',str(data.parent/'postgres.log'),
                             '-o',f'-h 127.0.0.1 -p {url.port or 5432}','-w','start'],stdout=log,stderr=log,check=True)
     env = dict(os.environ,PYTHONPATH=str(ROOT/'apps/backend'))
-    subprocess.run([sys.executable,'-m','alembic','-c','apps/backend/alembic.ini','upgrade','head'],cwd=ROOT,env=env,check=True)
+    subprocess.run([sys.executable,'-m','alembic','-c','apps/backend/alembic.ini','upgrade',target_revision],cwd=ROOT,env=env,check=True)
     after = fingerprint(engine, columns)
     # M2 intentionally initializes ownership_status for existing owners when upgrading M1.
     if before != after:
@@ -92,7 +95,7 @@ def main():
     with engine.connect() as c:
         report['to_revision'] = c.scalar(text('SELECT version_num FROM alembic_version'))
     report.update(existing_columns_unchanged=True, upload_hashes_unchanged=True, snapshot_files=len(manifest))
-    (ROOT/'app-data/m2-local-upgrade.json').write_text(json.dumps(report,indent=2),encoding='utf-8')
+    (ROOT/f'app-data/{label}-local-upgrade.json').write_text(json.dumps(report,indent=2),encoding='utf-8')
     print(f"PASS: offline snapshot ({len(manifest)} files), existing business columns and {len(uploads)} uploads verified; {version} -> {report['to_revision']}")
     engine.dispose()
 
@@ -102,4 +105,4 @@ if __name__ == '__main__':
         main()
     except Exception as exc:
         # Driver exceptions can include connection strings. Never print them.
-        raise SystemExit(f'Local M2 upgrade stopped ({type(exc).__name__}); inspect the private snapshot/startup evidence before retrying.') from None
+        raise SystemExit(f'Local database upgrade stopped ({type(exc).__name__}); inspect the private snapshot/startup evidence before retrying.') from None

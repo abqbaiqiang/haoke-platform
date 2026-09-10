@@ -1,4 +1,4 @@
-"""Run native M0-M2 regression. Docker acceptance remains a separate gate."""
+"""Run native M0-M3 regression. Docker acceptance remains a separate gate."""
 
 import argparse
 import os
@@ -27,4 +27,4 @@ subprocess.run(["node", "node_modules/next/dist/bin/next", "build", "--webpack"]
 subprocess.run([sys.executable, "scripts/verify_bundle.py"], check=True)
 if args.e2e:
     subprocess.run([sys.executable, "scripts/run_e2e.py"], check=True)
-print("Requested native M0-M2 checks passed. Docker execution requires Docker acceptance.")
+print("Requested native M0-M3 checks passed. Docker execution requires Docker acceptance.")

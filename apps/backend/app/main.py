@@ -22,7 +22,7 @@ logging.basicConfig(level=logging.INFO, format="%(message)s")
 logger = logging.getLogger("songmao")
 app = FastAPI(
     title="松茂经营管理平台",
-    version="0.3.0",
+    version="0.4.0",
     debug=False,
     docs_url=None if settings.app_env == "production" else "/api/docs",
     redoc_url=None,
@@ -94,7 +94,7 @@ Current = Annotated[tuple, Depends(current)]
 def health(db: DB):
     try:
         db.execute(text("SELECT 1"))
-        if db.execute(text("SELECT version_num FROM alembic_version")).scalar_one() != "0004_m2":
+        if db.execute(text("SELECT version_num FROM alembic_version")).scalar_one() != "0005_m3":
             raise HTTPException(503, "数据库版本未就绪")
     except SQLAlchemyError:
         raise HTTPException(503, "数据库未就绪") from None
@@ -175,3 +175,7 @@ app.include_router(data_router)
 from app.crm_api import router as crm_router  # noqa: E402
 
 app.include_router(crm_router)
+
+from app.bi_api import router as bi_router  # noqa: E402
+
+app.include_router(bi_router)

@@ -13,6 +13,7 @@ USER root
 COPY requirements-test.lock /app/requirements-test.lock
 RUN pip install --no-cache-dir -r requirements-test.lock
 COPY tests /app/tests
+COPY docs /app/docs
 COPY pyproject.toml docker-compose.yml /app/
 COPY scripts /app/scripts
 COPY apps/frontend/package.json apps/frontend/package-lock.json /app/apps/frontend/

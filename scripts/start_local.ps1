@@ -55,8 +55,8 @@ if ($SeedDemo) {
 try {
     $health = Invoke-RestMethod -Uri 'http://127.0.0.1:8000/health' -TimeoutSec 2
     $page = Invoke-WebRequest -Uri 'http://localhost:3000' -TimeoutSec 3
-    if ($health.milestone -eq 'M2' -and $page.Content.Contains('松茂经营管理平台')) {
-        Write-Output 'M2 is already running: http://localhost:3000'
+    if ($health.milestone -eq 'M3' -and $page.Content.Contains('松茂经营管理平台')) {
+        Write-Output 'M3 is already running: http://localhost:3000'
         exit 0
     }
 } catch { }
