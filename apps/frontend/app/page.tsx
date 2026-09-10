@@ -4,13 +4,13 @@ import { FormEvent, useEffect, useState } from "react";
 import DataCenter from "./data-center";
 import CRM from "./crm";
 import BI from "./bi";
+import Overview from "./overview";
 import type { CRMEntry } from "./crm-navigation";
 
 type Role = "owner" | "manager" | "sales" | "finance" | "admin";
 type User = { id: string; username: string; display_name: string; role_code: Role; last_login_at: string | null };
 type Identity = { user: User; scope_type: string; member_ids: string[]; timezone: string };
 const roles: Record<Role, string> = { owner: "老板", manager: "销售经理", sales: "销售业务员", finance: "财务", admin: "系统管理员" };
-const scopes: Record<string, string> = { all: "全部", team: "所属团队", self: "本人", custom: "指定授权", none: "未配置" };
 
 export default function Home() {
   const [identity, setIdentity] = useState<Identity | null>(null);
@@ -57,7 +57,9 @@ export default function Home() {
   const user = identity.user;
   return <div className="workspace"><aside><div className="brand"><div className="brand-mark small">松</div><strong>松茂经营管理平台</strong></div><p className="nav-label">工作空间</p><nav aria-label="主导航"><button aria-current={view === "bi" ? "page" : undefined} onClick={() => setView("bi")}>销售工作台</button><button aria-current={view === "home" ? "page" : undefined} onClick={() => setView("home")}>平台首页</button><button aria-current={view === "account" ? "page" : undefined} onClick={() => setView("account")}>我的账号</button>{["owner", "admin"].includes(user.role_code) && <button aria-current={view === "system" ? "page" : undefined} onClick={() => setView("system")}>系统状态</button>}{["owner", "admin", "finance"].includes(user.role_code) && <button aria-current={view === "data" ? "page" : undefined} onClick={() => setView("data")}>数据中心</button>}<button aria-current={view === "crm" ? "page" : undefined} onClick={() => openCRM()}>客户与待办</button></nav><div className="sidebar-bottom">M3 销售工作台 <span className="dot" /></div></aside>
     <div className="content"><header><span>{roles[user.role_code]}工作空间</span><div><span>{user.display_name}</span><button onClick={signOut} disabled={busy}>退出登录</button></div></header><main className="dashboard">{error && <p role="alert" className="error">{error}</p>}
-      {view === "home" && <><p className="eyebrow">工作空间 / 首页</p><h1>欢迎，{user.display_name}</h1><p className="muted">从客户与待办开始，安排今天的联系与跟进。</p><div className="cards"><section className="card"><span>当前身份</span><h2>{roles[user.role_code]}</h2><p>主角色：{user.role_code}</p></section><section className="card"><span>访问范围</span><h2>{user.role_code === "admin" ? "系统管理" : scopes[identity.scope_type]}</h2><p>访问权限由服务器校验</p></section><section className="card"><span>平台阶段</span><h2>M3 销售工作台</h2><p>客户、跟进、待办与商机</p></section></div><section className="notice"><h2>平台正在分阶段建设</h2><p>数据中心支持客户、商品、销售和财务文件导入。管理员负责导入，老板可查看月度核对。</p><button onClick={() => openCRM()}>进入客户与待办 →</button></section></>}
+      {view === "home" && (user.role_code === "admin"
+        ? <><p className="eyebrow">工作空间 / 首页</p><h1>欢迎，{user.display_name}</h1><p className="muted">系统管理员不直接查看经营数据；请从下方进入管理功能。</p><div className="cards"><section className="card"><span>当前身份</span><h2>{roles[user.role_code]}</h2><p>权限由服务器校验</p></section><section className="card"><span>数据导入</span><h2>数据中心</h2><p>数据源、人员映射、导入历史</p><button onClick={() => setView("data")}>进入数据中心 →</button></section><section className="card"><span>系统状态</span><h2>运行状况</h2><p>服务与数据库健康检查</p><button onClick={() => setView("system")}>查看系统状态 →</button></section></div></>
+        : <Overview role={user.role_code} openBI={() => setView("bi")} openCRM={() => openCRM()} />)}
       {view === "account" && <><p className="eyebrow">工作空间 / 我的账号</p><h1>我的账号</h1><section className="card account"><dl><dt>登录账号</dt><dd>{user.username}</dd><dt>姓名</dt><dd>{user.display_name}</dd><dt>角色</dt><dd>{roles[user.role_code]}</dd><dt>最近登录</dt><dd>{user.last_login_at ? new Intl.DateTimeFormat("zh-CN", { timeZone: "Asia/Shanghai", dateStyle: "medium", timeStyle: "short" }).format(new Date(user.last_login_at)) : "—"}</dd><dt>显示时区</dt><dd>Asia/Shanghai</dd></dl></section></>}
       {view === "system" && <SystemStatus />}{view === "data" && <DataCenter role={user.role_code} />}
       {view === "bi" && <BI role={user.role_code} userId={user.id} openCRM={openCRM} />}

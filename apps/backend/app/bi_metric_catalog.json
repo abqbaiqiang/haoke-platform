@@ -130,5 +130,45 @@
   "TGT_WORKDAYS_REMAINING": {
     "definition": "全月计划工作日减去已过工作日（辅助展示）",
     "source": "工作日历"
+  },
+  "EXEC_FIN_REVENUE": {
+    "definition": "直接取利润表“营业收入”月度值",
+    "source": "利润表"
+  },
+  "EXEC_RECON_DIFF": {
+    "definition": "经营销售额 - 财务营业收入",
+    "source": "精斗云 + 利润表"
+  },
+  "EXEC_GROSS_MARGIN_FIN": {
+    "definition": "(营业收入 - 营业成本) / 营业收入",
+    "source": "利润表"
+  },
+  "EXEC_NET_PROFIT": {
+    "definition": "直接取利润表净利润",
+    "source": "利润表"
+  },
+  "EXEC_NET_MARGIN": {
+    "definition": "净利润 / 营业收入",
+    "source": "利润表"
+  },
+  "EXEC_CASH_BAL": {
+    "definition": "直接取资产负债表货币资金",
+    "source": "资产负债表"
+  },
+  "EXEC_AR_BAL": {
+    "definition": "直接取资产负债表应收账款",
+    "source": "资产负债表"
+  },
+  "EXEC_INV_BAL": {
+    "definition": "直接取资产负债表存货",
+    "source": "资产负债表"
+  },
+  "EXEC_CASH_MOM": {
+    "definition": "本月货币资金 - 上月货币资金",
+    "source": "资产负债表"
+  },
+  "FIN_GROSS_PROFIT": {
+    "definition": "营业收入 - 营业成本",
+    "source": "利润表"
   }
 }

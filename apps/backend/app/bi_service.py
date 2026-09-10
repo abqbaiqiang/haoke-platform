@@ -14,7 +14,7 @@ from app import bi_schemas as dto, services
 from app.bi_calculations import ZERO, metric, money, month_end, month_start, ratio, shift_month, target_metrics, work_dates
 from app.bi_models import BISetting, SalesReview, SalesTarget
 from app.crm_models import Followup, Opportunity, Task
-from app.data_models import Customer, DataSource, Product, SalesOrder, SalesOrderLine
+from app.data_models import Customer, DataSource, FinancialMetric, FinancialPeriod, Product, SalesOrder, SalesOrderLine
 from app.models import ActivityLog, User, utcnow
 from app.permissions import can_read_owned
 
@@ -494,3 +494,95 @@ def attention(db, actor, sid, offset=0):
             warnings.append('A/B/C 跟进超期阈值尚未配置')
     result.sort(key=lambda r: (-(r.days or 0), r.name, r.kind))
     return dto.AttentionPage(rows=result[offset:offset+30], total=len(result), warnings=warnings)
+
+
+def _finance_metrics(db, src_id, months):
+    """Map (statement, month) -> {code: value} for the requested months, reading only confirmed batch ids."""
+    periods = {p.period_month: p for p in db.scalars(select(FinancialPeriod).where(
+        FinancialPeriod.data_source_id == src_id, FinancialPeriod.period_month.in_(months)))}
+    batch_ids = [b for p in periods.values() for b in (p.profit_import_batch_id, p.balance_import_batch_id) if b]
+    values = defaultdict(dict)
+    if batch_ids:
+        for row in db.scalars(select(FinancialMetric).where(FinancialMetric.import_batch_id.in_(batch_ids))):
+            key = 'period_value' if row.statement_type == 'profit' else 'end_value'
+            values[(row.statement_type, row.period_month)][row.metric_code] = getattr(row, key)
+    return periods, values
+
+
+def overview(db, actor, source_id):
+    """Owner first screen: business facts, financial results and balances side by side, never merged."""
+    require(actor, {'owner', 'finance', 'manager', 'sales'})
+    src = source(db, actor, source_id)
+    today = utcnow().astimezone(TZ).date()
+    period = month_start(today)
+    previous = shift_month(period, -1)
+    rows = load_orders(db, actor, src)
+    ready, cfg, why = review_ready(db, src, period, today, rows, actor.role_code != 'owner')
+    prior_ready, _, _ = review_ready(db, src, previous, month_end(previous), rows, actor.role_code != 'owner')
+    warnings = [why] if not ready else []
+    if period == month_start(today):
+        warnings.append(f'本月截至 {today}；环比基期为上月完整月，非同期进度比较')
+
+    current = [r for r in rows if period <= r.order_date <= today]
+    prior = [r for r in rows if previous <= r.order_date <= month_end(previous)]
+    total = sum((r.sales_amount for r in current), ZERO)
+    old_total = sum((r.sales_amount for r in prior), ZERO)
+    sales_customers = {r.customer_id for r in current}
+    verified = False  # Overview always shows source reconciliation; verified figures stay in the workbench.
+    sales_metrics = [
+        metric('DQ_SALES_RECON' if not verified else 'EXEC_SALES_AMT', '源销售核对金额（本月）', total, reason=why if not ready else None),
+        metric('SALE_ORDER_COUNT', '源订单数（本月）', len(current), '单'),
+        metric('SALE_CUSTOMER_COUNT', '成交客户数（本月）', len(sales_customers), '个'),
+        metric('SALE_MOM', '销售额环比', (total-old_total)/old_total*100 if old_total and prior_ready else None, '%',
+               '基期缺失、为零或完整覆盖未确认'),
+    ]
+
+    finance_metrics = []
+    finance_warnings = []
+    finance_periods, values = _finance_metrics(db, src.id, [period, previous])
+    profit = values.get(('profit', period), {})
+    balance = values.get(('balance_sheet', period), {})
+    prev_balance = values.get(('balance_sheet', previous), {})
+    finance_visible = actor.role_code in {'owner', 'finance'}
+    if finance_visible:
+        if not profit:
+            finance_warnings.append(f'{period.year}年{period.month}月利润表尚未导入或确认')
+        if not balance:
+            finance_warnings.append(f'{period.year}年{period.month}月资产负债表尚未导入或确认')
+        revenue, cost = profit.get('revenue'), profit.get('cost')
+        net_profit = profit.get('net_profit')
+        cash, ar, inventory = balance.get('cash'), balance.get('ar'), balance.get('inventory')
+        prev_cash = prev_balance.get('cash')
+        has_revenue = revenue is not None and revenue != ZERO
+        gross_margin = ratio(revenue-cost, revenue)*100 if has_revenue and cost is not None else None
+        net_margin = ratio(net_profit, revenue)*100 if has_revenue and net_profit is not None else None
+        cash_change = cash-prev_cash if cash is not None and prev_cash is not None else None
+        finance_metrics = [
+            metric('EXEC_FIN_REVENUE', '财务营业收入（本月）', revenue, reason='利润表未导入'),
+            metric('EXEC_GROSS_MARGIN_FIN', '财务毛利率', gross_margin, '%', '利润表未导入或营业收入为零'),
+            metric('EXEC_NET_PROFIT', '净利润（本月）', net_profit, reason='利润表未导入'),
+            metric('EXEC_NET_MARGIN', '净利率', net_margin, '%', '利润表未导入或营业收入为零'),
+            metric('EXEC_CASH_BAL', '货币资金余额', cash, reason='资产负债表未导入'),
+            metric('EXEC_AR_BAL', '应收账款余额', ar, reason='资产负债表未导入'),
+            metric('EXEC_INV_BAL', '存货余额', inventory, reason='资产负债表未导入'),
+            metric('EXEC_CASH_MOM', '现金月度变化', cash_change, reason='上月或本月余额缺失'),
+        ]
+        if revenue is not None and ready:
+            finance_metrics.append(metric('EXEC_RECON_DIFF', '经营-财务收入口径差异', total-revenue))
+        elif revenue is not None:
+            finance_warnings.append('销售数据未核实，经营-财务勾稽差异暂不计算')
+        if profit and not finance_periods.get(period).is_closed:
+            finance_warnings.append('本月财务期间尚未确认，数值为待确认版本')
+
+    # Six-month trend of monthly source sales for the line chart.
+    trend = []
+    for i in range(5, -1, -1):
+        m = shift_month(period, -i)
+        end = min(today, month_end(m))
+        amount = sum((r.sales_amount for r in rows if m <= r.order_date <= end), ZERO)
+        trend.append(dto.Point(date=m, value=str(amount)))
+
+    return dto.Overview(month=period, through=today, verified=verified, warnings=warnings,
+                        finance_warnings=finance_warnings, sales_metrics=sales_metrics,
+                        finance_metrics=finance_metrics, trend=trend,
+                        updated_at=max((r.updated_at for r in rows), default=None))

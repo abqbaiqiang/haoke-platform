@@ -26,10 +26,19 @@
 - [ ] M2 business-user manual acceptance
 - [x] M3 core sales workbench + sales BI implementation and local delivery
 - [ ] M3 full milestone business acceptance and remaining follow-ups
-- [ ] M4 Business/finance BI + risks
+- [ ] M4 Business/finance BI + risks — overview first screen delivered (see below); remaining M4 scope not started
 - [ ] M5 Jingdouyun API / AI enhancements
 
-**Current gate:** M3_CORE_LOCAL_PASSED_BUSINESS_DOCKER_PENDING. On 2026-09-10 the user asked to continue; this task resumed unfinished M3 application code, fixed defects and delivered its core workbench/analysis locally. Native regression, browser verification, offline backup/migration and five-role desktop/mobile smoke checks passed. M1/M2/M3 manual acceptance, real sales/finance policy decisions, M3 follow-ups and Docker/NAS acceptance remain pending. No M4 work has started.
+**Current gate:** M3_CORE_LOCAL_PASSED_BUSINESS_DOCKER_PENDING, M4_OVERVIEW_ONLY. On 2026-09-10 the user completed a manual bug-hunting pass (no major issues; UI/button feedback deferred) and authorized continued development. ZCode implemented the owner overview first screen (`/api/bi/overview` + homepage role-based overview per docs/05 §3.7): source sales reconciliation, finance result/balance cards, six-month trend; finance metrics visible only to owner/finance; no fake zeros. 182 pytest, Ruff, TypeScript, production build, browser secret scan, and live three-role browser verification (owner/sales/finance) passed. M4 purchase/inventory/receivable analysis, risk center and alert parameterization are NOT started (source data unverified). M1/M2/M3 manual acceptance, sales/finance policy decisions and Docker/NAS acceptance remain pending.
+
+## M4 overview first screen — 2026-09-10 (ZCode)
+
+- [x] `GET /api/bi/overview`: monthly source sales reconciliation, order/customer counts, MoM, finance revenue/margin/net profit/margins, cash/AR/inventory balances, cash MoM, six-month trend
+- [x] Homepage now shows the owner overview instead of the placeholder welcome; sales/finance without visible data get guidance; admin keeps the management entry page
+- [x] Metric catalog extended with 10 dictionary-exact entries; `test_metric_descriptions_match_dictionary` guards consistency
+- [x] 4 new integration tests (fixed samples, role scope, zero-division → null, unconfirmed period warnings); 182 pytest total
+- [x] Live browser verification: owner sees 228,684.00 / 53 orders / 29 customers from real imported data; sales and finance demo accounts correctly see no unauthorized figures
+- [x] Verified by ZCode, not Codex; changes committed with test evidence in git history
 
 ## M0 verification — 2026-09-08
 

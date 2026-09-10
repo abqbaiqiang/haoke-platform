@@ -166,3 +166,15 @@ class OrderRow(BaseModel):
 class OrderPage(BaseModel):
     rows: list[OrderRow]
     total: int
+
+
+class Overview(BaseModel):
+    month: date
+    through: date
+    verified: bool
+    warnings: list[str]
+    finance_warnings: list[str]
+    sales_metrics: list[Metric]
+    finance_metrics: list[Metric]
+    trend: list[Point]
+    updated_at: datetime | None

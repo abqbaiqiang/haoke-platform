@@ -84,3 +84,8 @@ def orders(source_id: UUID, month: date, db: DB, actor: Actor,
 @router.get('/attention', response_model=dto.AttentionPage)
 def attention(source_id: UUID, db: DB, actor: Actor, offset: int = Query(0, ge=0)):
     return svc.attention(db, actor, source_id, offset)
+
+
+@router.get('/overview', response_model=dto.Overview)
+def overview(source_id: UUID, db: DB, actor: Actor):
+    return svc.overview(db, actor, source_id)
