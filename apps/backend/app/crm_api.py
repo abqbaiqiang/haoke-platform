@@ -73,11 +73,16 @@ def followups(db: DB, actor: Actor, offset: int = Query(0,ge=0)):
 
 
 @router.get('/opportunities', response_model=list[dto.OpportunityView])
-def opportunities(db: DB, actor: Actor, offset: int = Query(0,ge=0)):
+def opportunities(db: DB, actor: Actor, offset: int = Query(0,ge=0), owner_user_id: UUID | None = None,
+                  status: Literal['open','won','lost','cancelled'] | None = None):
     svc.role(actor,{'owner','admin','manager','sales'})
-    rows = db.scalars(select(Opportunity).join(Customer,Customer.id == Opportunity.customer_id)
-        .where(Customer.is_active,svc.scope(db,actor,Customer.owner_user_id),svc.scope(db,actor,Opportunity.owner_user_id))
-        .order_by(Opportunity.updated_at.desc(),Opportunity.id).offset(offset).limit(100)).all()
+    query = select(Opportunity).join(Customer,Customer.id == Opportunity.customer_id).where(
+        Customer.is_active,svc.scope(db,actor,Customer.owner_user_id),svc.scope(db,actor,Opportunity.owner_user_id))
+    if owner_user_id:
+        query = query.where(Opportunity.owner_user_id == owner_user_id)
+    if status:
+        query = query.where(Opportunity.status == status)
+    rows = db.scalars(query.order_by(Opportunity.updated_at.desc(),Opportunity.id).offset(offset).limit(100)).all()
     return [svc.opportunity_view(x) for x in rows]
 
 
@@ -195,8 +200,9 @@ def assign_tags(cid: UUID, payload: dto.TagsInput, db: DB, actor: Actor):
 
 
 @router.get('/tasks', response_model=list[dto.TaskView])
-def tasks(db: DB, actor: Actor, view: Literal['today','week','overdue','future','done'] = 'today', offset: int = Query(0,ge=0)):
-    return svc.tasks(db,actor,view,offset)
+def tasks(db: DB, actor: Actor, view: Literal['today','week','overdue','future','done'] = 'today', offset: int = Query(0,ge=0),
+          assignee_user_id: UUID | None = None):
+    return svc.tasks(db,actor,view,offset,assignee_user_id)
 
 
 @router.post('/tasks', response_model=dto.TaskView, status_code=201)

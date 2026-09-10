@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from app import crm_service as svc
 from app.crm_models import Assignment, Contact, Followup, Task
+from app.crm_models import Opportunity
 from app.data_models import Customer, SalesOrder
 from app.models import ActivityLog, Base, User, utcnow
 from test_m1_integration import setup_m1  # noqa: F401
@@ -177,3 +178,24 @@ def test_local_upgrade_rejects_nonlocal_or_production_before_connect(monkeypatch
     monkeypatch.setattr(module.subprocess,'run',forbidden)
     with pytest.raises(SystemExit,match='local development'):
         module.main()
+
+
+@pytest.mark.parametrize('actor,visible', [('Owner',True),('Admin',True),('Manager',True),('S1',True),('S2',False),('Finance',False)])
+def test_workbench_crm_filters_only_narrow_authorized_scope(db, client, accounts, sign_in, actor, visible):
+    for staff in ['S1','S3']:
+        c = make_customer(db, accounts[staff].id, staff+'客户')
+        db.add(Task(customer_id=c.id,assignee_user_id=accounts[staff].id,title=staff+'待办',due_at=utcnow(),
+                    source_type='manual',created_by=accounts[staff].id,task_type='followup'))
+        for stage in ['initial','won']:
+            db.add(Opportunity(customer_id=c.id,owner_user_id=accounts[staff].id,opportunity_name=staff+stage,
+                               stage=stage,status='open' if stage=='initial' else 'won'))
+    db.commit()
+    sign_in(actor)
+    for path, key in [('tasks','assignee_user_id'),('opportunities','owner_user_id')]:
+        response = client.get('/api/crm/'+path,params={key:str(accounts['S1'].id),**({'status':'open'} if path=='opportunities' else {})})
+        assert response.status_code == (403 if actor=='Finance' else 200)
+        if actor != 'Finance':
+            assert len(response.json()) == (1 if visible else 0)
+            other = client.get('/api/crm/'+path,params={key:str(accounts['S3'].id)})
+            assert len(other.json()) == ((1 if path=='tasks' else 2) if actor in {'Owner','Admin'} else 0)
+    assert client.get('/api/crm/tasks?assignee_user_id=invalid').status_code == 422

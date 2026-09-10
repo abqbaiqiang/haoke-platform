@@ -319,11 +319,13 @@ def task_window(view, now=None):
     return None, None
 
 
-def tasks(db, actor, view='today', offset=0):
+def tasks(db, actor, view='today', offset=0, assignee_user_id=None):
     role(actor, {'owner','admin','manager','sales'})
     ids = select(Customer.id).where(Customer.is_active, scope(db, actor, Customer.owner_user_id))
     query = select(Task).where(scope(db, actor, Task.assignee_user_id), or_(Task.customer_id.is_(None),Task.customer_id.in_(ids)))
     query = query.where(Task.status == ('done' if view == 'done' else 'todo'))
+    if assignee_user_id:
+        query = query.where(Task.assignee_user_id == assignee_user_id)
     start,end = task_window(view)
     if start:
         query = query.where(Task.due_at >= start)

@@ -46,7 +46,8 @@ test("M3 target save, workbench, team and CRM navigation", async ({ page }) => {
   await expect(card).toContainText("sales_target.sales_amount_target");
   await expect(page.getByText("统计截至", { exact: false }).first()).toBeVisible();
   await page.getByRole("button", { name: "团队执行", exact: true }).click();
-  await expect(page.getByRole("cell", { name: "123.45", exact: true })).toBeVisible();
+  const salesRow = page.getByRole("row").filter({ has: page.getByRole("button", { name: "demo_sales", exact: true }) });
+  await expect(salesRow.getByRole("cell").nth(1)).toHaveText("123.45");
   await page.getByRole("button", { name: "demo_sales", exact: true }).click();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBeTruthy();
   await page.screenshot({ path: `../../.tools/m3-workbench-${test.info().project.name}.png`, fullPage: true });
@@ -91,7 +92,7 @@ test("M3 imported sales chart, drilldown and explicit source review", async ({ p
   await review.getByRole("button", { name: "保存人工核实结论" }).click();
   expect((await savedResponse).status()).toBe(200);
   expect(await (await page.request.get(`/api/bi/reviews/${src.id}`)).json()).not.toBeNull();
-  await expect(page.getByRole("status")).toContainText("设置已保存");
+  await expect(page.getByRole("status").filter({ hasText: "设置已保存" })).toBeVisible();
   await page.getByRole("button", { name: "退出登录" }).click();
   await login(page, "owner");
   await page.getByRole("button", { name: "销售分析", exact: true }).click();
@@ -113,7 +114,7 @@ test("M3 admin calendar persists and sales request retries", async ({ page }) =>
   await page.getByLabel("该日安排").selectOption("work");
   await page.getByRole("button", { name: "加入日历例外" }).click();
   await page.getByRole("button", { name: "保存日历与参数" }).click();
-  await expect(page.getByRole("status")).toContainText("设置已保存");
+  await expect(page.getByRole("status").filter({ hasText: "设置已保存" })).toBeVisible();
   const saved = await (await page.request.get("/api/bi/settings")).json();
   expect(saved.calendar["2026-09-12"]).toBe(true);
   await page.getByRole("button", { name: "退出登录" }).click();

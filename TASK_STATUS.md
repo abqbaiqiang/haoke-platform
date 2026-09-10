@@ -169,7 +169,19 @@ Formal operating-sales activation remains conditional on verified valid/return/v
 - [x] Frontend/backend/worker started; M3 health HTTP 200; five-role desktop/mobile read-only smoke and both pending finance previews passed
 - [x] Real sales remain unverified; no local targets/calendar/sales attestations were fabricated; isolated browser ports closed
 - [ ] M3 manual acceptance and real sales coverage/status/staff verification
-- [ ] Product brand/category source mapping, continuous monthly trend and richer workbench CRM shortcuts remain follow-ups
+- [ ] Product brand/category source mapping and continuous monthly trend remain follow-ups; CRM shortcuts continued below
 - [ ] Production-scale P95 measurement, Docker/NAS and business acceptance remain pending
 
 Report: `docs/18_M3实施与验收.md`. This task does not confirm real sales/financial policy or advance to M4.
+
+## M3 CRM shortcuts — 2026-09-10
+
+- [x] Today/week/overdue task views and open-opportunity navigation preserve the selected workbench person
+- [x] Optional CRM assignee/owner/status filters narrow existing backend authorization; five-role and cross-team tests
+- [x] Quick followup from customer tasks, including repeated use inside customer detail; task completion remains explicit
+- [x] Form focus and initial list loading protection; existing target test selects the intended person's target column
+- [x] 178 pytest and Ruff passed; no database schema changes
+- [x] Final TypeScript/production build and 21 browser JavaScript secret checks passed
+- [ ] Final desktop/mobile browser regression
+- [x] Local frontend/backend/worker restarted; HTTP 200 health and fresh worker heartbeat; desktop/mobile read-only shortcut and backend parameter smoke passed
+- [ ] Existing manual sales/finance/CRM acceptance and Docker/NAS checks remain pending
