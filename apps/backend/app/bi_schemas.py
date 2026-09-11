@@ -168,6 +168,26 @@ class OrderPage(BaseModel):
     total: int
 
 
+class StructureSlice(BaseModel):
+    label: str
+    amount: str
+    share: str | None = None
+
+
+class PersonRankRow(BaseModel):
+    user_id: UUID
+    name: str
+    amount: str
+    target: str | None = None
+    completion: str | None = None
+
+
+class AttentionItem(BaseModel):
+    name: str
+    kind: str
+    days: int | None = None
+
+
 class Overview(BaseModel):
     month: date
     through: date
@@ -178,3 +198,8 @@ class Overview(BaseModel):
     finance_metrics: list[Metric]
     trend: list[Point]
     updated_at: datetime | None
+    customer_structure: list[StructureSlice] = []
+    product_structure: list[StructureSlice] = []
+    person_ranking: list[PersonRankRow] = []
+    attention_items: list[AttentionItem] = []
+    attention_total: int = 0

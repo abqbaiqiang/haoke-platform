@@ -5,6 +5,7 @@ from uuid import uuid4
 
 import pytest
 
+from app.bi_models import SalesTarget
 from app.data_models import FinancialMetric, FinancialPeriod, ImportBatch
 from test_m3 import NOW, sample  # noqa: F401  (fixture re-export)
 
@@ -163,3 +164,34 @@ def test_verified_overview_excludes_void_and_deducts_returns(db, client, account
     assert by_code(body, 'DQ_SALES_RECON')['value'] == '1800.70'
     assert by_code(body, 'SALE_ORDER_COUNT')['value'] == '8'
     assert by_code(body, 'SALE_CUSTOMER_COUNT')['value'] == '4'
+
+
+@pytest.mark.integration
+def test_owner_dashboard_structure_ranking_and_attention(db, client, accounts, sign_in, sample):  # noqa: F811
+    source, product, customers, add = sample
+    # Give customer levels and a staff target so the dashboard blocks have data.
+    for name, level in [('甲客户', 'A'), ('乙客户', 'B')]:
+        c = customers[name]
+        c.customer_level = level
+    db.add(SalesTarget(user_id=accounts['S1'].id, period_month=date.fromisoformat('2026-09-01'),
+                       sales_amount_target=Decimal('0.50'), created_by=accounts['Owner'].id))
+    db.commit()
+    from test_m3 import review
+    sign_in('Owner')
+    assert review(client, source).status_code == 200
+    body = client.get(f'/api/bi/overview?source_id={source.id}').json()
+    # Customer structure groups by level with shares of the verified total.
+    labels = {s['label'] for s in body['customer_structure']}
+    assert any(v.startswith('A') for v in labels) and any(v.startswith('B') for v in labels)
+    top_product = body['product_structure'][0]
+    assert top_product['label'] == '样品甲' and top_product['amount'] == '1000.30'
+    assert sum(Decimal(s['amount']) for s in body['product_structure']) == Decimal('1000.30')
+    rank = {r['name']: r for r in body['person_ranking']}
+    assert rank['S1']['amount'] == '0.30' and rank['S1']['completion'] == '60.0'
+    assert Decimal(rank['S2']['amount']) == Decimal('100.00') and Decimal(rank['S3']['amount']) == Decimal('900.00')
+    # Attention block: no dormant customers yet, but the block reports its state.
+    assert isinstance(body['attention_total'], int)
+    # Staff role receives no dashboard extras.
+    sign_in('S1')
+    empty = client.get(f'/api/bi/overview?source_id={source.id}').json()
+    assert empty['customer_structure'] == [] and empty['person_ranking'] == []

@@ -1,6 +1,7 @@
 """Scoped CORE/CRM analysis; unverified source reconciliation stays explicitly separate."""
 from collections import defaultdict
 from datetime import date, datetime, time, timedelta
+from decimal import Decimal
 from math import ceil
 from uuid import UUID
 from zoneinfo import ZoneInfo
@@ -118,7 +119,12 @@ def sources(db, actor):
     if actor.role_code not in {'owner', 'admin'}:
         visible = select(SalesOrder.source_system).where(scope(db, actor, SalesOrder.sales_user_id)).distinct()
         query = query.where(DataSource.source_code.in_(visible))
-    return [dto.SourceView(id=s.id, name=s.source_name) for s in db.scalars(query.order_by(DataSource.source_name))]
+    rows = db.scalars(query.order_by(DataSource.source_name)).all()
+    # Dashboards open on the source with actual loaded volume; empty test sources sink to the bottom.
+    totals = dict(db.execute(select(SalesOrder.source_system, func.coalesce(func.sum(SalesOrder.sales_amount), 0))
+                             .group_by(SalesOrder.source_system)).all())
+    rows = sorted(rows, key=lambda s: (totals.get(s.source_code, ZERO) if s.source_code in totals else ZERO), reverse=True)
+    return [dto.SourceView(id=s.id, name=s.source_name) for s in rows]
 
 
 def source(db, actor, sid, config=False):
@@ -587,7 +593,64 @@ def overview(db, actor, source_id):
         amount = sum((order_value(r, cfg, verified) for r in rows if m <= r.order_date <= end), ZERO)
         trend.append(dto.Point(date=m, value=str(amount)))
 
+    # Owner dashboard extras. Everything below reuses the verified-basis orders already loaded.
+    customer_structure: list[dto.StructureSlice] = []
+    product_structure: list[dto.StructureSlice] = []
+    person_ranking: list[dto.PersonRankRow] = []
+    attention_items: list[dto.AttentionItem] = []
+    attention_total = 0
+    if actor.role_code == 'owner':
+        sale_orders = [r for r in current if normal_sale(r, cfg, verified)]
+        customer_amounts = defaultdict(lambda: ZERO)
+        for r in sale_orders:
+            customer_amounts[r.customer_id] += order_value(r, cfg, verified)
+        if customer_amounts and total:
+            levels = defaultdict(lambda: [ZERO, 0])
+            for c in db.scalars(select(Customer).where(Customer.id.in_(customer_amounts))):
+                lv = c.customer_level or '未分级'
+                levels[lv][0] += customer_amounts[c.id]
+                levels[lv][1] += 1
+            for lv, (lv_amount, count) in sorted(levels.items(), key=lambda kv: kv[1][0], reverse=True):
+                customer_structure.append(dto.StructureSlice(label=f'{lv} · {count}家', amount=money(lv_amount),
+                    share=str((lv_amount/total*100).quantize(Decimal('0.1'))) if total else None))
+        normal_ids = [r.id for r in sale_orders]
+        if normal_ids and total:
+            product_sums = db.execute(select(Product.product_name, func.sum(SalesOrderLine.line_amount).label('amount'))
+                .join(SalesOrderLine, SalesOrderLine.product_id == Product.id)
+                .join(SalesOrder, SalesOrder.id == SalesOrderLine.sales_order_id)
+                .where(SalesOrder.id.in_(normal_ids), SalesOrderLine.is_active,
+                       SalesOrderLine.version == SalesOrder.version)
+                .group_by(Product.id, Product.product_name).order_by(func.sum(SalesOrderLine.line_amount).desc())).all()
+            shown = ZERO
+            for name, amount in product_sums[:5]:
+                product_structure.append(dto.StructureSlice(label=name, amount=money(amount),
+                    share=str((amount/total*100).quantize(Decimal('0.1'))) if total else None))
+                shown += amount
+            rest = sum((amount for _, amount in product_sums[5:]), ZERO)
+            if rest:
+                product_structure.append(dto.StructureSlice(label='其他商品', amount=money(rest),
+                    share=str((rest/total*100).quantize(Decimal('0.1')))))
+        rank_people = db.scalars(select(User).where(User.is_active, User.role_code.in_(['sales', 'manager']))).all()
+        amounts_by_user = defaultdict(lambda: ZERO)
+        for r in sale_orders:
+            if r.sales_user_id:
+                amounts_by_user[r.sales_user_id] += order_value(r, cfg, verified)
+        for p in rank_people:
+            amount = amounts_by_user.get(p.id, ZERO)
+            target = db.scalar(select(SalesTarget).where(SalesTarget.user_id == p.id, SalesTarget.period_month == period))
+            target_amount = target.sales_amount_target if target else None
+            person_ranking.append(dto.PersonRankRow(user_id=p.id, name=p.display_name, amount=money(amount),
+                target=money(target_amount),
+                completion=str((amount/target_amount*100).quantize(Decimal('0.1'))) if target_amount not in (None, ZERO) and verified else None))
+        person_ranking.sort(key=lambda row: Decimal(row.amount), reverse=True)
+        page = attention(db, actor, src.id, 0)
+        attention_total = page.total
+        attention_items = [dto.AttentionItem(name=r.name, kind=r.kind, days=r.days) for r in page.rows[:4]]
+
     return dto.Overview(month=period, through=today, verified=verified, warnings=warnings,
                         finance_warnings=finance_warnings, sales_metrics=sales_metrics,
                         finance_metrics=finance_metrics, trend=trend,
+                        customer_structure=customer_structure, product_structure=product_structure,
+                        person_ranking=person_ranking, attention_items=attention_items,
+                        attention_total=attention_total,
                         updated_at=max((r.updated_at for r in rows), default=None))
