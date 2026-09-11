@@ -29,6 +29,16 @@
 - [ ] M4 Business/finance BI + risks — overview first screen delivered (see below); remaining M4 scope not started
 - [ ] M5 Jingdouyun API / AI enhancements
 
+## V1 usage simplification: owner + staff only — 2026-09-11 (ZCode)
+
+User decision: the company runs with the owner and ordinary colleagues only; no manager/finance accounts are needed.
+
+- [x] Owner now performs all day-to-day operations an admin would: data import/confirm, source and staff mapping, finance period confirmation, CRM settings, tag management, BI settings and sales review (backend-enforced; admin role kept for CLI recovery)
+- [x] New staff account management (`/api/staff` + 人员管理 page, owner-only): create/edit/deactivate/reset password; Argon2id hashes; deactivation and password reset revoke live sessions; all changes audited
+- [x] New staff accounts are sales role with strict self scope; browser-verified end-to-end: owner created account, new colleague signed in and saw only their own (empty) workspace
+- [x] 5 new tests; suite total 187 passed; Ruff, TypeScript, production build, secret scan green
+- [x] The five-role permission model in code/tests/docs is unchanged — this is a usage decision, not an architectural removal; manager/finance demo accounts remain available but unused
+
 **Current gate:** M3_CORE_LOCAL_PASSED_BUSINESS_DOCKER_PENDING, M4_OVERVIEW_ONLY. On 2026-09-10 the user completed a manual bug-hunting pass (no major issues; UI/button feedback deferred) and authorized continued development. ZCode implemented the owner overview first screen (`/api/bi/overview` + homepage role-based overview per docs/05 §3.7): source sales reconciliation, finance result/balance cards, six-month trend; finance metrics visible only to owner/finance; no fake zeros. 182 pytest, Ruff, TypeScript, production build, browser secret scan, and live three-role browser verification (owner/sales/finance) passed. M4 purchase/inventory/receivable analysis, risk center and alert parameterization are NOT started (source data unverified). M1/M2/M3 manual acceptance, sales/finance policy decisions and Docker/NAS acceptance remain pending.
 
 ## M4 overview first screen — 2026-09-10 (ZCode)

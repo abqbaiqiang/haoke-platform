@@ -167,7 +167,7 @@ def test_missing_prior_does_not_manufacture_growth(db, client, sign_in, sample):
 
 @pytest.mark.integration
 @pytest.mark.parametrize('actor,allowed,work,write,config', [
-    ('Owner',True,True,True,False), ('Manager',True,True,True,False), ('S1',True,True,False,False),
+    ('Owner',True,True,True,True), ('Manager',True,True,True,False), ('S1',True,True,False,False),
     ('S2',True,False,False,False), ('Finance',True,False,False,False), ('Admin',False,False,False,True)])
 def test_five_role_api_matrix(client, sign_in, accounts, sample, actor, allowed, work, write, config):
     src, _, _, _ = sample

@@ -107,14 +107,14 @@ class FinancialPreview(BaseModel):
 def sources(db: DB, actor: Actor):
     svc.authorize(actor)
     return [{'id': s.id, 'source_code': s.source_code, 'source_name': s.source_name, 'entity_name': s.entity_name,
-             'last_success_at': s.last_success_at, 'staff': s.config_json.get('staff', {}) if actor.role_code == 'admin' else {}}
+             'last_success_at': s.last_success_at, 'staff': s.config_json.get('staff', {}) if actor.role_code in {'admin', 'owner'} else {}}
             for s in db.scalars(select(DataSource).where(DataSource.is_enabled).order_by(DataSource.created_at))]
 
 
 @router.post('/sources', status_code=201)
 def create_source(payload: SourceCreate, db: DB, actor: Actor):
-    if actor.role_code != 'admin':
-        raise HTTPException(403, '仅管理员可创建数据源')
+    if actor.role_code not in {'admin', 'owner'}:
+        raise HTTPException(403, '仅老板或管理员可创建数据源')
     obj = DataSource(**payload.model_dump())
     db.add(obj)
     try:
@@ -129,15 +129,15 @@ def create_source(payload: SourceCreate, db: DB, actor: Actor):
 
 @router.get('/mapping-users')
 def mapping_users(db: DB, actor: Actor):
-    if actor.role_code != 'admin':
-        raise HTTPException(403, '仅管理员可配置账号映射')
+    if actor.role_code not in {'admin', 'owner'}:
+        raise HTTPException(403, '仅老板或管理员可配置账号映射')
     return [{'id': u.id, 'username': u.username, 'display_name': u.display_name} for u in db.scalars(select(User).where(User.is_active))]
 
 
 @router.put('/sources/{source_id}/staff')
 def staff_config(source_id: uuid.UUID, payload: SourceConfig, db: DB, actor: Actor):
-    if actor.role_code != 'admin':
-        raise HTTPException(403, '仅管理员可配置账号映射')
+    if actor.role_code not in {'admin', 'owner'}:
+        raise HTTPException(403, '仅老板或管理员可配置账号映射')
     src = svc.source(db, source_id, True)
     for name, user_id in payload.staff.items():
         target = db.get(User, user_id)
@@ -281,8 +281,8 @@ def periods(db: DB, actor: Actor, source_id: uuid.UUID):
 
 @router.patch('/finance/periods/{period_id}')
 def close_period(period_id: uuid.UUID, payload: PeriodConfirmation, db: DB, actor: Actor):
-    if actor.role_code != 'admin':
-        raise HTTPException(403, '仅管理员可确认或解除财务期间确认')
+    if actor.role_code not in {'admin', 'owner'}:
+        raise HTTPException(403, '仅老板或管理员可确认或解除财务期间确认')
     period = db.get(FinancialPeriod, period_id)
     if not period:
         raise HTTPException(404, '期间不存在')

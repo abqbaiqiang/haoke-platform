@@ -179,3 +179,7 @@ app.include_router(crm_router)
 from app.bi_api import router as bi_router  # noqa: E402
 
 app.include_router(bi_router)
+
+from app.user_api import router as user_router  # noqa: E402
+
+app.include_router(user_router)

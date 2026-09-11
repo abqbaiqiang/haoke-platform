@@ -20,8 +20,9 @@ FINANCE = {'profit', 'balance_sheet'}
 
 
 def authorize(user, kind=None, write=False):
-    permitted = user.role_code == 'admin' or (user.role_code == 'owner' and not write)
-    permitted |= user.role_code == 'finance' and (kind is None or kind in FINANCE)
+    # V1 usage decision (2026-09-10): the company runs with owner + sales accounts only,
+    # so the owner performs all day-to-day data-center operations an admin would.
+    permitted = user.role_code in {'admin', 'owner'} or (user.role_code == 'finance' and (kind is None or kind in FINANCE))
     if not permitted:
         raise HTTPException(403, '无此数据中心操作权限')
 

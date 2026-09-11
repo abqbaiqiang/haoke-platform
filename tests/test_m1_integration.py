@@ -84,7 +84,7 @@ def test_missing_reference_or_bad_total_never_writes_fact(setup_m1, db):
     assert db.scalar(select(func.count()).select_from(SalesOrder)) == 0
 
 
-@pytest.mark.parametrize('name,status', [('Owner', 403), ('Manager', 403), ('S1', 403), ('Finance', 403), ('Admin', 201)])
+@pytest.mark.parametrize('name,status', [('Owner', 201), ('Manager', 403), ('S1', 403), ('Finance', 403), ('Admin', 201)])
 def test_sales_upload_roles(client, setup_m1, sign_in, name, status):
     source, _, _ = setup_m1
     sign_in(name)
@@ -179,7 +179,7 @@ def test_changed_mapping_requires_new_precheck(client, setup_m1, accounts):
 def test_batch_write_denied_and_unknown_resource(client, setup_m1, sign_in):
     _, upload, _ = setup_m1
     b = upload('sales', sales())
-    for name in ['Owner', 'Manager', 'S1']:
+    for name in ['Manager', 'S1']:
         sign_in(name)
         assert client.post(f"/api/data/imports/{b['id']}/confirm", json={}).status_code in {403, 404}
     assert client.get(f'/api/data/imports/{uuid4()}').status_code == 404

@@ -54,7 +54,7 @@ def audit(db, actor, action, obj, before, after):
 
 
 def save_settings(db, actor, payload):
-    require(actor, {'admin'})
+    require(actor, {'admin', 'owner'})
     for uid in payload.personal_calendar:
         if not db.get(User, uid):
             raise HTTPException(422, '人员日历包含无效账号')
@@ -67,7 +67,7 @@ def save_settings(db, actor, payload):
 
 
 def people(db, actor, config=False):
-    if config and actor.role_code == 'admin':
+    if config and actor.role_code in {'admin', 'owner'}:
         condition = True
     else:
         require(actor, {'owner', 'manager', 'sales'})
@@ -77,7 +77,7 @@ def people(db, actor, config=False):
 
 
 def person(db, actor, uid, admin_read=False):
-    if not (admin_read and actor.role_code == 'admin'):
+    if not (admin_read and actor.role_code in {'admin', 'owner'}):
         require(actor, {'owner', 'manager', 'sales'})
         if not can_read_owned(services.principal_for(db, actor), uid):
             raise HTTPException(404, '人员不存在或无权访问')
@@ -123,7 +123,7 @@ def sources(db, actor):
 
 def source(db, actor, sid, config=False):
     if config:
-        require(actor, {'owner', 'admin'})
+        require(actor, {'owner', 'admin'})  # owner now manages source reviews directly (V1 usage decision)
     else:
         require(actor, {'owner', 'manager', 'sales', 'finance'})
     obj = db.get(DataSource, sid)
@@ -142,7 +142,7 @@ def latest_fact(db, src):
 
 
 def save_review(db, actor, sid, payload):
-    require(actor, {'admin'})
+    require(actor, {'admin', 'owner'})
     src = source(db, actor, sid, True)
     # The importer locks this same source before changing facts. Serialize the attestation with it.
     db.execute(select(DataSource.id).where(DataSource.id == sid).with_for_update())

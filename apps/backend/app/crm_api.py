@@ -29,7 +29,7 @@ def settings(db: DB, actor: Actor):
 
 @router.put('/settings', response_model=dto.Settings)
 def update_settings(payload: dto.Settings, db: DB, actor: Actor):
-    svc.role(actor, {'admin'})
+    svc.role(actor, {'admin', 'owner'})
     obj = db.get(CRMSetting, 1)
     before = obj.value if obj else dto.Settings().model_dump()
     if not obj:
@@ -147,10 +147,10 @@ def tags(db: DB, actor: Actor):
 
 
 def save_tag(db,actor,payload,tid=None):
-    allowed = {'admin'} | ({'sales','manager'} if not tid and svc.settings(db).sales_create_tags else set())
+    allowed = {'admin', 'owner'} | ({'sales','manager'} if not tid and svc.settings(db).sales_create_tags else set())
     svc.role(actor,allowed)
-    if not tid and actor.role_code != 'admin' and not payload.is_active:
-        raise HTTPException(403,'仅管理员可停用标签')
+    if not tid and actor.role_code not in {'admin', 'owner'} and not payload.is_active:
+        raise HTTPException(403,'仅老板或管理员可停用标签')
     obj = db.get(Tag,tid) if tid else Tag(created_by=actor.id)
     if not obj:
         raise HTTPException(404,'标签不存在')
