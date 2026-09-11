@@ -92,11 +92,17 @@ def patch_staff(user_id: uuid.UUID, payload: StaffPatch, db: Session = DB, actor
         raise HTTPException(404, '同事账号不存在')
     before = {'display_name': user.display_name, 'mobile': user.mobile, 'is_active': user.is_active}
     changes = payload.model_dump(exclude_unset=True)
+    # Explicit nulls for non-nullable fields are a validation error, not a silent write.
+    for key in ('display_name', 'is_active'):
+        if key in changes and changes[key] is None:
+            raise HTTPException(422, f'{key} 不能为空')
+    password_reset = False
     if 'new_password' in changes:
         try:
             user.password_hash = hash_password(changes.pop('new_password'))
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from None
+        password_reset = True
         db.execute(update(LoginSession).where(LoginSession.user_id == user.id, LoginSession.revoked_at.is_(None))
                    .values(revoked_at=utcnow()))
     for key in ('display_name', 'mobile', 'is_active'):
@@ -105,7 +111,12 @@ def patch_staff(user_id: uuid.UUID, payload: StaffPatch, db: Session = DB, actor
     if not user.is_active:
         db.execute(update(LoginSession).where(LoginSession.user_id == user.id, LoginSession.revoked_at.is_(None))
                    .values(revoked_at=utcnow()))
-    audit(db, actor.id, 'staff_account_update', user.id, {'before': before, 'changed': sorted(changes)})
+    details = {'before': before, 'changed': sorted(changes)}
+    if password_reset:
+        # Record the reset action explicitly; never the password itself.
+        details['password_reset'] = True
+        details['sessions_revoked'] = True
+    audit(db, actor.id, 'staff_account_update', user.id, details)
     db.commit()
     db.refresh(user)
     return user

@@ -80,11 +80,11 @@ export default function Staff() {
           <button disabled={busy} onClick={() => act(() => api(`/${s.id}`, "PATCH", { is_active: !s.is_active }), s.is_active ? "账号已停用，同事立即无法登录" : "账号已重新启用")}>{s.is_active ? "停用" : "启用"}</button></>}
       </td></tr>)}
     </tbody></table></div>{!list.length && <p>还没有同事账号，点击上方按钮创建。</p>}</section>
-    {editing && editing !== "new" && <section className="card"><h2>编辑：{(editing as Staff).display_name}</h2><form onSubmit={saveEdit}><div className="bi-form-grid">
+    {editing && editing !== "new" && <section className="card" key={`edit-${(editing as Staff).id}`}><h2>编辑：{(editing as Staff).display_name}</h2><form onSubmit={saveEdit} key={`edit-form-${(editing as Staff).id}`}><div className="bi-form-grid">
       <label>姓名<input name="display_name" required maxLength={100} defaultValue={(editing as Staff).display_name} /></label>
       <label>手机号（可空）<input name="mobile" maxLength={32} defaultValue={(editing as Staff).mobile || ""} /></label>
     </div><button className="primary" disabled={busy}>保存</button> <button type="button" onClick={() => setEditing(null)}>取消</button></form></section>}
-    {passwordFor && <section className="card"><h2>重置密码：{passwordFor.display_name}</h2><form onSubmit={resetPassword}><div className="bi-form-grid">
+    {passwordFor && <section className="card" key={`pwd-${(passwordFor as Staff).id}`}><h2>重置密码：{(passwordFor as Staff).display_name}</h2><form onSubmit={resetPassword} key={`pwd-form-${(passwordFor as Staff).id}`}><div className="bi-form-grid">
       <label>新密码（至少 12 位）<input name="password" type="password" required minLength={12} maxLength={128} autoComplete="new-password" /></label>
     </div><button className="primary" disabled={busy}>确认重置</button> <button type="button" onClick={() => setPasswordFor(null)}>取消</button></form></section>}
     <p className="muted">停用同事不会删除任何业务数据；其名下客户与历史记录全部保留。账号操作均记录审计日志。</p>

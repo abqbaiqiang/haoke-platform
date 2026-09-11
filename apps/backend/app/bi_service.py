@@ -525,15 +525,20 @@ def overview(db, actor, source_id):
 
     current = [r for r in rows if period <= r.order_date <= today]
     prior = [r for r in rows if previous <= r.order_date <= month_end(previous)]
-    total = sum((r.sales_amount for r in current), ZERO)
-    old_total = sum((r.sales_amount for r in prior), ZERO)
-    sales_customers = {r.customer_id for r in current}
-    verified = False  # Overview always shows source reconciliation; verified figures stay in the workbench.
+    # V1 review fix: once the source scope review is confirmed, the overview uses the
+    # verified EXEC_SALES_AMT formula (exclude voided, returns negative). Before that it
+    # stays an explicitly-labelled source reconciliation, never presented as verified.
+    verified = ready
+    total = sum((order_value(r, cfg, verified) for r in current), ZERO)
+    old_total = sum((order_value(r, cfg, verified) for r in prior), ZERO)
+    sales_orders = [r for r in current if normal_sale(r, cfg, verified)]
+    sales_customers = {r.customer_id for r in sales_orders}
     sales_metrics = [
-        metric('DQ_SALES_RECON' if not verified else 'EXEC_SALES_AMT', '源销售核对金额（本月）', total, reason=why if not ready else None),
-        metric('SALE_ORDER_COUNT', '源订单数（本月）', len(current), '单'),
+        metric('EXEC_SALES_AMT' if verified else 'DQ_SALES_RECON', '经营销售额（本月）' if verified else '源销售核对金额（本月）',
+               total, reason=why if not ready else None),
+        metric('SALE_ORDER_COUNT', '销售订单数（本月）' if verified else '源订单数（本月）', len(sales_orders), '单'),
         metric('SALE_CUSTOMER_COUNT', '成交客户数（本月）', len(sales_customers), '个'),
-        metric('SALE_MOM', '销售额环比', (total-old_total)/old_total*100 if old_total and prior_ready else None, '%',
+        metric('SALE_MOM', '销售额环比', (total-old_total)/old_total*100 if old_total and (not verified or prior_ready) else None, '%',
                '基期缺失、为零或完整覆盖未确认'),
     ]
 
@@ -574,12 +579,12 @@ def overview(db, actor, source_id):
         if profit and not finance_periods.get(period).is_closed:
             finance_warnings.append('本月财务期间尚未确认，数值为待确认版本')
 
-    # Six-month trend of monthly source sales for the line chart.
+    # Six-month trend uses the same basis as the headline figure.
     trend = []
     for i in range(5, -1, -1):
         m = shift_month(period, -i)
         end = min(today, month_end(m))
-        amount = sum((r.sales_amount for r in rows if m <= r.order_date <= end), ZERO)
+        amount = sum((order_value(r, cfg, verified) for r in rows if m <= r.order_date <= end), ZERO)
         trend.append(dto.Point(date=m, value=str(amount)))
 
     return dto.Overview(month=period, through=today, verified=verified, warnings=warnings,

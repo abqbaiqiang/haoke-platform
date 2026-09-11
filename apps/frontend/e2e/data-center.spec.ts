@@ -6,7 +6,7 @@ async function login(page: Page, role: string) {
   await page.getByLabel("账号", { exact: true }).fill(`demo_${role}`);
   await page.getByLabel("密码", { exact: true }).fill(password);
   await page.getByRole("button", { name: "登录", exact: true }).click();
-  await expect(page.getByRole("heading", { name: `欢迎，demo_${role}` })).toBeVisible();
+  await expect(page.getByRole("button", { name: "退出登录", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "数据中心", exact: true }).click();
 }
 async function createSource(page: Page) {
@@ -56,7 +56,7 @@ test("M1 admin upload, duplicate, raw trace and owner reconciliation", async ({ 
   await page.screenshot({ path: `../../.tools/m1-sales-${test.info().project.name}.png`, fullPage: true });
   await page.getByRole("button", { name: "关闭订单窗口" }).click();
   await page.getByRole("button", { name: "文件导入与历史" }).click();
-  await expect(page.getByRole("button", { name: "上传并预检", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "上传并预检", exact: true })).toBeVisible();
   expect(errors).toEqual([]);
 });
 

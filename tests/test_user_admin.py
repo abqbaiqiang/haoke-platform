@@ -96,3 +96,24 @@ def test_owner_write_path_across_data_center_and_bi_config(db, client, accounts,
     assert client.get('/api/data/mapping-users').status_code == 403
     assert client.put('/api/crm/settings', json={}).status_code == 403
     assert client.put('/api/bi/settings', json={}).status_code == 403
+
+
+@pytest.mark.integration
+def test_null_fields_are_422_and_password_reset_is_audited(db, client, accounts, sign_in):
+    from app.models import ActivityLog
+    sign_in('Owner')
+    created = client.post('/api/staff', json=create_payload('colleague5')).json()
+    uid = created['id']
+    # Explicit nulls for non-nullable fields must fail validation, not 500 or erase data.
+    for body in [{'display_name': None}, {'is_active': None}, {'display_name': None, 'mobile': None}]:
+        assert client.patch(f'/api/staff/{uid}', json=body).status_code == 422
+    assert client.get('/api/staff').json()[0]  # list still fine
+    row = next(u for u in client.get('/api/staff').json() if u['id'] == uid)
+    assert row['display_name'] == '同事一号' and row['is_active'] is True
+    # Password reset is recorded as an explicit action with session revocation.
+    assert client.patch(f'/api/staff/{uid}', json={'new_password': 'Another-pass-2026x'}).status_code == 200
+    events = db.scalars(select(ActivityLog).where(ActivityLog.activity_type == 'staff_account_update',
+        ActivityLog.object_id == uid)).all()
+    assert any(e.details.get('password_reset') and e.details.get('sessions_revoked') for e in events)
+    # mobile may be explicitly cleared to null (nullable column).
+    assert client.patch(f'/api/staff/{uid}', json={'mobile': None}).status_code == 200

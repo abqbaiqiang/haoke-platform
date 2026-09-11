@@ -125,3 +125,41 @@ def test_overview_without_finance_reports_and_unconfirmed_period(db, client, acc
     body = client.get(f'/api/bi/overview?source_id={source.id}').json()
     assert by_code(body, 'EXEC_FIN_REVENUE')['value'] == '100.00'
     assert any('尚未确认' in w for w in body['finance_warnings'])
+
+
+@pytest.mark.integration
+def test_verified_overview_excludes_void_and_deducts_returns(db, client, accounts, sign_in, sample):  # noqa: F811
+    """Regression for review findings 1+2: returns deducted, void excluded, counts consistent."""
+    source, _, _, add = sample
+    # September: two normal sales (0.10 + 0.20), one return (0.10), one voided 800 order.
+    add('甲客户', '0.10', '2026-09-01')
+    add('甲客户', '0.20', '2026-09-02')
+    add('甲客户', '0.10', '2026-09-03', status='return')
+    add('作废客户', '800.00', '2026-09-04', 'S1', status='void')
+    from test_m3 import review
+    sign_in('Owner')
+    assert review(client, source).status_code == 200
+    body = client.get(f'/api/bi/overview?source_id={source.id}').json()
+    # Sample base (1000.30) + 0.10 + 0.20 - 0.10 return; void 800 excluded.
+    assert by_code(body, 'EXEC_SALES_AMT')['value'] == '1000.50'
+    assert by_code(body, 'SALE_ORDER_COUNT')['value'] == '6'
+    assert by_code(body, 'SALE_CUSTOMER_COUNT')['value'] == '3'
+    assert all(m['code'] != 'DQ_SALES_RECON' for m in body['sales_metrics'])
+    # Reconciliation difference now computed against the verified formula.
+    batch = fin_period(db, source, '2026-09-01', actor=accounts['Admin'])
+    fin_metric(db, batch, '2026-09-01', 'profit', 'revenue', period_value=Decimal('1000.00'))
+    db.commit()
+    body = client.get(f'/api/bi/overview?source_id={source.id}').json()
+    assert by_code(body, 'EXEC_RECON_DIFF')['value'] == '0.50'
+    # Unverified overview keeps the raw source reconciliation labelled as such.
+    sign_in('Owner')
+    review_off = client.put(f'/api/bi/reviews/{source.id}', json={
+        'coverage_from': '2025-01-01', 'coverage_to': '2026-09-09', 'valid_statuses': ['valid'],
+        'staff_mapping_complete': True, 'full_history': True, 'reason': '人工夹具已验证，非真实业务数据',
+        'acknowledge_export_scope': True, 'excluded_statuses': [], 'return_statuses': []})
+    assert review_off.status_code == 200
+    body = client.get(f'/api/bi/overview?source_id={source.id}').json()
+    # Unverified: every raw row counts (1000.30 + 0.10 + 0.20 + 0.10 + 800.00).
+    assert by_code(body, 'DQ_SALES_RECON')['value'] == '1800.70'
+    assert by_code(body, 'SALE_ORDER_COUNT')['value'] == '8'
+    assert by_code(body, 'SALE_CUSTOMER_COUNT')['value'] == '4'

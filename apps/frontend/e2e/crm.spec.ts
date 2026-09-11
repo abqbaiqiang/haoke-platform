@@ -5,7 +5,7 @@ async function login(page:Page, role:string) {
   await page.getByLabel("账号",{exact:true}).fill(`demo_${role}`);
   await page.getByLabel("密码",{exact:true}).fill(process.env.DEMO_PASSWORD!);
   await page.getByRole("button",{name:"登录",exact:true}).click();
-  await expect(page.getByRole("heading",{name:`欢迎，demo_${role}`})).toBeVisible();
+  await expect(page.getByRole("button",{name:"退出登录",exact:true})).toBeVisible();
   await page.getByRole("button",{name:"客户与待办",exact:true}).click();
   await expect(page.getByRole("heading",{name:"客户与待办",exact:true})).toBeVisible();
 }

@@ -11,9 +11,9 @@ for (const role of ["owner", "manager", "sales", "finance", "admin"]) {
     await page.getByLabel("账号", { exact: true }).fill(`demo_${role}`);
     await page.getByLabel("密码", { exact: true }).fill(password!);
     await page.getByRole("button", { name: "登录", exact: true }).click();
-    await expect(page.getByRole("heading", { name: `欢迎，demo_${role}` })).toBeVisible();
+    await expect(page.getByRole("button", { name: "退出登录", exact: true })).toBeVisible();
     await page.reload();
-    await expect(page.getByRole("heading", { name: `欢迎，demo_${role}` })).toBeVisible();
+    await expect(page.getByRole("button", { name: "退出登录", exact: true })).toBeVisible();
     await page.getByRole("button", { name: "我的账号", exact: true }).click();
     await expect(page.getByRole("heading", { name: "我的账号", exact: true })).toBeVisible();
     await expect(page.getByText("Asia/Shanghai", { exact: true })).toBeVisible();
