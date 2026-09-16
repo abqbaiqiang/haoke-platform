@@ -1,5 +1,12 @@
 # Changelog
 
+## C1 护栏 3/4：E2E 入口 APP_ENV 环境检查 - 2026-09-16
+
+- **审计 P2-28**：`scripts/run_e2e.py` 启动时校验 `APP_ENV=development`，非 development（含未设置）直接拒绝退出——此前该脚本会无条件对 `DATABASE_URL` 执行 `DELETE FROM sys_login_throttle` 并改写业务数据，存在对生产库误跑的风险。已验证：staging 下拒绝退出（exit 1），development 下 E2E 全量通过。
+- **验证**：pytest 全量 263 通过；E2E 38 通过。
+
+# Changelog
+
 ## C1 护栏 2/4：全角括号重名回归测试 - 2026-09-16
 
 - **审计 P1-05 护栏**：新增 `tests/test_crm_pool_entry.py::test_full_width_parenthesis_duplicate_flag`——同一客户名分别以全角 `（）` 与半角 `()` 建档，双向断言 `duplicate_warning` 命中（全角先建→半角告警；半角先建→全角告警），防止 `crm_service.normalize_name` 的括号归一化被未来改动破坏。代码行为未改动。

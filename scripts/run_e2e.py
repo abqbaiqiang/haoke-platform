@@ -8,6 +8,9 @@ from e2e_fixtures import prepare
 
 root = Path(__file__).resolve().parents[1]
 load_dotenv(root / ".env")
+# E2E 会清空 sys_login_throttle 并改写业务数据，仅在 development 环境允许（审计 P2-28）。
+if os.environ.get("APP_ENV") != "development":
+    sys.exit(f"run_e2e.py 拒绝运行：APP_ENV={os.environ.get('APP_ENV') or '(未设置)'}，仅 development 环境允许执行 E2E")
 os.environ.setdefault("E2E_BASE_URL", os.environ["APP_BASE_URL"])
 # 重复运行会触发登录限流（15 分钟锁），e2e 开始前清空节流记录，保证用例确定性。
 sys.path.insert(0, str(root / "apps" / "backend"))  # noqa: E402
