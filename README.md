@@ -1,6 +1,6 @@
 # 松茂经营管理平台
 
-精斗云之上的公司内部经营管理平台。当前实现 **M0 工程骨架、M1 数据中心、M2 轻量 CRM 及 M3 销售工作台与分析**：导入与月度核对、客户过程、目标、工作日历、销售贡献和团队执行。财务/采购/库存专题、AI 与精斗云 API 留在后续里程碑。人工业务验收和 Docker/NAS 补验状态以 TASK_STATUS 为准。
+精斗云之上的公司内部经营管理平台。当前实现：数据中心（导入与月度核对）、轻量 CRM、销售工作台与个人 BI（销售/客户分析）、经营驾驶舱、人员管理，以及销售员端 V1.1（执行闭环、客户分层、过程指标）。财务/采购/库存专题、AI 与精斗云 API 留在后续里程碑。人工业务验收和 Docker/NAS 补验状态以 TASK_STATUS 为准。
 
 技术栈：Next.js / React / TypeScript、FastAPI / SQLAlchemy / Pydantic、PostgreSQL、Alembic、worker、Caddy、Docker Compose。
 
