@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import type { CRMEntry } from "./crm-navigation";
+import { compact, dateTime, money } from "./lib/format";
 type Metric = { definition: string; source: string; code: string; label: string; value: string | null; unit: string; reason: string | null };
 type Point = { date: string; value: string };
 type Ranking = { user_id: string; name: string; amount: string; target: string | null; completion: string | null };
@@ -15,18 +16,6 @@ type OverviewData = {
 type Source = { id: string; name: string };
 /** 完成率低于该值时以琥珀色提示，仅为阅读帮助，不参与任何指标计算，也不改写口径。 */
 const BEHIND_RATE = 75;
-function money(value: string | null | undefined) {
-  if (value === null || value === undefined) return "—";
-  const negative = value.startsWith("-");
-  const [whole, fraction = ""] = (negative ? value.slice(1) : value).split(".");
-  return (negative ? "-" : "") + whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",") + "." + fraction.padEnd(2, "0");
-}
-/** 图表轴与柱顶的紧凑金额，避免长数字把画布撑破。 */
-function compact(value: number) {
-  if (!Number.isFinite(value)) return "—";
-  if (Math.abs(value) >= 10000) return `${(value / 10000).toFixed(1)}万`;
-  return String(Math.round(value));
-}
 function MetricCard({ metric }: { metric: Metric }) {
   return <section className="cockpit-stat" aria-label={metric.label}>
     <span>{metric.label.replace("（本月）", "")}</span>
@@ -254,7 +243,7 @@ export default function Overview({ role, openBI, openCRM }: { role: string; open
         <h1>经营驾驶舱</h1>
         {data && <div className="cockpit-trust">
           <span className={data.verified ? "status-ready" : "status-pending"}>{data.verified ? "销售口径已核实" : "待业务核实"}</span>
-          <span className="trust-meta">截至 {data.through}{data.updated_at ? ` · 更新 ${new Intl.DateTimeFormat("zh-CN", { timeZone: "Asia/Shanghai", dateStyle: "short", timeStyle: "short" }).format(new Date(data.updated_at))}` : ""}</span>
+          <span className="trust-meta">截至 {data.through}{data.updated_at ? ` · 更新 ${dateTime(data.updated_at)}` : ""}</span>
           {!!data.warnings.length && <details className="trust-warnings"><summary>数据状态与比较说明</summary>{data.warnings.map(w => <p key={w}>{w}</p>)}</details>}
         </div>}
       </div>

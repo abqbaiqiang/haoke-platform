@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
 import type { CRMEntry } from "./crm-navigation";
 import CustomerAnalyticsPanel from "./customer-analytics";
+import { compact, currentMonth, dateTime, money, signedMoney as signed } from "./lib/format";
 
 type Role = "owner" | "manager" | "sales" | "finance" | "admin";
 type Person = { id: string; name: string };
@@ -16,7 +17,6 @@ type Review = { coverage_from: string; coverage_to: string; valid_statuses: stri
 type OrderPage = { rows: { id: string; number: string; date: string; amount: string; status: string }[]; total: number };
 type Detail = { order_no: string; amount: string; customer: string; lines: { line_no: number; quantity: string; amount: string }[] };
 
-const currentMonth = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Shanghai", year: "numeric", month: "2-digit" }).format(new Date()).slice(0, 7);
 const value = (v: string | null | undefined) => v == null ? "—" : v;
 const actionNames: Record<string, string> = { followup_create: "新增跟进", followup_update: "修改跟进", task_complete: "完成待办", opportunity_create: "新增商机", opportunity_update: "更新商机", customer_update: "维护客户", contact_create: "新增联系人", contact_update: "修改联系人" };
 
@@ -53,22 +53,6 @@ function Pages({ offset, total, size, onChange }: { offset: number; total: numbe
   return <div className="bi-pages"><button disabled={!offset} onClick={() => onChange(Math.max(0, offset - size))}>上一页</button><span>第 {Math.floor(offset / size) + 1} 页 · 共 {total} 项</span><button disabled={offset + size >= total} onClick={() => onChange(offset + size)}>下一页</button></div>;
 }
 
-/** 金额补千分位；后端已按两位小数量化，前端只做展示换算。 */
-function amount(v: string | null | undefined) {
-  if (v === null || v === undefined) return "—";
-  const negative = v.startsWith("-");
-  const [whole, fraction = ""] = (negative ? v.slice(1) : v).split(".");
-  return (negative ? "-" : "") + whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",") + "." + fraction.padEnd(2, "0");
-}
-function signed(v: string) {
-  const negative = v.startsWith("-");
-  return `${negative ? "−" : "+"}${amount(negative ? v.slice(1) : v)}`;
-}
-/** 图表轴与柱顶的紧凑金额，避免长数字把画布撑破。 */
-function compact(v: number) {
-  if (!Number.isFinite(v)) return "—";
-  return Math.abs(v) >= 10000 ? `${(v / 10000).toFixed(1)}万` : String(Math.round(v));
-}
 /** 百分比指标直接作为条长（0–100），不额外推导任何比例。 */
 function rate(value: string | null) {
   if (value === null) return null;
@@ -125,7 +109,7 @@ function DailyTrend({ points, month, through }: { points: Analysis["trend"]; mon
       <p className="muted">{month.slice(0, 7)} 每日金额 · 统计截至 {through}{incomplete ? " · 本月为未完月" : ""}</p>
     </div></div>
     <div ref={element} className="bi-chart" role="img" aria-label={`${month.slice(0, 7)} 每日销售金额趋势，峰值与最新一天已标注，下方可展开精确金额`} />
-    <details><summary>查看每日精确金额</summary><div className="bi-table-wrap"><table><thead><tr><th>日期</th><th>金额（元）</th></tr></thead><tbody>{points.map(p => <tr key={p.date}><td>{p.date}</td><td>{amount(p.value)}</td></tr>)}</tbody></table></div></details>
+    <details><summary>查看每日精确金额</summary><div className="bi-table-wrap"><table><thead><tr><th>日期</th><th>金额（元）</th></tr></thead><tbody>{points.map(p => <tr key={p.date}><td>{p.date}</td><td>{money(p.value)}</td></tr>)}</tbody></table></div></details>
   </section>;
 }
 
@@ -144,10 +128,10 @@ function Comparison({ rows }: { rows: { label: string; metric?: Metric }[] }) {
   return <div className="sa-compare">
     {rows.map((r, i) => <div className={`sa-cmp${i === 0 ? " is-current" : ""}`} key={r.label}>
       <span className="sa-cmp-label">{r.label}</span>
-      <span className="sa-cmp-track" role="img" aria-label={r.metric?.value == null ? `${r.label} 暂不可用` : `${r.label} ${amount(r.metric.value)} 元`}>
+      <span className="sa-cmp-track" role="img" aria-label={r.metric?.value == null ? `${r.label} 暂不可用` : `${r.label} ${money(r.metric.value)} 元`}>
         <i style={{ width: `${values[i] === null || max === 0 ? 0 : Math.max(1, values[i]! / max * 100)}%` }} />
       </span>
-      <span className="sa-cmp-value">{r.metric?.value == null ? "—" : <>{amount(r.metric.value)}<small>元</small></>}</span>
+      <span className="sa-cmp-value">{r.metric?.value == null ? "—" : <>{money(r.metric.value)}<small>元</small></>}</span>
       {r.metric?.value == null && r.metric?.reason && <small className="sa-cmp-reason">{r.metric.reason}</small>}
     </div>)}
   </div>;
@@ -163,7 +147,7 @@ function SalesHero({ data }: { data: Analysis }) {
   return <section className="card sa-hero" aria-label={hero.label}>
     <div className="sa-hero-main">
       <span>{hero.label}</span>
-      <strong className="sa-value">{hero.value === null ? "—" : <>{amount(hero.value)}<small>元</small></>}</strong>
+      <strong className="sa-value">{hero.value === null ? "—" : <>{money(hero.value)}<small>元</small></>}</strong>
       <div className="sa-deltas">
         <Delta label="环比" metric={mom} />
         <Delta label="同比" metric={yoy} />
@@ -181,7 +165,7 @@ function SalesHero({ data }: { data: Analysis }) {
     <dl className="sa-kpis">
       {order && <div><dt>销售订单数</dt><dd>{order.value === null ? "—" : <>{order.value}<small>单</small></>}</dd></div>}
       {customer && <div><dt>成交客户数</dt><dd>{customer.value === null ? "—" : <>{customer.value}<small>个</small></>}</dd></div>}
-      {aov && <div><dt>平均客单价</dt><dd>{aov.value === null ? "—" : <>{amount(aov.value)}<small>元</small></>}</dd></div>}
+      {aov && <div><dt>平均客单价</dt><dd>{aov.value === null ? "—" : <>{money(aov.value)}<small>元</small></>}</dd></div>}
     </dl>
   </section>;
 }
@@ -196,14 +180,14 @@ function SalesAnalysis({ data, dimension, offset, onPage, onDrill }: { data: Ana
     <div className="sa-status">
       <h2 className="sa-basis">{data.basis} · {data.month.slice(0, 7)}</h2>
       <span className={data.verified ? "status-ready" : "status-pending"}>{data.verified ? "口径已核实" : "待业务核实"}</span>
-      <span className="sa-meta">统计截至 {data.through} · 对比 {data.previous_month.slice(0, 7)} 完整月 · 最近事实更新 {data.updated_at ? new Date(data.updated_at).toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" }) : "暂无"}</span>
+      <span className="sa-meta">统计截至 {data.through} · 对比 {data.previous_month.slice(0, 7)} 完整月 · 最近事实更新 {data.updated_at ? dateTime(data.updated_at) : "暂无"}</span>
     </div>
     <Notes notes={data.warnings} />
     <div className="bi-metrics sa-metrics">
       <SalesHero data={data} />
       {strip.map((m, i) => <section className="card sa-stat" key={`${m.code}-${i}`}>
         <span>{m.label}</span>
-        <strong>{m.value === null ? "—" : m.unit === "元" ? amount(m.value) : m.value}{m.value !== null && <small> {m.unit}</small>}</strong>
+        <strong>{m.value === null ? "—" : m.unit === "元" ? money(m.value) : m.value}{m.value !== null && <small> {m.unit}</small>}</strong>
         {rate(m.value) !== null && <span className="sa-bar" role="img" aria-label={`${m.label} ${m.value}%`}><i style={{ width: `${rate(m.value)}%` }} /></span>}
         {m.reason && <p className="muted">{m.reason}</p>}
         <details><summary>口径说明</summary><p>{m.definition || m.label} · {m.code}</p><p>来源：{m.source || "标准化业务数据"}</p></details>
@@ -223,23 +207,23 @@ function SalesAnalysis({ data, dimension, offset, onPage, onDrill }: { data: Ana
         const width = r.change === null || max === 0 ? 0 : Math.abs(Number(r.change)) / max * 100;
         return <tr key={r.id}>
           <td>{r.name}</td>
-          <td className="sa-num">{amount(r.current)}</td>
-          <td className="sa-num">{r.previous === null ? "—" : amount(r.previous)}</td>
+          <td className="sa-num">{money(r.current)}</td>
+          <td className="sa-num">{r.previous === null ? "—" : money(r.previous)}</td>
           <td className="sa-change-cell">
             <span className={negative ? "sa-change-value sa-down" : "sa-change-value sa-up"}>{r.change === null ? "不可比" : signed(r.change)}<small>元</small></span>
-            {r.change !== null && <span className="sa-diverge" role="img" aria-label={`${r.name} 变化贡献 ${amount(r.change)} 元`}>
+            {r.change !== null && <span className="sa-diverge" role="img" aria-label={`${r.name} 变化贡献 ${money(r.change)} 元`}>
               <span className="sa-diverge-neg"><i style={{ width: `${negative ? width : 0}%` }} /></span>
               <span className="sa-diverge-pos"><i style={{ width: `${negative ? 0 : width}%` }} /></span>
             </span>}
           </td>
-          {dimension === "product" && <><td>{r.quantity !== null ? `${r.quantity} ${r.unit || "单位待核实"}` : "不可跨单位汇总"}</td><td className="sa-num">{r.average_price === null ? "—" : amount(r.average_price)}</td></>}
+          {dimension === "product" && <><td>{r.quantity !== null ? `${r.quantity} ${r.unit || "单位待核实"}` : "不可跨单位汇总"}</td><td className="sa-num">{r.average_price === null ? "—" : money(r.average_price)}</td></>}
           <td><button onClick={() => onDrill(r)}>查看源订单</button></td>
         </tr>;
       })}</tbody></table></div> : <p>本口径暂无可用记录。</p>}
       <div className="sa-change-foot">
-        <span>维度变化合计<b>{data.total_change === null ? "—" : `${amount(data.total_change)} 元`}</b></span>
-        <span>本页之外<b>{data.other_change === null ? "—" : `${amount(data.other_change)} 元`}</b></span>
-        {data.line_difference !== null && <span>订单头与明细差额<b>{amount(data.line_difference)} 元</b></span>}
+        <span>维度变化合计<b>{data.total_change === null ? "—" : `${money(data.total_change)} 元`}</b></span>
+        <span>本页之外<b>{data.other_change === null ? "—" : `${money(data.other_change)} 元`}</b></span>
+        {data.line_difference !== null && <span>订单头与明细差额<b>{money(data.line_difference)} 元</b></span>}
       </div>
       <Pages offset={offset} total={data.total_rows} size={20} onChange={onPage} />
     </section>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { money } from "./lib/format";
 
 type Role = "owner" | "manager" | "sales" | "finance" | "admin";
 type Metric = { code: string; label: string; value: string | null; unit: string; reason: string | null; definition: string; source: string };
@@ -11,12 +12,6 @@ type Top = { customer_id: string; name: string; layer: string; last_order_date: 
 type Analytics = { through: string; basis: string; verified: boolean; warnings: string[]; metrics: Metric[]; segments: Segment[];
   trend: TrendMonth[]; conversion_counted: number; conversion_average_days: string | null; conversion_buckets: Bucket[]; top: Top[]; total: number };
 
-function money(s: string | null | undefined) {
-  if (s == null) return "—";
-  const negative = s.startsWith("-");
-  const [a, b = ""] = negative ? s.slice(1).split(".") : s.split(".");
-  return (negative ? "-" : "") + a.replace(/\B(?=(\d{3})+(?!\d))/g, ",") + "." + b.padEnd(2, "0");
-}
 const pct = (s: string | null) => s == null ? "—" : `${Number(s).toFixed(1)}%`;
 
 /**

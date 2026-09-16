@@ -1,11 +1,12 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import { dateTime } from "./lib/format";
 
 type Staff = { id: string; username: string; display_name: string; role_code: string; mobile: string | null; is_active: boolean; last_login_at: string | null };
 
 const roles: Record<string, string> = { owner: "老板", manager: "销售经理", sales: "销售业务员", finance: "财务", admin: "系统管理员" };
-const fmt = (v: string | null) => v ? new Intl.DateTimeFormat("zh-CN", { timeZone: "Asia/Shanghai", dateStyle: "short", timeStyle: "short" }).format(new Date(v)) : "从未登录";
+const fmt = (v: string | null) => dateTime(v, "从未登录");
 
 async function api<T>(path: string, method = "GET", body?: unknown): Promise<T> {
   const r = await fetch(`/api/staff${path}`, { method, headers: body === undefined ? undefined : { "Content-Type": "application/json" }, body: body === undefined ? undefined : JSON.stringify(body), cache: "no-store" });

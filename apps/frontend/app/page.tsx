@@ -8,6 +8,7 @@ import Overview from "./overview";
 import Staff from "./staff";
 import SalesWorkspace from "./sales";
 import LoginIllustration from "./login-illustration";
+import { dateTime } from "./lib/format";
 import type { CRMEntry } from "./crm-navigation";
 
 type Role = "owner" | "manager" | "sales" | "finance" | "admin";
@@ -172,7 +173,7 @@ export default function Home() {
       {view === "home" && (user.role_code === "admin"
         ? <><p className="eyebrow">工作空间 / 首页</p><h1>欢迎，{user.display_name}</h1><p className="muted">系统管理员不直接查看经营数据；请从下方进入管理功能。</p><div className="cards"><section className="card"><span>当前身份</span><h2>{roles[user.role_code]}</h2><p>权限由服务器校验</p></section><section className="card"><span>数据导入</span><h2>数据中心</h2><p>数据源、人员映射、导入历史</p><button onClick={() => navigate("data")}>进入数据中心 →</button></section><section className="card"><span>系统状态</span><h2>运行状况</h2><p>服务与数据库健康检查</p><button onClick={() => navigate("system")}>查看系统状态 →</button></section></div></>
         : <Overview role={user.role_code} openBI={openBI} openCRM={openCRM} />)}
-      {view === "account" && <><p className="eyebrow">工作空间 / 我的账号</p><h1>我的账号</h1><section className="card account"><dl><dt>登录账号</dt><dd>{user.username}</dd><dt>姓名</dt><dd>{user.display_name}</dd><dt>角色</dt><dd>{roles[user.role_code]}</dd><dt>最近登录</dt><dd>{user.last_login_at ? new Intl.DateTimeFormat("zh-CN", { timeZone: "Asia/Shanghai", dateStyle: "medium", timeStyle: "short" }).format(new Date(user.last_login_at)) : "—"}</dd><dt>显示时区</dt><dd>Asia/Shanghai</dd></dl></section></>}
+      {view === "account" && <><p className="eyebrow">工作空间 / 我的账号</p><h1>我的账号</h1><section className="card account"><dl><dt>登录账号</dt><dd>{user.username}</dd><dt>姓名</dt><dd>{user.display_name}</dd><dt>角色</dt><dd>{roles[user.role_code]}</dd><dt>最近登录</dt><dd>{dateTime(user.last_login_at, "—", "medium")}</dd><dt>显示时区</dt><dd>Asia/Shanghai</dd></dl></section></>}
       {view === "system" && <SystemStatus />}{view === "data" && <DataCenter role={user.role_code} />}
       {view === "staff" && user.role_code === "owner" && <Staff />}
       {view === "bi" && <BI entryTab={biEntry} onTabChange={openBI} role={user.role_code} userId={user.id} openCRM={openCRM} />}

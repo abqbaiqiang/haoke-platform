@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { money } from "./lib/format";
 
 type Order = { id: string; order_no: string; date: string; amount: string; version: number };
 type Detail = { order_no: string; customer: string; lines: { line_no: number; quantity: string; amount: string }[] };
-function money(value: string) { const [whole, fraction = ""] = value.split("."); return whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",") + "." + fraction.padEnd(2, "0"); }
 
 export default function OrdersDialog({ source, month, onClose }: { source: string; month: string; onClose: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null);
