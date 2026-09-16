@@ -30,6 +30,7 @@ commands = [
         "8000",
         "--no-access-log",
         "--no-proxy-headers",
+        "--reload",
     ],
     [sys.executable, "apps/worker/main.py"],
     ["node", "node_modules/next/dist/bin/next", "dev", "--webpack", "--hostname", os.environ.get("FRONTEND_HOST", "127.0.0.1"), "--port", "3000"],
