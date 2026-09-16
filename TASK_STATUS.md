@@ -1,5 +1,15 @@
 # Project Task Status
 
+## 2026-09-16 C1 guardrails + C3 backend common layer (per docs/29 task book, awaiting owner acceptance)
+
+- [x] C1 guardrails (4 commits): metric-code bidirectional catalog guard (5 unregistered emit codes added to catalog + dictionary), full-width parenthesis duplicate-name regression (P1-05), run_e2e APP_ENV=development check (P2-28), storage_init minimal unit test (P1-15)
+- [x] C3 backend common layer (4 commits): app/deps.py consolidates DB/Actor/Current and removes service->API reverse dependency plus main.py trailing noqa imports (P2-09); app/constants.py role/status/level/target-type literals (P3-08); timezone reads settings.app_timezone, 4 hardcoded Asia/Shanghai removed (P2-03); bi_service finance-period None-safe attribute chain fixed (P2-08)
+- [x] Every step ran full regression: ruff clean, pytest 264 passed, E2E 38 passed / 10 skipped; each step committed independently for rollback
+- [ ] C2 frontend common layer and C4 file split (C1 prerequisite satisfied) remain open; one flaky observation: test_opportunity_products_roundtrip_and_recent_list failed once in a full run, passed on re-runs with identical code — watch during C4
+- [ ] Docker acceptance and real-business owner sign-off remain separate
+
+# Project Task Status
+
 ## 2026-09-15 Audit findings fixed and acceptance re-run
 
 - [x] P1 fixed with regressions: monthly targets read with target_type='monthly'; identical re-import reactivates deactivated CRM-referenced masters; BI workbench process stats include claimed pool customers
