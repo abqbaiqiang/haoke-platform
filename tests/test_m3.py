@@ -23,7 +23,9 @@ def metrics(body):
 
 @pytest.fixture
 def sample(db, accounts, monkeypatch):
-    monkeypatch.setattr('app.bi_service.utcnow', lambda: NOW)
+    # C4 拆分后指标实现位于 bi_insights、装载实现位于 bi_access，门面 bi_service 仍被 sales_workspace 直接调用。
+    for target in ('app.bi_service.utcnow', 'app.bi_insights.utcnow', 'app.bi_access.utcnow'):
+        monkeypatch.setattr(target, lambda: NOW)
     source = DataSource(source_code='m3_test', source_name='人工测试账套', entity_name='人工测试公司')
     db.add(source)
     db.flush()
@@ -386,7 +388,7 @@ def test_metric_descriptions_match_dictionary():
     from app.bi_calculations import CATALOG
     app_dir = Path(__file__).resolve().parents[1]/'apps/backend/app'
     emitted = set()
-    for src in ('bi_calculations.py', 'bi_service.py'):
+    for src in ('bi_calculations.py', 'bi_insights.py'):
         text = (app_dir/src).read_text(encoding='utf-8')
         emitted.update(re.findall(r"metric\('([A-Z][A-Z0-9_]+)'", text))
         emitted.update(re.findall(r"\bm\('([A-Z][A-Z0-9_]+)'", text))
