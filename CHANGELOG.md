@@ -1,5 +1,13 @@
 # Changelog
 
+## C3 后端公共层 4/4：修复财务期间判断的潜在 AttributeError - 2026-09-16
+
+- **审计 P2-08**：`bi_service.py` 驾驶舱财务块中 `finance_periods.get(period).is_closed` 在当月无 `FinancialPeriod` 行时会抛 `AttributeError`（500）。改为先取行，缺失或未确认时归入“本月财务期间尚未确认”警告——与相邻的“利润表尚未导入”警告语义一致，正常路径输出不变。
+- **C3 阶段至此全部完成**（deps.py / constants.py / 时区 / P2-08）。
+- **验证**：ruff 0 错误；pytest 全量 264 通过；E2E 38 通过。
+
+# Changelog
+
 ## C3 后端公共层 3/4：时区统一读 settings.app_timezone - 2026-09-16
 
 - **审计 P2-03（仅改 4 行）**：删除后端 4 处硬编码 `ZoneInfo('Asia/Shanghai')`，统一改为读 `settings.app_timezone`（当前配置契约仍限定 `Asia/Shanghai`，行为零变化）：

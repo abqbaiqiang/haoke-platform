@@ -821,7 +821,8 @@ def overview(db, actor, source_id):
             finance_metrics.append(metric('EXEC_RECON_DIFF', '经营-财务收入口径差异', total-revenue))
         elif revenue is not None:
             finance_warnings.append('销售数据未核实，经营-财务勾稽差异暂不计算')
-        if profit and not finance_periods.get(period).is_closed:
+        current_period = finance_periods.get(period)
+        if profit and (current_period is None or not current_period.is_closed):
             finance_warnings.append('本月财务期间尚未确认，数值为待确认版本')
 
     # Six-month trend uses the same basis as the headline figure.
