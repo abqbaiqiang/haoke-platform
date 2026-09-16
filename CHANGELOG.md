@@ -1,5 +1,17 @@
 # Changelog
 
+## C2 前端公共层 + C4 bi_service 后端拆分 - 2026-09-16（docs/29 执行任务书）
+
+按任务书顺序逐步执行，每步独立提交并跑全量回归（ruff + pytest 264 + tsc + next build + E2E 38/10 跳过），可单独回滚。
+
+- **C2-1 format.ts**：新建 `app/lib/format.ts` 统一金额（空值占位、负数、千分位、固定两位小数、可选 ¥ 前缀）与日期/北京时间换算（currentMonth/dateTime/stamp/longDate/dayDiff/localTime/compact/signedMoney）。迁移 8 处金额（sales/crm/overview/bi/data-center/orders-dialog/finance-preview/customer-analytics）、7 处时间（sales/crm/bi/overview/data-center/staff/page）。销售端金额由“省略 .00”统一为固定两位小数。
+- **C2-2 api.ts**：新建 `app/lib/api.ts` 统一 `api`（json 便捷体/统一错误结构/no-store）与 `useData`（保留 AbortController 语义，附 retry）。迁移 6 处：sales（调用点全部改为 init 形式）、crm/staff/data-center（薄封装到统一传输）、bi（request→api、useLoad→useData）、customer-analytics（手写 fetch 迁移到 useData）。
+- **C2-3 types.ts**：新建 `app/lib/types.ts` 镜像后端 crm/bi/sales schema（Customer/CustomerRow/Contact/Followup/Task/Opportunity/Tag/AttentionPage 等），补齐漂移字段：Contact.decision_role 联合类型（含 user/introducer）、customer_status/lifecycle/priority 字面量联合、Followup.is_effective、AttentionPage.counts。7 个页面删除本地重复定义改用共享类型。
+- **C2-4 labels.ts**：新建 `app/lib/labels.ts` 收敛角色/阶段/枚举中译。以 docs/03 数据字典为权威：商机阶段（初步沟通/有明确需求/已报价/谈判中/成交/流失）、沟通结果（good=沟通顺利、waiting=等待反馈）、沟通方式、生命周期（prospect=潜客）；无字典条目的客户阶段沿用 CRM 端现行文案。销售端商机/客户状态文案随之更新；sales 跟进校验提示与后端 422 文案同步为新译名（前端“有明确意向”→“沟通顺利”）。“有效业务动作”设置与 CRM 时间线共用一张活动文案表。
+- **C4-1 bi_service.py（913 行）拆分**：装载层 `app/bi_access.py`（require/scope/settings/目标/数据源/load_orders 等，186 行）+ 口径层 `app/bi_caliber.py`（review_ready/order_value/included/normal_sale，50 行）+ 指标层 `app/bi_insights.py`（analysis/workbench/attention/客户画像/overview 等，704 行）；DTO 即既有 `bi_schemas.py` 不搬移。`bi_service.py` 收敛为纯门面（`__all__` re-export），bi_api/sales_workspace 调用面零改动。
+- **测试同步**：test_m3 固定时钟补丁覆盖拆分后三个模块；指标码目录守卫改读 bi_insights.py；修复 `test_performance_last_year_yoy_gated_by_coverage` 跨月日期漂移（每月 17 日起“覆盖单”会落进去年同期窗口，改为锚定去年同期月初）。
+- **遗留**：①`test_opportunity_products_roundtrip_and_recent_list` 在全量运行中偶发失败一次（单独重跑 3 次全过，TASK_STATUS 已有记录，继续观察）；②C2 中共享类型与后端 schema 的一致性依赖人工对照，无自动守卫；③C4 剩余项（死 CSS 清理、MANIFEST 版本串、sales/crm 大文件拆分）留待下次。
+
 ## 缺陷修复：商机保存 422 与推荐产品搜索失效 - 2026-09-16（老板报告）
 
 - **商机保存报“输入字段不符合要求”**：根因是开发服务器上的后端进程仍为旧代码（`dev.py` 启动的 uvicorn 未开启 `--reload`，新增的商机字段 schema 未生效），旧接口 `extra=forbid` 拒绝新页面提交的 `current_blocker`/`next_promotion`。已重启后端使新代码生效，并给 `dev.py` 的 uvicorn 加上 `--reload`（开发环境改后端代码后自动重载，杜绝同类问题）。

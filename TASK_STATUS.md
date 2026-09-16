@@ -1,5 +1,20 @@
 # Project Task Status
 
+## 2026-09-16 C2 frontend common layer + C4 bi_service split (docs/29 task book, awaiting owner acceptance)
+
+- [x] C2-1 `app/lib/format.ts`: unified money (placeholder/negatives/thousands/2-decimals/optional ¥) and Asia/Shanghai date-time helpers; migrated 8 money + 7 time sites; sales amounts now always show 2 decimals
+- [x] C2-2 `app/lib/api.ts`: unified `api` + `useData` (AbortController kept, retry added); migrated 6 sites (sales init-style call sites, crm/staff/data-center thin wrappers, bi request/useLoad, customer-analytics)
+- [x] C2-3 `app/lib/types.ts`: mirrored backend crm/bi/sales schemas; drift fixed: Contact.decision_role union (user/introducer), customer_status literals, Followup.is_effective, Task.priority, AttentionPage.counts; 7 pages use shared types
+- [x] C2-4 `app/lib/labels.ts`: role/stage/enum labels converged on docs/03 dictionary wording (opportunity stages, contact_result good=沟通顺利 waiting=等待反馈, interaction methods, lifecycle prospect=潜客); customer status follows newer CRM wording; sales followup validation copy synced with backend 422 message
+- [x] C4-1 bi_service.py (913 lines) split: bi_access (装载 186) + bi_caliber (口径 50) + bi_insights (指标 704); DTO stays in bi_schemas; bi_service kept as pure re-export facade — bi_api/sales_workspace call sites unchanged
+- [x] Test sync: test_m3 fixed-clock patch covers the three new modules; metric-code catalog guard reads bi_insights.py; fixed date-drift in test_performance_last_year_yoy_gated_by_coverage (coverage order fell inside last-year September window from the 17th of each month onward)
+- [x] Every step committed independently with full regression: ruff clean, pytest 264 passed, tsc + next build passed, E2E 38 passed / 10 skipped
+- [ ] Known flake (pre-existing): test_opportunity_products_roundtrip_and_recent_list failed once in a full run, passed 3/3 in isolation with identical code — continue watching during C4 remainder
+- [ ] C4 remainder left for next session: dead CSS classes (~20, grep-verified deletion), MANIFEST/version-string metadata refresh, sales.tsx/crm.tsx split and long-line formatting (改到哪、格式化到哪)
+- [ ] Docker acceptance and real-business owner sign-off remain separate; UI wording changes from C2-4 (stage/enum labels) need owner review
+
+# Project Task Status
+
 ## 2026-09-16 Customer detail workbench redesign (docs/29 spec, awaiting owner acceptance)
 
 - [x] Overview tab rebuilt as sales workbench: summary card, 5 KPI cards, left main (next action / current opportunity / recent followups + transactions), right rail (contacts / customer info / note); full lists preserved under dedicated tabs
