@@ -6,6 +6,7 @@ import CustomerAnalyticsPanel from "./customer-analytics";
 import { compact, currentMonth, dateTime, money, signedMoney as signed } from "./lib/format";
 import { api as request, useData } from "./lib/api";
 import type { AttentionPage, BiPerson as Person, Metric, OrderRow, Page, Role } from "./lib/types";
+import { crmActivityLabels } from "./lib/labels";
 
 type Workbench = { user_id: string; name: string; month: string; through: string; metrics: Metric[]; warnings: string[]; today_tasks: number; week_tasks: number; overdue_tasks: number; open_opportunities: number };
 type Target = { amount: string | null; remark: string | null };
@@ -17,7 +18,8 @@ type OrderPage = Page<OrderRow>;
 type Detail = { order_no: string; amount: string; customer: string; lines: { line_no: number; quantity: string; amount: string }[] };
 
 const value = (v: string | null | undefined) => v == null ? "—" : v;
-const actionNames: Record<string, string> = { followup_create: "新增跟进", followup_update: "修改跟进", task_complete: "完成待办", opportunity_create: "新增商机", opportunity_update: "更新商机", customer_update: "维护客户", contact_create: "新增联系人", contact_update: "修改联系人" };
+/** 有效业务动作候选（沿用设置页键序，文案与 CRM 操作时间线一致）。 */
+const actionNames: Record<string, string> = Object.fromEntries(["followup_create", "followup_update", "task_complete", "opportunity_create", "opportunity_update", "customer_update", "contact_create", "contact_update"].map(k => [k, crmActivityLabels[k]]));
 
 function Feedback({ state }: { state: { loading: boolean; error?: string; retry: () => void } }) {
   return <>{state.loading && <p role="status">正在加载分析…</p>}{state.error && <p className="error" role="alert">{state.error} <button onClick={state.retry}>重试</button></p>}</>;

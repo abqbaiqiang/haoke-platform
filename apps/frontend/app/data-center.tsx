@@ -5,6 +5,7 @@ import OrdersDialog from "./orders-dialog";
 import FinancePreviewDialog from "./finance-preview-dialog";
 import { dateTime, money as baseMoney } from "./lib/format";
 import { api as baseApi } from "./lib/api";
+import { importKindLabels as kinds, importStatusLabels as status } from "./lib/labels";
 
 /** 财务等源表空值显示“未填报”。 */
 const money = (s: string | null | undefined) => baseMoney(s, { empty: "未填报" });
@@ -21,8 +22,6 @@ type Metric = { code: string; name: string; type: string; period_value: string |
 type Finance = { month: string; confirmed: boolean; metrics: Metric[] };
 type Month = { month: string; orders: number; amount: string; through: string; incomplete_month: boolean };
 type RawRow = { sheet: string; row: number; status: string; error: string | null; cells: unknown[] };
-const kinds: Record<string, string> = { customer: "客户档案", product: "商品档案", sales: "销售单", profit: "利润表", balance_sheet: "资产负债表" };
-const status: Record<string, string> = { pending: "待确认", failed: "预检未通过", success: "已导入" };
 /** 数据中心 API：统一走 /api/data 前缀与 lib/api 的请求/错误处理。 */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 与原实现一致：调用点结果按 any 使用
 const api = (<T = any,>(path: string, init?: RequestInit): Promise<T> => baseApi<T>(`/api/data${path}`, init));

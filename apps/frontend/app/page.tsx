@@ -10,9 +10,9 @@ import SalesWorkspace from "./sales";
 import LoginIllustration from "./login-illustration";
 import { dateTime } from "./lib/format";
 import type { Identity, Role, User } from "./lib/types";
+import { roleLabels as roles } from "./lib/labels";
 import type { CRMEntry } from "./crm-navigation";
 
-const roles: Record<Role, string> = { owner: "老板", manager: "销售经理", sales: "销售业务员", finance: "财务", admin: "系统管理员" };
 
 export default function Home() {
   const [identity, setIdentity] = useState<Identity | null>(null);

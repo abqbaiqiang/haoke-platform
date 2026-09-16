@@ -3,10 +3,13 @@
 import { FormEvent, useEffect, useState } from "react";
 import { dateTime } from "./lib/format";
 import { api as baseApi } from "./lib/api";
+import { roleLabels } from "./lib/labels";
+
+/** 人员管理列表的 role_code 来自后端字符串，按字符串键查找。 */
+const roles = roleLabels as Record<string, string>;
 
 type Staff = { id: string; username: string; display_name: string; role_code: string; mobile: string | null; is_active: boolean; last_login_at: string | null };
 
-const roles: Record<string, string> = { owner: "老板", manager: "销售经理", sales: "销售业务员", finance: "财务", admin: "系统管理员" };
 const fmt = (v: string | null) => dateTime(v, "从未登录");
 
 /** 人员管理 API：统一走 /api/staff 前缀与 lib/api 的请求/错误处理。 */

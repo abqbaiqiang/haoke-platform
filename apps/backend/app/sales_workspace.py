@@ -261,9 +261,9 @@ def followup(cid: UUID, payload: FollowupAction, db: DB, actor: Actor):
             raise HTTPException(404, '待办不存在或无权访问')
         if task.status != 'todo':
             raise HTTPException(409, '待办已结束，请刷新后查看；本次未重复保存跟进')
-    # 「已沟通/有明确意向」却不安排下一步等于流程断链；这些结果本身就是"暂不安排"的原因。
+    # 「已沟通/沟通顺利」却不安排下一步等于流程断链；这些结果本身就是"暂不安排"的原因。
     if not payload.followup.next_followup_at and payload.followup.contact_result in {'normal', 'good'}:
-        raise HTTPException(422, '已沟通或有明确意向的客户请安排下一步；若暂不跟进，请把沟通结果改为“暂无需求 / 等待回复 / 未接通”等')
+        raise HTTPException(422, '已沟通或沟通顺利的客户请安排下一步；若暂不跟进，请把沟通结果改为“暂无需求 / 等待反馈 / 未接通”等')
     result = crm.save_followup(db, actor, cid, payload.followup, commit=False, next_owner=actor.id)
     if task:
         before = crm.snapshot(task)
