@@ -11,8 +11,9 @@ class Principal:
 
 
 def can_read_owned(principal: Principal, owner_id: UUID) -> bool:
-    """Business ownership scope. Admin has system access, no implicit business access."""
-    if principal.role == "owner":
+    """Business ownership scope. Admin (system administrator) has full business read access,
+    same as owner — decided by the boss on 2026-09-16, resolving docs/05's contradictory wording."""
+    if principal.role in {"owner", "admin"}:
         return True
     if principal.role == "sales":
         return principal.user_id == owner_id

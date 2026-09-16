@@ -46,7 +46,7 @@ def test_aov_deducts_reviewed_returns(db, client, accounts, sign_in, sample):
     assert Decimal(row['aov']) == Decimal('237.58'), row
 
 
-@pytest.mark.parametrize('role,total,status', [('Owner',3,200),('Manager',2,200),('S1',1,200),('Finance',1,200),('Admin',None,403)])
+@pytest.mark.parametrize('role,total,status', [('Owner',3,200),('Manager',2,200),('S1',1,200),('Finance',1,200),('Admin',3,200)])
 def test_customer_analytics_all_roles(db, client, accounts, sign_in, sample, role, total, status):
     src, _, _, _ = sample
     sign_in(role)

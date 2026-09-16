@@ -206,7 +206,7 @@ def test_missing_prior_does_not_manufacture_growth(db, client, sign_in, sample):
 @pytest.mark.integration
 @pytest.mark.parametrize('actor,allowed,work,write,config', [
     ('Owner',True,True,True,True), ('Manager',True,True,True,False), ('S1',True,True,False,False),
-    ('S2',True,False,False,False), ('Finance',True,False,False,False), ('Admin',False,False,False,True)])
+    ('S2',True,False,False,False), ('Finance',True,False,False,False), ('Admin',True,True,True,True)])
 def test_five_role_api_matrix(client, sign_in, accounts, sample, actor, allowed, work, write, config):
     src, _, _, _ = sample
     uid = accounts['S1'].id
@@ -218,7 +218,7 @@ def test_five_role_api_matrix(client, sign_in, accounts, sample, actor, allowed,
     put = client.put(f'/api/bi/targets/{uid}', params={'month':MONTH}, json={'amount':'100.00'})
     assert put.status_code == (200 if write else 403)
     assert client.put('/api/bi/settings', json={}).status_code == (200 if config else 403)
-    assert client.get('/api/bi/team', params={'month':MONTH}).status_code == (200 if actor in {'Owner','Manager'} else 403)
+    assert client.get('/api/bi/team', params={'month':MONTH}).status_code == (200 if actor in {'Owner','Manager','Admin'} else 403)
     assert client.get('/api/bi/attention', params={'source_id':str(src.id)}).status_code == (200 if allowed else 403)
     assert client.get('/api/bi/orders', params={'source_id':str(src.id), 'month':MONTH}).status_code == (200 if allowed else 403)
     assert review(client, src).status_code == (200 if config else 403)

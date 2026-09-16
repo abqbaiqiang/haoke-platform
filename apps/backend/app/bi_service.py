@@ -23,14 +23,16 @@ TZ = ZoneInfo('Asia/Shanghai')
 
 
 def require(actor, roles):
+    if actor.role_code == 'admin':
+        return  # 管理员拥有最高权限（2026-09-16 决策），等同 owner 查看全部业务数据
     if actor.role_code not in roles:
         raise HTTPException(403, '无此分析或配置权限')
 
 
 def scope(db, actor, column):
-    require(actor, {'owner', 'manager', 'sales', 'finance'})
+    require(actor, {'owner', 'admin', 'manager', 'sales', 'finance'})
     p = services.principal_for(db, actor)
-    if p.role == 'owner':
+    if p.role in {'owner', 'admin'}:
         return True
     ids = {p.user_id} if p.role in {'sales', 'manager'} else set()
     if (p.role == 'manager' and p.scope_type == 'team') or (p.role == 'finance' and p.scope_type == 'custom'):
@@ -788,7 +790,7 @@ def overview(db, actor, source_id):
     profit = values.get(('profit', period), {})
     balance = values.get(('balance_sheet', period), {})
     prev_balance = values.get(('balance_sheet', previous), {})
-    finance_visible = actor.role_code in {'owner', 'finance'}
+    finance_visible = actor.role_code in {'owner', 'finance', 'admin'}  # 2026-09-16 决策：admin 最高权限可见财务
     if finance_visible:
         if not profit:
             finance_warnings.append(f'{period.year}年{period.month}月利润表尚未导入或确认')

@@ -93,7 +93,7 @@ def test_sales_upload_roles(client, setup_m1, sign_in, name, status):
     assert response.status_code == status
 
 
-@pytest.mark.parametrize('name,orders', [('Owner', 2), ('Manager', 2), ('S1', 1), ('Finance', 1), ('Admin', None)])
+@pytest.mark.parametrize('name,orders', [('Owner', 2), ('Manager', 2), ('S1', 1), ('Finance', 1), ('Admin', 2)])
 def test_sales_scope_and_no_cost_leak(client, setup_m1, sign_in, name, orders, db):
     source, upload, confirm = setup_m1
     assert confirm(upload('sales', sales())).status_code == 200

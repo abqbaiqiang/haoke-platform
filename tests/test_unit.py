@@ -39,7 +39,7 @@ def test_weak_bootstrap_password_rejected(password):
         ("finance", "custom", False, True, True),
         ("finance", "all", False, False, False),
         ("finance", "custom", False, False, False),
-        ("admin", "all", False, True, False),
+        ("admin", "all", False, True, True),  # 2026-09-16 决策：admin 最高权限，等同 owner 可读
     ],
 )
 def test_scope_matrix(role, scope, own, member, expected):
@@ -54,7 +54,7 @@ def test_admin_system_scope_and_sales_write_isolation():
     admin = Principal(first, "admin", "custom")
     sales = Principal(first, "sales", "self")
     assert can_read_user(admin, second) and can_edit_user(admin, second)
-    assert not can_read_owned(admin, second)
+    assert can_read_owned(admin, second)  # 2026-09-16 决策：admin 可读全部业务数据
     assert can_edit_user(sales, first) and not can_edit_user(sales, second)
 
 

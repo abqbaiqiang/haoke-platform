@@ -234,10 +234,8 @@ def raw_rows(batch_id: uuid.UUID, db: DB, actor: Actor, offset: int = Query(0, g
 
 def scoped_sales(query, db, actor):
     p = services.principal_for(db, actor)
-    if p.role == 'owner':
+    if p.role in {'owner', 'admin'}:
         return query
-    if p.role == 'admin':
-        raise HTTPException(403, '系统管理员无默认经营数据权限，请使用老板或获授权业务账号')
     permitted = {p.user_id} if p.role == 'sales' else set()
     if (p.role == 'manager' and p.scope_type == 'team') or (p.role == 'finance' and p.scope_type == 'custom'):
         permitted |= {uuid.UUID(v) for v in p.member_ids}

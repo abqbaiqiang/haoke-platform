@@ -1,5 +1,17 @@
 # Changelog
 
+## 权限决策落地：admin 统一为最高权限角色 - 2026-09-16
+
+**业务决策（老板 2026-09-16）**：admin（系统管理员）拥有最高权限，可查看全部业务数据（含财务数字），等同 owner 只读口径。此决策解决了 `docs/05` 三处口径矛盾与代码四处范围实现互斥的问题（审计 P1-07，原 BLOCKED_BUSINESS_DECISION）。
+
+- **统一四处实现**：`permissions.py`（`can_read_owned` admin→True）、`bi_service.require`（admin 绕过角色门）、`bi_service.scope`（admin→全量）、`import_api.scoped_sales`（admin→全量）；`crm_service.scope` 原本已是 admin→全量，不变。
+- **财务可见性**：驾驶舱财务数字对 admin 开放（原仅 owner/finance），与"最高权限"决策一致。
+- **文档**：`docs/05_页面与权限矩阵.md` 三处矛盾口径统一为"admin = 系统管理 + 全部业务数据只读"，并注明决策日期；矩阵中 admin"运维R"条目与本决策一致。
+- **测试**：新增 `tests/test_admin_scope.py`（四处范围实现等价性 + admin 读 BI/CRM/数据中心三端到端）；更新 6 个断言旧策略的既有测试（unit 范围矩阵、m1 订单范围、m3 五角色矩阵、m4 驾驶舱角色脱敏、cockpit 客户分析角色）。成本/毛利等敏感字段对非财务/owner/admin 的脱敏规则不变。
+- **验证**：后端全量 256 通过、ruff 0 错误、E2E 全量通过。经理/财务角色的范围语义未改动。
+
+# Changelog
+
 ## 审计 A 包修复：五个低风险缺陷 - 2026-09-16
 
 基于外部代码审计（ARCHITECTURE_AUDIT.md，核实为属实的条目）完成第一批低风险修复，全部为小改动、无行为破坏：

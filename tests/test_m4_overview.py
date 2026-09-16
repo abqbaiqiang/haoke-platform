@@ -112,9 +112,11 @@ def test_overview_role_scope_and_finance_redaction(db, client, accounts, sign_in
     body = client.get(f'/api/bi/overview?source_id={source.id}').json()
     assert by_code(body, 'EXEC_SALES_AMT')['value'] == '0.30'
     assert by_code(body, 'EXEC_FIN_REVENUE')['value'] == '1000.00'
-    # Admin has no business data access at all.
+    # Admin: full business read access (2026-09-16 decision), same as owner.
     sign_in('Admin')
-    assert client.get(f'/api/bi/overview?source_id={source.id}').status_code == 403
+    body = client.get(f'/api/bi/overview?source_id={source.id}').json()
+    assert by_code(body, 'EXEC_SALES_AMT')['value'] == '1000.30'
+    assert by_code(body, 'EXEC_FIN_REVENUE')['value'] == '1000.00'
 
 
 @pytest.mark.integration
