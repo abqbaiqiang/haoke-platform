@@ -6,6 +6,8 @@ from sqlalchemy import or_, select
 from sqlalchemy.exc import IntegrityError
 
 from app import crm_schemas as dto, crm_service as svc
+from app.constants import ALL_WORK_ROLES, FULL_ACCESS_ROLES, ROLE_ADMIN, ROLE_MANAGER, ROLE_OWNER, ROLE_SALES, \
+    SALES_ACTOR_ROLES
 from app.crm_models import CRMSetting, CustomerTag, Followup, Opportunity, Tag
 from app.data_models import Customer, Product
 from app.deps import Actor, DB
@@ -20,7 +22,7 @@ def settings(db: DB, actor: Actor):
 
 @router.put('/settings', response_model=dto.Settings)
 def update_settings(payload: dto.Settings, db: DB, actor: Actor):
-    svc.role(actor, {'admin', 'owner'})
+    svc.role(actor, FULL_ACCESS_ROLES)
     obj = db.get(CRMSetting, 1)
     before = obj.value if obj else dto.Settings().model_dump()
     if not obj:
@@ -58,7 +60,7 @@ def batch_claim(payload: dto.BatchClaim, db: DB, actor: Actor):
 
 @router.get('/binding-candidates', response_model=list[dto.CustomerView])
 def binding_candidates(db: DB, actor: Actor, q: str = Query(min_length=1,max_length=100)):
-    svc.role(actor,{'owner','admin','manager'})
+    svc.role(actor,{ROLE_OWNER,ROLE_ADMIN,ROLE_MANAGER})
     bound = select(Customer.bound_customer_id).where(Customer.bound_customer_id.is_not(None))
     rows = db.scalars(select(Customer).where(Customer.is_active,Customer.source_system != 'crm',~Customer.crm_managed,
         Customer.owner_user_id.is_(None), Customer.id.not_in(bound), Customer.customer_name.icontains(q,autoescape=True)).limit(30)).all()
@@ -70,7 +72,7 @@ def binding_candidates(db: DB, actor: Actor, q: str = Query(min_length=1,max_len
 
 @router.get('/followups', response_model=list[dto.FollowupView])
 def followups(db: DB, actor: Actor, offset: int = Query(0,ge=0)):
-    svc.role(actor,{'owner','admin','manager','sales'})
+    svc.role(actor,ALL_WORK_ROLES)
     return db.scalars(select(Followup).join(Customer,Customer.id == Followup.customer_id)
         .where(Customer.is_active,svc.customer_scope(db,actor,Customer.owner_user_id))
         .order_by(Followup.occurred_at.desc(),Followup.id).offset(offset).limit(100)).all()
@@ -79,7 +81,7 @@ def followups(db: DB, actor: Actor, offset: int = Query(0,ge=0)):
 @router.get('/opportunities', response_model=list[dto.OpportunityView])
 def opportunities(db: DB, actor: Actor, offset: int = Query(0,ge=0), owner_user_id: UUID | None = None,
                   status: Literal['open','won','lost','cancelled'] | None = None):
-    svc.role(actor,{'owner','admin','manager','sales'})
+    svc.role(actor,ALL_WORK_ROLES)
     query = select(Opportunity).join(Customer,Customer.id == Opportunity.customer_id).where(
         Customer.is_active,svc.customer_scope(db,actor,Customer.owner_user_id),svc.scope(db,actor,Opportunity.owner_user_id))
     if owner_user_id:
@@ -158,7 +160,7 @@ def followup_void(cid: UUID, fid: UUID, payload: dto.VoidInput, db: DB, actor: A
 
 @router.get('/products')
 def products(db: DB, actor: Actor, q: str = Query('', max_length=100), limit: int = Query(50, ge=1, le=200)):
-    svc.role(actor, {'owner', 'admin', 'manager', 'sales'})
+    svc.role(actor, ALL_WORK_ROLES)
     query = select(Product.id, Product.product_name).where(Product.is_active)
     if q:
         query = query.where(or_(Product.product_name.icontains(q, autoescape=True),
@@ -176,15 +178,15 @@ def save_tag(db,actor,payload,tid=None):
     # Tags are self-service: anyone may create (gated by sales_create_tags), and a tag's
     # creator keeps rename/deactivate rights on their own tags; owner/admin manage all.
     if tid is None:
-        allowed = {'admin', 'owner'} | ({'sales','manager'} if svc.settings(db).sales_create_tags else set())
+        allowed = FULL_ACCESS_ROLES | (SALES_ACTOR_ROLES if svc.settings(db).sales_create_tags else set())
         svc.role(actor,allowed)
         obj = Tag(created_by=actor.id)
     else:
-        svc.role(actor,{'admin','owner','sales','manager'})
+        svc.role(actor,{ROLE_ADMIN,ROLE_OWNER,ROLE_SALES,ROLE_MANAGER})
         obj = db.get(Tag,tid)
         if not obj:
             raise HTTPException(404,'标签不存在')
-        if actor.role_code not in {'admin','owner'} and obj.created_by != actor.id:
+        if actor.role_code not in FULL_ACCESS_ROLES and obj.created_by != actor.id:
             raise HTTPException(403,'只能修改或停用自己创建的标签')
     before = svc.snapshot(obj) if tid else None
     for k,v in payload.model_dump().items():
@@ -212,7 +214,7 @@ def update_tag(tid: UUID, payload: dto.TagInput, db: DB, actor: Actor):
 
 @router.put('/customers/{cid}/tags', response_model=list[dto.TagView])
 def assign_tags(cid: UUID, payload: dto.TagsInput, db: DB, actor: Actor):
-    svc.role(actor,{'owner','admin','manager','sales'})
+    svc.role(actor,ALL_WORK_ROLES)
     svc.customer(db,actor,cid,True).crm_managed = True
     chosen = set(payload.tag_ids)
     old = db.scalars(select(CustomerTag).where(CustomerTag.customer_id == cid)).all()

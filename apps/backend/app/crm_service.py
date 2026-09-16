@@ -13,6 +13,8 @@ from app.crm_models import Assignment, Contact, CRMSetting, CustomerClaim, Custo
 from app.data_models import Customer, Product, SalesOrder, SalesOrderLine
 from app.models import ActivityLog, User, utcnow
 from app.permissions import can_read_owned
+from app.constants import ALL_WORK_ROLES, FULL_ACCESS_ROLES, OWNERSHIP_PUBLIC_POOL, ROLE_ADMIN, ROLE_FINANCE, \
+    ROLE_MANAGER, ROLE_OWNER, ROLE_SALES, SALES_ACTOR_ROLES
 
 TZ = ZoneInfo('Asia/Shanghai')
 
@@ -45,18 +47,18 @@ def role(actor, allowed):
 
 
 def owns(db, actor, owner):
-    return actor.role_code == 'admin' or can_read_owned(services.principal_for(db, actor), owner)
+    return actor.role_code == ROLE_ADMIN or can_read_owned(services.principal_for(db, actor), owner)
 
 
 def has_claimed(db, actor, cid):
-    if actor.role_code not in {'sales', 'manager'}:
+    if actor.role_code not in SALES_ACTOR_ROLES:
         return False
     return db.scalar(select(CustomerClaim.id).where(CustomerClaim.customer_id == cid, CustomerClaim.user_id == actor.id)) is not None
 
 
 def claimed_ids(db, actor):
     """Subquery of customers the actor claimed; claims grant visibility like ownership."""
-    if actor.role_code not in {'sales', 'manager'}:
+    if actor.role_code not in SALES_ACTOR_ROLES:
         return None
     return select(CustomerClaim.customer_id).where(CustomerClaim.user_id == actor.id)
 
@@ -83,13 +85,13 @@ def attach_claims(db, rows):
 
 
 def scope(db, actor, column):
-    if actor.role_code in {'owner', 'admin'}:
+    if actor.role_code in FULL_ACCESS_ROLES:
         return True
     principal = services.principal_for(db, actor)
-    ids = [actor.id] if actor.role_code == 'sales' else []
-    if actor.role_code == 'manager' and principal.scope_type == 'team':
+    ids = [actor.id] if actor.role_code == ROLE_SALES else []
+    if actor.role_code == ROLE_MANAGER and principal.scope_type == 'team':
         ids = list(principal.member_ids) + [actor.id]
-    if actor.role_code == 'finance' and principal.scope_type == 'custom':
+    if actor.role_code == ROLE_FINANCE and principal.scope_type == 'custom':
         ids = list(principal.member_ids)
     return column.in_(ids)
 
@@ -118,7 +120,7 @@ def people(db, actor):
 
 def assignee(db, actor, uid, cust=None):
     target = db.get(User, uid)
-    if not target or not target.is_active or target.role_code not in {'sales','manager'} or not owns(db, actor, uid):
+    if not target or not target.is_active or target.role_code not in SALES_ACTOR_ROLES or not owns(db, actor, uid):
         raise HTTPException(422, '负责人不在可分配范围')
     if cust and not (can_read_owned(services.principal_for(db, target), cust.owner_user_id) or has_claimed(db, target, cust.id)):
         raise HTTPException(422, '执行人没有该客户的访问权限，请先转交客户')
@@ -127,9 +129,9 @@ def assignee(db, actor, uid, cust=None):
 
 def list_customers(db, actor, q='', pool=False, tag_id=None, offset=0, limit=30, level=None, ownership=None, claim=None):
     if pool:
-        role(actor, {'owner','admin','manager','sales'})
+        role(actor, ALL_WORK_ROLES)
     query = select(Customer).where(Customer.is_active)
-    query = query.where(Customer.ownership_status == 'public_pool') if pool else query.where(customer_scope(db, actor, Customer.owner_user_id))
+    query = query.where(Customer.ownership_status == OWNERSHIP_PUBLIC_POOL) if pool else query.where(customer_scope(db, actor, Customer.owner_user_id))
     if ownership:
         query = query.where(Customer.ownership_status == ownership)
     if pool and claim == 'claimed':
@@ -156,7 +158,7 @@ def list_customers(db, actor, q='', pool=False, tag_id=None, offset=0, limit=30,
     total = db.scalar(select(func.count()).select_from(query.subquery()))
     rows = [dto.CustomerView.model_validate(x) for x in db.scalars(query.order_by(Customer.customer_name, Customer.id).offset(offset).limit(limit))]
     attach_claims(db, rows)
-    if pool and actor.role_code not in {'owner','admin'}:
+    if pool and actor.role_code not in FULL_ACCESS_ROLES:
         for row in rows:
             row.remark = None
     return {'rows':rows, 'total':total}
@@ -175,7 +177,7 @@ def duplicate_flags(db, normalized, mobile):
 
 def create_pool_customer(db, actor, payload):
     """Manager-entered prospect lands directly in the public pool for claiming."""
-    role(actor, {'owner', 'admin', 'manager'})
+    role(actor, {ROLE_OWNER, ROLE_ADMIN, ROLE_MANAGER})
     normalized = normalize_name(payload.customer_name)
     duplicate = duplicate_flags(db, normalized, payload.mobile)
     obj = Customer(source_system='crm', customer_name=payload.customer_name, normalized_name=normalized,
@@ -192,7 +194,7 @@ def create_pool_customer(db, actor, payload):
 
 def pool_import(db, actor, payload):
     """Bulk manual entry into the pool; duplicates are skipped and reported, not merged."""
-    role(actor, {'owner', 'admin', 'manager'})
+    role(actor, {ROLE_OWNER, ROLE_ADMIN, ROLE_MANAGER})
     created, duplicates, seen = [], [], set()
     for item in payload.items:
         normalized = normalize_name(item.customer_name)
@@ -215,7 +217,7 @@ def pool_import(db, actor, payload):
 
 
 def create_customer(db, actor, payload):
-    role(actor, {'sales','manager'})
+    role(actor, SALES_ACTOR_ROLES)
     if not settings(db).allow_prospect_create:
         # 客户档案以精斗云为准（进销存同步）；确需手工建潜客时由老板在 CRM 设置中开启。
         raise HTTPException(403, '新增潜客功能已关闭：请由精斗云导出客户档案，在数据中心导入后进入公海认养')
@@ -232,10 +234,10 @@ def create_customer(db, actor, payload):
 
 
 def patch_customer(db, actor, cid, payload):
-    role(actor, {'owner','admin','manager','sales'})
+    role(actor, ALL_WORK_ROLES)
     obj = customer(db, actor, cid, True)
     data = payload.model_dump(exclude_unset=True)
-    if actor.role_code == 'sales' and set(data) - {'remark', 'customer_name', 'customer_level', 'customer_status'}:
+    if actor.role_code == ROLE_SALES and set(data) - {'remark', 'customer_name', 'customer_level', 'customer_status'}:
         raise HTTPException(403, '客户类型与归属状态由经理维护；销售可改备注、名称、A-D 等级和销售阶段')
     if 'customer_name' in data and (obj.source_system != 'crm' or obj.bound_customer_id):
         raise HTTPException(409, '精斗云客户名称只读')
@@ -253,10 +255,10 @@ def patch_customer(db, actor, cid, payload):
 
 
 def transfer(db, actor, cid, payload, claim=False, commit=True):
-    role(actor, {'sales','manager'} if claim else {'owner','admin','manager'})
+    role(actor, SALES_ACTOR_ROLES if claim else {ROLE_OWNER,ROLE_ADMIN,ROLE_MANAGER})
     if claim:
         obj = db.scalar(select(Customer).where(Customer.id == cid).with_for_update().execution_options(populate_existing=True))
-        if not obj or not obj.is_active or obj.ownership_status != 'public_pool':
+        if not obj or not obj.is_active or obj.ownership_status != OWNERSHIP_PUBLIC_POOL:
             raise HTTPException(409, '客户不在公海，无法认养')
         if not settings(db).public_pool_claim_enabled:
             raise HTTPException(403, '公海领取已关闭')
@@ -301,14 +303,14 @@ def transfer(db, actor, cid, payload, claim=False, commit=True):
 
 
 def batch_assign(db, actor, payload):
-    role(actor, {'owner', 'admin'})
+    role(actor, FULL_ACCESS_ROLES)
     assignee(db, actor, payload.owner_user_id)
     ids = set(payload.customer_ids)
     rows = db.scalars(select(Customer).where(Customer.id.in_(ids)).order_by(Customer.id)
                       .with_for_update().execution_options(populate_existing=True)).all()
     if len(rows) != len(ids) or any(not row.is_active for row in rows):
         raise HTTPException(404, '部分客户不存在或已停用，请刷新列表后重试')
-    if any(row.ownership_status not in {'unassigned', 'public_pool'} or row.crm_managed or row.bound_customer_id for row in rows):
+    if any(row.ownership_status not in {'unassigned', OWNERSHIP_PUBLIC_POOL} or row.crm_managed or row.bound_customer_id for row in rows):
         raise HTTPException(409, '部分客户已被认养或已有归属，本次未作任何修改，请刷新后重新选择')
     change = dto.Transfer(owner_user_id=payload.owner_user_id, reason=payload.reason)
     for row in rows:
@@ -319,7 +321,7 @@ def batch_assign(db, actor, payload):
 
 def batch_claim(db, actor, payload):
     """Pool batch claiming: each selectable customer is claimed by the actor; stale rows are skipped."""
-    role(actor, {'sales', 'manager'})
+    role(actor, SALES_ACTOR_ROLES)
     if not settings(db).public_pool_claim_enabled:
         raise HTTPException(403, '公海领取已关闭')
     ids = set(payload.customer_ids)
@@ -329,7 +331,7 @@ def batch_claim(db, actor, payload):
         raise HTTPException(404, '部分客户不存在或已停用，请刷新后重试')
     claimed, skipped = 0, []
     for row in rows:
-        if row.ownership_status != 'public_pool' or has_claimed(db, actor, row.id):
+        if row.ownership_status != OWNERSHIP_PUBLIC_POOL or has_claimed(db, actor, row.id):
             skipped.append(row.customer_name)
             continue
         transfer(db, actor, row.id, None, claim=True, commit=False)
@@ -339,7 +341,7 @@ def batch_claim(db, actor, payload):
 
 
 def bind(db, actor, cid, target_id):
-    role(actor, {'owner','admin','manager'})
+    role(actor, {ROLE_OWNER,ROLE_ADMIN,ROLE_MANAGER})
     # Lock both rows in stable order, including the unassigned ERP target.
     locked = {x.id:x for x in db.scalars(select(Customer).where(Customer.id.in_([cid,target_id])).order_by(Customer.id).with_for_update().execution_options(populate_existing=True))}
     obj = locked.get(cid)
@@ -373,7 +375,7 @@ def bind(db, actor, cid, target_id):
 
 
 def save_contact(db, actor, cid, payload, contact_id=None):
-    role(actor, {'owner','manager','sales','admin'} if contact_id else {'owner','manager','sales'})
+    role(actor, {ROLE_OWNER, ROLE_MANAGER, ROLE_SALES, ROLE_ADMIN} if contact_id else {ROLE_OWNER, ROLE_MANAGER, ROLE_SALES})
     cust = customer(db, actor, cid, True)
     cust.crm_managed = True
     obj = db.get(Contact, contact_id) if contact_id else Contact(customer_id=cid)
@@ -390,13 +392,13 @@ def save_contact(db, actor, cid, payload, contact_id=None):
 
 
 def save_followup(db, actor, cid, payload, fid=None, *, commit=True, next_owner=None):
-    role(actor, {'manager','sales'})
+    role(actor, SALES_ACTOR_ROLES)
     cust = customer(db, actor, cid, True)
     cust.crm_managed = True
     obj = db.get(Followup, fid) if fid else Followup(customer_id=cid, owner_user_id=actor.id)
     if not obj or obj.customer_id != cid or (fid and not obj.is_active):
         raise HTTPException(404, '跟进不存在或无权访问')
-    if fid and actor.role_code == 'sales' and (obj.owner_user_id != actor.id or utcnow() - obj.created_at > timedelta(hours=settings(db).followup_edit_hours)):
+    if fid and actor.role_code == ROLE_SALES and (obj.owner_user_id != actor.id or utcnow() - obj.created_at > timedelta(hours=settings(db).followup_edit_hours)):
         raise HTTPException(403, '只能在配置时限内修改自己的跟进')
     if payload.contact_id:
         contact = db.get(Contact,payload.contact_id)
@@ -415,7 +417,7 @@ def save_followup(db, actor, cid, payload, fid=None, *, commit=True, next_owner=
     db.add(obj)
     db.flush()
     if payload.next_followup_at:
-        target_id = next_owner or (actor.id if actor.role_code == 'sales' else cust.owner_user_id or actor.id)
+        target_id = next_owner or (actor.id if actor.role_code == ROLE_SALES else cust.owner_user_id or actor.id)
         if old_task is None:
             old_task = Task(customer_id=cid, followup_id=obj.id, source_type='followup', task_type='followup',
                             assignee_user_id=target_id, created_by=actor.id)
@@ -442,7 +444,7 @@ def work_access(db, actor, obj, field):
 
 
 def task_create(db, actor, payload):
-    role(actor, {'owner','manager','sales'})
+    role(actor, {ROLE_OWNER, ROLE_MANAGER, ROLE_SALES})
     cust = customer(db, actor, payload.customer_id, True) if payload.customer_id else None
     assignee(db, actor, payload.assignee_user_id, cust)
     if payload.opportunity_id:
@@ -458,7 +460,7 @@ def task_create(db, actor, payload):
 
 
 def task_patch(db, actor, tid, payload):
-    role(actor, {'owner','manager','sales'})
+    role(actor, {ROLE_OWNER, ROLE_MANAGER, ROLE_SALES})
     # Lock the customer before its work, matching transfer/binding lock order.
     initial = db.get(Task, tid)
     if not initial:
@@ -502,7 +504,7 @@ def task_window(view, now=None):
 
 
 def tasks(db, actor, view='today', offset=0, assignee_user_id=None):
-    role(actor, {'owner','admin','manager','sales'})
+    role(actor, ALL_WORK_ROLES)
     ids = select(Customer.id).where(Customer.is_active, customer_scope(db, actor, Customer.owner_user_id))
     query = select(Task).where(scope(db, actor, Task.assignee_user_id), or_(Task.customer_id.is_(None),Task.customer_id.in_(ids)))
     query = query.where(Task.status == ('done' if view == 'done' else 'todo'))
@@ -544,7 +546,7 @@ def opportunity_view(db, obj):
 
 
 def save_opportunity(db, actor, cid, payload, oid=None):
-    role(actor, {'manager','sales'})
+    role(actor, SALES_ACTOR_ROLES)
     cust = customer(db, actor, cid, True)
     cust.crm_managed = True
     assignee(db, actor,payload.owner_user_id,cust)
@@ -582,7 +584,7 @@ def save_opportunity(db, actor, cid, payload, oid=None):
 
 def detail(db, actor, cid, history_offset=0):
     obj = customer(db, actor,cid)
-    finance = actor.role_code == 'finance'
+    finance = actor.role_code == ROLE_FINANCE
     def work(model, column):
         return db.scalars(select(model).where(model.customer_id == cid,scope(db,actor,column))
                           .order_by(model.created_at.desc(), model.id).offset(history_offset).limit(51)).all()
@@ -626,7 +628,7 @@ def detail(db, actor, cid, history_offset=0):
 
 
 def void_followup(db, actor, cid, fid, reason):
-    role(actor, {'owner', 'admin'})
+    role(actor, FULL_ACCESS_ROLES)
     customer(db, actor, cid, True)
     obj = db.get(Followup, fid)
     if not obj or obj.customer_id != cid:

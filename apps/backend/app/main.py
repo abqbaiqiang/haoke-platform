@@ -13,6 +13,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from app import services
 from app.bi_api import router as bi_router
 from app.config import get_settings
+from app.constants import ROLE_ADMIN, ROLE_OWNER
 from app.crm_api import router as crm_router
 from app.deps import Current, DB
 from app.import_api import router as data_router
@@ -156,14 +157,14 @@ def me(db: DB, identity: Current):
 
 @app.get("/api/owner/status", response_model=StatusView)
 def owner_status(identity: Current):
-    if identity[0].role_code != "owner":
+    if identity[0].role_code != ROLE_OWNER:
         raise HTTPException(403, "仅老板角色可访问")
     return StatusView()
 
 
 @app.get("/api/admin/status", response_model=StatusView)
 def admin_status(identity: Current):
-    if identity[0].role_code not in {"admin", "owner"}:
+    if identity[0].role_code not in {ROLE_ADMIN, ROLE_OWNER}:
         raise HTTPException(403, "无系统查看权限")
     return StatusView()
 

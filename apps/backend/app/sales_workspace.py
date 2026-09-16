@@ -13,6 +13,7 @@ from app.crm_models import Contact, CustomerClaim, CustomerTag, Followup, Opport
 from app.data_models import Customer, Product, SalesOrder, SalesOrderLine
 from app.deps import Actor, DB
 from app.models import utcnow
+from app.constants import OWNERSHIP_PUBLIC_POOL, ROLE_SALES
 
 
 
@@ -135,7 +136,7 @@ class RecentOpportunities(dto.DTO):
 
 
 def monthly_trend(db, actor, source_id, period):
-    crm.role(actor, {'sales'})
+    crm.role(actor, {ROLE_SALES})
     period = bi.month(period)
     bi.source(db, actor, source_id)
     points, warnings = [], []
@@ -153,7 +154,7 @@ def monthly_trend(db, actor, source_id, period):
 
 
 def visible(db, actor):
-    crm.role(actor, {'sales'})
+    crm.role(actor, {ROLE_SALES})
     return select(Customer.id).where(Customer.is_active, crm.customer_scope(db, actor, Customer.owner_user_id))
 
 
@@ -162,7 +163,7 @@ def customers(db: DB, actor: Actor, q: str = '', pool: bool = False,
               level: str | None = None, tag_id=None):
     ids = visible(db, actor)
     query = select(Customer).where(Customer.is_active)
-    query = query.where(Customer.ownership_status == 'public_pool') if pool else query.where(Customer.id.in_(ids))
+    query = query.where(Customer.ownership_status == OWNERSHIP_PUBLIC_POOL) if pool else query.where(Customer.id.in_(ids))
     if pool and claim == 'claimed':
         query = query.where(exists().where(CustomerClaim.customer_id == Customer.id))
     elif pool and claim == 'unclaimed':
@@ -251,7 +252,7 @@ def recent(db: DB, actor: Actor, offset: int = 0, limit: int = 5):
 
 
 def followup(cid: UUID, payload: FollowupAction, db: DB, actor: Actor):
-    crm.role(actor, {'sales'})
+    crm.role(actor, {ROLE_SALES})
     crm.customer(db, actor, cid, True)
     task = None
     if payload.complete_task_id:
@@ -276,7 +277,7 @@ def followup(cid: UUID, payload: FollowupAction, db: DB, actor: Actor):
 
 def performance(db: DB, actor: Actor, source_id: UUID, from_month: date, to_month: date, months: int = 6):
     """Personal business cockpit. Salesperson identity comes from the login actor, never from query params."""
-    crm.role(actor, {'sales'})
+    crm.role(actor, {ROLE_SALES})
     uid = actor.id
     today = bi.utcnow().astimezone(bi.TZ).date()
     current = bi.month_start(today)
@@ -435,7 +436,7 @@ def performance(db: DB, actor: Actor, source_id: UUID, from_month: date, to_mont
 
 def recent_opportunities(db: DB, actor: Actor, days: int = 30, limit: int = 10):
     """工作台首页：最近创建的开放商机及其推荐产品。身份取自登录态。"""
-    crm.role(actor, {'sales'})
+    crm.role(actor, {ROLE_SALES})
     since = bi.utcnow() - timedelta(days=days)
     query = select(Opportunity, Customer.customer_name).join(Customer, Customer.id == Opportunity.customer_id).where(
         Opportunity.owner_user_id == actor.id, Opportunity.status == 'open', Opportunity.is_active,

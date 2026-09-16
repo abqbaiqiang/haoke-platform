@@ -1,5 +1,15 @@
 # Changelog
 
+## C3 后端公共层 2/4：新增 app/constants.py 常量层 - 2026-09-16
+
+- **审计 P3-08（后端侧）**：新增 `app/constants.py`，收敛跨模块比较/校验用的字面量：角色编码（ROLE_OWNER/ADMIN/MANAGER/SALES/FINANCE）、高频角色组合（FULL_ACCESS_ROLES、SALES_ACTOR_ROLES、ALL_WORK_ROLES）、客户归属状态（OWNERSHIP_OWNED/PUBLIC_POOL）、客户等级（CUSTOMER_LEVELS）、销售目标类型（TARGET_MONTHLY/QUARTERLY）。
+- **机械替换 7 个文件**：`permissions.py`、`main.py`、`user_api.py`、`crm_api.py`、`crm_service.py`、`bi_service.py`、`sales_workspace.py` 中的角色/归属/目标类型字面量改为常量引用——全部为同值替换，业务行为零变化。
+- **指标码不建并行常量**：指标码唯一登记处是 `bi_metric_catalog.json`（C1-1 双向断言护栏守护），再建一份 Python 常量会形成双源，违背“指标口径唯一”铁律。
+- **说明**：回归期间 `test_opportunity_products_roundtrip_and_recent_list` 出现一次偶发失败，同代码重跑两次均通过（与本次同值替换无关，疑似既有测试不稳定），后续 C4 阶段继续观察。
+- **验证**：ruff 0 错误；pytest 全量 264 通过（两次）；E2E 38 通过。
+
+# Changelog
+
 ## C3 后端公共层 1/4：新增 app/deps.py 收敛 Actor/DB/Current - 2026-09-16
 
 - **审计 P2-09**：新增 `app/deps.py`，统一持有 `DB`（会话依赖）、`Actor`（已认证用户）、`Current`（user+session 元组）三个请求级依赖注解。此前同一概念分散在 main/import_api/crm_api/user_api 四处定义，且 `sales_workspace`（service 层）反向导入 `crm_api`（API 层）、`bi_api`/`sales_api` 互相导入对方局部定义。

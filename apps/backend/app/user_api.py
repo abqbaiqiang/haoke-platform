@@ -13,6 +13,7 @@ from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from app import services
+from app.constants import ROLE_ADMIN, ROLE_OWNER, ROLE_SALES
 from app.db import get_db
 from app.models import LoginSession, PermissionScope, User, utcnow
 from app.security import hash_password
@@ -56,14 +57,14 @@ class StaffView(Strict):
 def current(request: Request, db: Session = DB):
     user, _ = services.authenticate(db, request.cookies.get('songmao_session'))
     # Only the owner manages staff accounts; admin keeps CLI bootstrap for recovery.
-    if user.role_code != 'owner':
+    if user.role_code != ROLE_OWNER:
         raise HTTPException(403, '仅老板可管理同事账号')
     return user
 
 
 @router.get('', response_model=list[StaffView])
 def list_staff(db: Session = DB, actor=Depends(current)):
-    return db.scalars(select(User).where(User.role_code != 'admin').order_by(User.display_name, User.username)).all()
+    return db.scalars(select(User).where(User.role_code != ROLE_ADMIN).order_by(User.display_name, User.username)).all()
 
 
 @router.post('', response_model=StaffView, status_code=201)
@@ -75,7 +76,7 @@ def create_staff(payload: StaffCreate, db: Session = DB, actor=Depends(current))
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from None
     user = User(username=payload.username, display_name=payload.display_name,
-                role_code='sales', password_hash=password_hash, mobile=payload.mobile)
+                role_code=ROLE_SALES, password_hash=password_hash, mobile=payload.mobile)
     db.add(user)
     db.flush()
     # Sales scope: strictly own data until the owner grants more later.
@@ -88,7 +89,7 @@ def create_staff(payload: StaffCreate, db: Session = DB, actor=Depends(current))
 @router.patch('/{user_id}', response_model=StaffView)
 def patch_staff(user_id: uuid.UUID, payload: StaffPatch, db: Session = DB, actor=Depends(current)):
     user = db.get(User, user_id)
-    if not user or user.role_code != 'sales':
+    if not user or user.role_code != ROLE_SALES:
         raise HTTPException(404, '同事账号不存在')
     before = {'display_name': user.display_name, 'mobile': user.mobile, 'is_active': user.is_active}
     changes = payload.model_dump(exclude_unset=True)

@@ -18,23 +18,25 @@ from app.crm_models import CustomerClaim, Followup, Opportunity, Task
 from app.data_models import Customer, DataSource, FinancialMetric, FinancialPeriod, Product, SalesOrder, SalesOrderLine
 from app.models import ActivityLog, User, utcnow
 from app.permissions import can_read_owned
+from app.constants import FULL_ACCESS_ROLES, ROLE_ADMIN, ROLE_FINANCE, ROLE_MANAGER, ROLE_OWNER, ROLE_SALES, \
+    SALES_ACTOR_ROLES, TARGET_MONTHLY, TARGET_QUARTERLY
 
 TZ = ZoneInfo('Asia/Shanghai')
 
 
 def require(actor, roles):
-    if actor.role_code == 'admin':
+    if actor.role_code == ROLE_ADMIN:
         return  # 管理员拥有最高权限（2026-09-16 决策），等同 owner 查看全部业务数据
     if actor.role_code not in roles:
         raise HTTPException(403, '无此分析或配置权限')
 
 
 def scope(db, actor, column):
-    require(actor, {'owner', 'admin', 'manager', 'sales', 'finance'})
+    require(actor, {ROLE_OWNER, ROLE_ADMIN, ROLE_MANAGER, ROLE_SALES, ROLE_FINANCE})
     p = services.principal_for(db, actor)
-    if p.role in {'owner', 'admin'}:
+    if p.role in FULL_ACCESS_ROLES:
         return True
-    ids = {p.user_id} if p.role in {'sales', 'manager'} else set()
+    ids = {p.user_id} if p.role in SALES_ACTOR_ROLES else set()
     if (p.role == 'manager' and p.scope_type == 'team') or (p.role == 'finance' and p.scope_type == 'custom'):
         ids |= {UUID(i) for i in p.member_ids}
     return column.in_(ids)
@@ -57,7 +59,7 @@ def audit(db, actor, action, obj, before, after):
 
 
 def save_settings(db, actor, payload):
-    require(actor, {'admin', 'owner'})
+    require(actor, FULL_ACCESS_ROLES)
     for uid in payload.personal_calendar:
         if not db.get(User, uid):
             raise HTTPException(422, '人员日历包含无效账号')
@@ -70,27 +72,27 @@ def save_settings(db, actor, payload):
 
 
 def people(db, actor, config=False):
-    if config and actor.role_code in {'admin', 'owner'}:
+    if config and actor.role_code in FULL_ACCESS_ROLES:
         condition = True
     else:
-        require(actor, {'owner', 'manager', 'sales'})
+        require(actor, {ROLE_OWNER, ROLE_MANAGER, ROLE_SALES})
         condition = scope(db, actor, User.id)
     return [dto.Person(id=u.id, name=u.display_name) for u in db.scalars(select(User).where(
         User.is_active, User.role_code.in_(['sales', 'manager']), condition).order_by(User.display_name, User.id))]
 
 
 def person(db, actor, uid, admin_read=False):
-    if not (admin_read and actor.role_code in {'admin', 'owner'}):
-        require(actor, {'owner', 'manager', 'sales'})
+    if not (admin_read and actor.role_code in FULL_ACCESS_ROLES):
+        require(actor, {ROLE_OWNER, ROLE_MANAGER, ROLE_SALES})
         if not can_read_owned(services.principal_for(db, actor), uid):
             raise HTTPException(404, '人员不存在或无权访问')
     target = db.get(User, uid)
-    if not target or not target.is_active or target.role_code not in {'sales', 'manager'}:
+    if not target or not target.is_active or target.role_code not in SALES_ACTOR_ROLES:
         raise HTTPException(404, '人员不存在或无权访问')
     return target
 
 
-def get_target(db, actor, uid, period, target_type='monthly'):
+def get_target(db, actor, uid, period, target_type=TARGET_MONTHLY):
     person(db, actor, uid, admin_read=True)
     obj = db.scalar(select(SalesTarget).where(SalesTarget.user_id == uid, SalesTarget.period_month == month(period),
                                               SalesTarget.target_type == target_type))
@@ -98,12 +100,12 @@ def get_target(db, actor, uid, period, target_type='monthly'):
                           remark=obj.remark if obj else None, target_type=target_type)
 
 
-def save_target(db, actor, uid, period, payload, target_type='monthly'):
+def save_target(db, actor, uid, period, payload, target_type=TARGET_MONTHLY):
     # 目标由管理者（老板/经理）统一在后台设置，销售端只读。
-    require(actor, {'owner', 'manager'})
+    require(actor, {ROLE_OWNER, ROLE_MANAGER})
     target = person(db, actor, uid)
     period = month(period)
-    if target_type == 'quarterly' and period.month not in (1, 4, 7, 10):
+    if target_type == TARGET_QUARTERLY and period.month not in (1, 4, 7, 10):
         raise HTTPException(422, '季度目标必须设置在季度首月（1/4/7/10 月）')
     # Serialize absent-row upserts and their audit snapshots with a stable existing row lock.
     db.execute(select(User.id).where(User.id == target.id).with_for_update())
@@ -122,9 +124,9 @@ def save_target(db, actor, uid, period, payload, target_type='monthly'):
 
 
 def sources(db, actor):
-    require(actor, {'owner', 'manager', 'sales', 'finance', 'admin'})
+    require(actor, {ROLE_OWNER, ROLE_MANAGER, ROLE_SALES, ROLE_FINANCE, ROLE_ADMIN})
     query = select(DataSource).where(DataSource.is_enabled)
-    if actor.role_code not in {'owner', 'admin'}:
+    if actor.role_code not in FULL_ACCESS_ROLES:
         visible = select(SalesOrder.source_system).where(scope(db, actor, SalesOrder.sales_user_id)).distinct()
         query = query.where(DataSource.source_code.in_(visible))
     rows = db.scalars(query.order_by(DataSource.source_name)).all()
@@ -137,13 +139,13 @@ def sources(db, actor):
 
 def source(db, actor, sid, config=False):
     if config:
-        require(actor, {'owner', 'admin'})  # owner now manages source reviews directly (V1 usage decision)
+        require(actor, FULL_ACCESS_ROLES)  # owner now manages source reviews directly (V1 usage decision)
     else:
-        require(actor, {'owner', 'manager', 'sales', 'finance'})
+        require(actor, {ROLE_OWNER, ROLE_MANAGER, ROLE_SALES, ROLE_FINANCE})
     obj = db.get(DataSource, sid)
     if not obj or not obj.is_enabled:
         raise HTTPException(404, '数据源不存在或无权访问')
-    if not config and actor.role_code != 'owner':
+    if not config and actor.role_code != ROLE_OWNER:
         allowed = db.scalar(select(SalesOrder.id).where(SalesOrder.source_system == obj.source_code,
                             scope(db, actor, SalesOrder.sales_user_id)).limit(1))
         if not allowed:
@@ -156,7 +158,7 @@ def latest_fact(db, src):
 
 
 def save_review(db, actor, sid, payload):
-    require(actor, {'admin', 'owner'})
+    require(actor, FULL_ACCESS_ROLES)
     src = source(db, actor, sid, True)
     # The importer locks this same source before changing facts. Serialize the attestation with it.
     db.execute(select(DataSource.id).where(DataSource.id == sid).with_for_update())
@@ -240,9 +242,9 @@ def analysis(db, actor, sid, period, dimension='customer', offset=0, limit=20, b
     through = min(today, month_end(period))
     previous, year_ago = shift_month(period, -1), shift_month(period, -12)
     rows = load_orders(db, actor, src)
-    ready, cfg, why = review_ready(db, src, period, through, rows, actor.role_code != 'owner')
-    prior_ready, _, prior_why = review_ready(db, src, previous, month_end(previous), rows, actor.role_code != 'owner')
-    year_ready, _, _ = review_ready(db, src, year_ago, month_end(year_ago), rows, actor.role_code != 'owner')
+    ready, cfg, why = review_ready(db, src, period, through, rows, actor.role_code != ROLE_OWNER)
+    prior_ready, _, prior_why = review_ready(db, src, previous, month_end(previous), rows, actor.role_code != ROLE_OWNER)
+    year_ready, _, _ = review_ready(db, src, year_ago, month_end(year_ago), rows, actor.role_code != ROLE_OWNER)
     verified = basis == 'verified'
     warnings = []
     if not ready:
@@ -277,7 +279,7 @@ def analysis(db, actor, sid, period, dimension='customer', offset=0, limit=20, b
     concentrations = sorted((customer_amount[c] for c in customers), reverse=True)
     earliest = min((r.order_date for r in rows), default=period)
     history_ready = bool(ready and cfg.full_history and review_ready(
-        db, src, earliest, through, rows, actor.role_code != 'owner')[0])
+        db, src, earliest, through, rows, actor.role_code != ROLE_OWNER)[0])
     # Source-basis metrics use a reconciliation code rather than silently claiming the official formula.
     def m(code, label, value, unit='元', reason=None):
         return metric(code if verified else 'DQ_SALES_RECON', label, value, unit, reason)
@@ -403,7 +405,7 @@ def workbench(db, actor, uid, period):
     days = work_dates(period, uid, config)
     elapsed = [d for d in days if d <= today]
     target = db.scalar(select(SalesTarget).where(SalesTarget.user_id == uid, SalesTarget.period_month == period,
-                                                 SalesTarget.target_type == 'monthly'))
+                                                 SalesTarget.target_type == TARGET_MONTHLY))
     source_rows = list(db.scalars(select(DataSource).where(DataSource.is_enabled,
         DataSource.source_code.in_(select(SalesOrder.source_system).distinct()))))
     actual = ZERO
@@ -484,7 +486,7 @@ def workbench(db, actor, uid, period):
                reason='部分商机金额未填写'),
         metric('OPP_WEIGHTED_AMT', '当前加权商机金额', None if missing else weighted_known, reason='部分商机金额/概率未填写')]
     q_target = db.scalar(select(SalesTarget).where(SalesTarget.user_id == uid, SalesTarget.period_month == q_start,
-                                                   SalesTarget.target_type == 'quarterly'))
+                                                   SalesTarget.target_type == TARGET_QUARTERLY))
     q_completion = ratio(quarter_actual, q_target.sales_amount_target) if q_target and quarter_ready else None
     q_progress = ratio((q_through - q_start).days + 1, (q_end - q_start).days + 1)
     metrics += [metric('TGT_QUARTER_AMT', '季度销售目标', q_target.sales_amount_target if q_target else None, reason='季度目标未设置'),
@@ -513,7 +515,7 @@ def attention(db, actor, sid, offset=0):
     cfg = dto.ReviewInput.model_validate(review.value) if review else None
     # Never label customer loss from unverified or stale/incomplete history.
     earliest = min((r.order_date for r in rows), default=today)
-    ready, cfg, reason = review_ready(db, src, earliest, today, rows, actor.role_code != 'owner')
+    ready, cfg, reason = review_ready(db, src, earliest, today, rows, actor.role_code != ROLE_OWNER)
     warnings = []
     result = []
     customer_ids = set()
@@ -541,7 +543,7 @@ def attention(db, actor, sid, offset=0):
                 result.append(dto.Attention(id=cid, name=names[cid], kind='去年同月成交、本月尚未复购', days=(today-last[cid]).days))
     else:
         warnings.append(reason or '完整销售历史未确认，沉睡/疑似流失/同期未复购暂不判定')
-    if actor.role_code != 'finance':
+    if actor.role_code != ROLE_FINANCE:
         customers = list(db.scalars(select(Customer).where(Customer.is_active, Customer.source_system == src.source_code,
             scope(db, actor, Customer.owner_user_id))))
         ids = [c.id for c in customers]
@@ -587,7 +589,7 @@ def _source_customer_stats(db, actor, src):
     rows = load_orders(db, actor, src)
     today = utcnow().astimezone(TZ).date()
     earliest = min((r.order_date for r in rows if r.order_date <= today), default=today)
-    ready, cfg, reason = review_ready(db, src, earliest, today, rows, actor.role_code != 'owner')
+    ready, cfg, reason = review_ready(db, src, earliest, today, rows, actor.role_code != ROLE_OWNER)
     verified = bool(ready and cfg and cfg.full_history)
     warnings = []
     if not verified:
@@ -704,11 +706,11 @@ def _conversion_stats(cycles):
 
 
 def customer_profile(db, actor, customer_id):
-    require(actor, {'owner', 'manager', 'sales', 'finance'})
+    require(actor, {ROLE_OWNER, ROLE_MANAGER, ROLE_SALES, ROLE_FINANCE})
     customer = db.get(Customer, customer_id)
     if not customer or not customer.is_active:
         raise HTTPException(404, '客户不存在')
-    if actor.role_code not in {'owner', 'admin'}:
+    if actor.role_code not in FULL_ACCESS_ROLES:
         if not can_read_owned(services.principal_for(db, actor), customer.owner_user_id):
             raise HTTPException(404, '客户不存在或无权访问')
     warnings = []
@@ -753,14 +755,14 @@ def _finance_metrics(db, src_id, months):
 
 def overview(db, actor, source_id):
     """Owner first screen: business facts, financial results and balances side by side, never merged."""
-    require(actor, {'owner', 'finance', 'manager', 'sales'})
+    require(actor, {ROLE_OWNER, ROLE_FINANCE, ROLE_MANAGER, ROLE_SALES})
     src = source(db, actor, source_id)
     today = utcnow().astimezone(TZ).date()
     period = month_start(today)
     previous = shift_month(period, -1)
     rows = load_orders(db, actor, src)
-    ready, cfg, why = review_ready(db, src, period, today, rows, actor.role_code != 'owner')
-    prior_ready, _, _ = review_ready(db, src, previous, month_end(previous), rows, actor.role_code != 'owner')
+    ready, cfg, why = review_ready(db, src, period, today, rows, actor.role_code != ROLE_OWNER)
+    prior_ready, _, _ = review_ready(db, src, previous, month_end(previous), rows, actor.role_code != ROLE_OWNER)
     warnings = [why] if not ready else []
     if period == month_start(today):
         warnings.append(f'本月截至 {today}；环比基期为上月完整月，非同期进度比较')
@@ -790,7 +792,7 @@ def overview(db, actor, source_id):
     profit = values.get(('profit', period), {})
     balance = values.get(('balance_sheet', period), {})
     prev_balance = values.get(('balance_sheet', previous), {})
-    finance_visible = actor.role_code in {'owner', 'finance', 'admin'}  # 2026-09-16 决策：admin 最高权限可见财务
+    finance_visible = actor.role_code in {ROLE_OWNER, ROLE_FINANCE, ROLE_ADMIN}  # 2026-09-16 决策：admin 最高权限可见财务
     if finance_visible:
         if not profit:
             finance_warnings.append(f'{period.year}年{period.month}月利润表尚未导入或确认')
@@ -839,7 +841,7 @@ def overview(db, actor, source_id):
     attention_items: list[dto.AttentionItem] = []
     attention_total = 0
     customer_contributions = []
-    if actor.role_code == 'owner':
+    if actor.role_code == ROLE_OWNER:
         sale_orders = [r for r in current if normal_sale(r, cfg, verified)]
         customer_amounts = defaultdict(lambda: ZERO)
         for r in current:
@@ -889,7 +891,7 @@ def overview(db, actor, source_id):
         for p in rank_people:
             amount = amounts_by_user.get(p.id, ZERO)
             target = db.scalar(select(SalesTarget).where(SalesTarget.user_id == p.id, SalesTarget.period_month == period,
-                                                         SalesTarget.target_type == 'monthly'))
+                                                         SalesTarget.target_type == TARGET_MONTHLY))
             target_amount = target.sales_amount_target if target else None
             person_ranking.append(dto.PersonRankRow(user_id=p.id, name=p.display_name, amount=money(amount),
                 target=money(target_amount),
