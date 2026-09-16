@@ -1,5 +1,15 @@
 # Project Task Status
 
+## 2026-09-16 Customer detail workbench redesign (docs/29 spec, awaiting owner acceptance)
+
+- [x] Overview tab rebuilt as sales workbench: summary card, 5 KPI cards, left main (next action / current opportunity / recent followups + transactions), right rail (contacts / customer info / note); full lists preserved under dedicated tabs
+- [x] Backend migration 0010: opportunity current_blocker/next_promotion columns (nullable, reversible), applied to local dev DB; decision_role enum extended (boss/key_relationship) via schema only; CustomerView exposes created_at
+- [x] Business decisions recorded: status wording unchanged (prospect/active/dormant/lost); customer stage = existing customer_status surfaced in UI; no channel/region fields (owner decision)
+- [x] Regression: ruff clean, pytest 264 passed, tsc clean, next build passed, E2E 38 passed / 10 skipped; 1440/1280 widths verified without horizontal overflow
+- [ ] Known gaps: icon library not unified, YoY sub-value on KPI shows em dash, drawers replaced by existing form panels, other pages still on old visual language
+
+# Project Task Status
+
 ## 2026-09-16 C1 guardrails + C3 backend common layer (per docs/29 task book, awaiting owner acceptance)
 
 - [x] C1 guardrails (4 commits): metric-code bidirectional catalog guard (5 unregistered emit codes added to catalog + dictionary), full-width parenthesis duplicate-name regression (P1-05), run_e2e APP_ENV=development check (P2-28), storage_init minimal unit test (P1-15)

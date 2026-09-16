@@ -103,6 +103,8 @@ class Opportunity(Base):
     expected_close_date: Mapped[date | None] = mapped_column(Date)
     need_summary: Mapped[str | None] = mapped_column(Text)
     lost_reason: Mapped[str | None] = mapped_column(String(255))
+    current_blocker: Mapped[str | None] = mapped_column(String(255))
+    next_promotion: Mapped[str | None] = mapped_column(String(500))
     closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)

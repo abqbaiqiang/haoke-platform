@@ -50,6 +50,7 @@ class CustomerView(DTO):
     remark: str | None
     bound_customer_id: UUID | None
     bound_at: datetime | None
+    created_at: datetime
     is_active: bool
     claims: list[ClaimView] = []
 
@@ -89,7 +90,7 @@ class VoidInput(DTO):
 class ContactInput(DTO):
     name: Annotated[str, Field(min_length=1, max_length=100)]
     role_label: Annotated[str, Field(max_length=64)] | None = None
-    decision_role: Literal['decision_maker', 'buyer', 'finance', 'influencer', 'user', 'introducer', 'other'] | None = None
+    decision_role: Literal['decision_maker', 'buyer', 'boss', 'finance', 'influencer', 'user', 'key_relationship', 'introducer', 'other'] | None = None
     mobile: Annotated[str, Field(max_length=32)] | None = None
     wechat: Annotated[str, Field(max_length=100)] | None = None
     email: Annotated[str, Field(max_length=255)] | None = None
@@ -185,6 +186,8 @@ class OpportunityInput(DTO):
     expected_close_date: date | None = None
     need_summary: Note | None = None
     lost_reason: Annotated[str, Field(max_length=255)] | None = None
+    current_blocker: Annotated[str, Field(max_length=255)] | None = None
+    next_promotion: Annotated[str, Field(max_length=500)] | None = None
     product_ids: Annotated[list[UUID], Field(max_length=50)] = []
 
 

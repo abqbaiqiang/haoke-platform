@@ -301,17 +301,21 @@ def test_opportunity_products_roundtrip_and_recent_list(db, client, accounts, si
     db.commit()
     sign_in('S1')
     body = {'opportunity_name': '春节礼盒', 'owner_user_id': str(accounts['S1'].id), 'stage': 'quoted',
-            'estimated_amount': '5000.00', 'product_ids': [str(p1.id), str(p2.id)]}
+            'estimated_amount': '5000.00', 'product_ids': [str(p1.id), str(p2.id)],
+            'current_blocker': '等待客户确认预算', 'next_promotion': '9月17日发送3套8万元食品方案'}
     r = client.post(f'/api/crm/customers/{mine.id}/opportunities', json=body)
     assert r.status_code == 201, r.text
     view = r.json()
+    assert view['current_blocker'] == '等待客户确认预算' and view['next_promotion'] == '9月17日发送3套8万元食品方案'
     assert [p['name'] for p in view['products']] == ['钛杯', '帐篷']
     assert db.scalar(select(func.count()).select_from(OpportunityProduct)) == 2
-    # 更新为只剩一款
+    # 更新为只剩一款；卡点清空（传 null）
     body['product_ids'] = [str(p3.id)]
+    body['current_blocker'] = None
     r = client.put(f"/api/crm/customers/{mine.id}/opportunities/{view['id']}", json=body)
     assert r.status_code == 200, r.text
     assert [p['name'] for p in r.json()['products']] == ['坐姿椅']
+    assert r.json()['current_blocker'] is None
     assert db.scalar(select(func.count()).select_from(OpportunityProduct)) == 1
     # 非法产品 id → 422
     body['product_ids'] = [str(UUID(int=999))]
