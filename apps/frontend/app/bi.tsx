@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useRef, useState } from "react";
 import type { CRMEntry } from "./crm-navigation";
 import CustomerAnalyticsPanel from "./customer-analytics";
 import { compact, currentMonth, dateTime, money, signedMoney as signed } from "./lib/format";
+import { api as request, useData } from "./lib/api";
 
 type Role = "owner" | "manager" | "sales" | "finance" | "admin";
 type Person = { id: string; name: string };
@@ -19,28 +20,6 @@ type Detail = { order_no: string; amount: string; customer: string; lines: { lin
 
 const value = (v: string | null | undefined) => v == null ? "—" : v;
 const actionNames: Record<string, string> = { followup_create: "新增跟进", followup_update: "修改跟进", task_complete: "完成待办", opportunity_create: "新增商机", opportunity_update: "更新商机", customer_update: "维护客户", contact_create: "新增联系人", contact_update: "修改联系人" };
-
-async function request<T>(url: string, options?: RequestInit): Promise<T> {
-  const r = await fetch(url, { cache: "no-store", ...options });
-  const body = await r.json();
-  if (!r.ok) throw new Error(body.error?.message || "请求失败，请重试");
-  return body;
-}
-
-function useLoad<T>(url: string | null, revision = 0): { data?: T; error?: string; loading: boolean; retry: () => void } {
-  const [result, setResult] = useState<{ url: string | null; data?: T; error?: string; loading: boolean }>({ url: null, loading: false });
-  const [retry, setRetry] = useState(0);
-  useEffect(() => {
-    if (!url) return;
-    const controller = new AbortController();
-    setResult({ url, loading: true });
-    request<T>(url, { signal: controller.signal }).then(data => { if (!controller.signal.aborted) setResult({ url, data, loading: false }); }).catch(e => {
-      if (!controller.signal.aborted) setResult({ url, error: e.message, loading: false });
-    });
-    return () => controller.abort();
-  }, [url, revision, retry]);
-  return { ...(result.url === url ? result : { loading: !!url }), retry: () => setRetry(n => n + 1) };
-}
 
 function Feedback({ state }: { state: { loading: boolean; error?: string; retry: () => void } }) {
   return <>{state.loading && <p role="status">正在加载分析…</p>}{state.error && <p className="error" role="alert">{state.error} <button onClick={state.retry}>重试</button></p>}</>;
@@ -235,8 +214,8 @@ function Orders({ source, month, dimension, item, close }: { source: string; mon
   const [offset, setOffset] = useState(0);
   const [orderId, setOrderId] = useState("");
   const [orderMonth, setOrderMonth] = useState(month);
-  const list = useLoad<OrderPage>(`/api/bi/orders?source_id=${source}&month=${orderMonth}-01&dimension=${dimension}&key=${encodeURIComponent(item.id)}&offset=${offset}`);
-  const detail = useLoad<Detail>(orderId ? `/api/data/sales/orders/${orderId}` : null);
+  const list = useData<OrderPage>(`/api/bi/orders?source_id=${source}&month=${orderMonth}-01&dimension=${dimension}&key=${encodeURIComponent(item.id)}&offset=${offset}`);
+  const detail = useData<Detail>(orderId ? `/api/data/sales/orders/${orderId}` : null);
   useEffect(() => { ref.current?.showModal(); }, []);
   return <dialog ref={ref} className="bi-dialog" aria-labelledby="bi-orders-title" onCancel={close} onClose={close}><div className="bi-dialog-head"><h2 id="bi-orders-title">{item.name} · 源订单</h2><button onClick={close}>关闭订单</button></div><p className="muted">订单原始金额，按来源状态调整前；可切换月份查看历史。</p><label>订单月份<input type="month" value={orderMonth} onChange={e => { setOrderMonth(e.target.value || currentMonth()); setOffset(0); setOrderId(""); }} /></label>{orderId ? <><button onClick={() => setOrderId("")}>返回订单列表</button><Feedback state={detail} />{detail.data && <><h3>{detail.data.order_no}</h3><p>{detail.data.customer} · {detail.data.amount} 元</p><div className="bi-table-wrap"><table><thead><tr><th>行</th><th>数量</th><th>金额</th></tr></thead><tbody>{detail.data.lines.map(l => <tr key={l.line_no}><td>{l.line_no}</td><td>{l.quantity}</td><td>{l.amount}</td></tr>)}</tbody></table></div></>}</> : <><Feedback state={list} />{list.data && <><div className="bi-table-wrap"><table><thead><tr><th>单号</th><th>日期</th><th>源金额</th><th>来源状态</th><th>操作</th></tr></thead><tbody>{list.data.rows.map(o => <tr key={o.id}><td>{o.number}</td><td>{o.date}</td><td>{o.amount}</td><td>{o.status}</td><td><button onClick={() => setOrderId(o.id)}>查看明细</button></td></tr>)}</tbody></table></div>{!list.data.total && <p>该月没有可见订单。</p>}<Pages offset={offset} total={list.data.total} size={30} onChange={setOffset} /></>}</>}</dialog>;
 }
@@ -246,7 +225,7 @@ function TargetForm({ person, month, changed }: { person: string; month: string;
   const monthNum = Number(month.slice(5, 7));
   const quarterStartMonth = kind === "quarterly" ? (Math.floor((monthNum - 1) / 3) * 3 + 1) : monthNum;
   const periodMonth = `${month.slice(0, 4)}-${String(quarterStartMonth).padStart(2, "0")}`;
-  const state = useLoad<Target>(`/api/bi/targets/${person}?month=${periodMonth}-01&type=${kind}`);
+  const state = useData<Target>(`/api/bi/targets/${person}?month=${periodMonth}-01&type=${kind}`);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -260,8 +239,8 @@ function TargetForm({ person, month, changed }: { person: string; month: string;
 }
 
 function Configuration({ persons, source }: { persons: Person[]; source: string }) {
-  const loaded = useLoad<Settings>("/api/bi/settings");
-  const reviewState = useLoad<Review | null>(source ? `/api/bi/reviews/${source}` : null);
+  const loaded = useData<Settings>("/api/bi/settings");
+  const reviewState = useData<Review | null>(source ? `/api/bi/reviews/${source}` : null);
   const [config, setConfig] = useState<Settings>();
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -305,14 +284,14 @@ export default function BI({ role, userId, openCRM, entryTab, onTabChange }: { r
   const [attentionOffset, setAttentionOffset] = useState(0);
   const [revision, setRevision] = useState(0);
   const [drill, setDrill] = useState<{ id: string; name: string; dimension: string }>();
-  const persons = useLoad<Person[]>(role !== "finance" ? "/api/bi/people" : null);
-  const sources = useLoad<Person[]>("/api/bi/sources");
+  const persons = useData<Person[]>(role !== "finance" ? "/api/bi/people" : null);
+  const sources = useData<Person[]>("/api/bi/sources");
   const source = selectedSource || sources.data?.[0]?.id || "";
   useEffect(() => { if (!person && persons.data?.length) setPerson(persons.data[0].id); }, [person, persons.data]);
-  const work = useLoad<Workbench>(tab === "workbench" && person ? `/api/bi/workbench/${person}?month=${month}-01` : null, revision);
-  const team = useLoad<{ rows: Workbench[]; total: number }>(tab === "team" ? `/api/bi/team?month=${month}-01&offset=${teamOffset}` : null, revision);
-  const report = useLoad<Analysis>(tab === "sales" && source ? `/api/bi/sales?source_id=${source}&month=${month}-01&dimension=${dimension}&basis=${basis}&offset=${offset}` : null, revision);
-  const attention = useLoad<{ rows: { id: string; name: string; kind: string; days: number | null }[]; total: number; warnings: string[] }>(tab === "attention" && source ? `/api/bi/attention?source_id=${source}&offset=${attentionOffset}` : null);
+  const work = useData<Workbench>(tab === "workbench" && person ? `/api/bi/workbench/${person}?month=${month}-01` : null, revision);
+  const team = useData<{ rows: Workbench[]; total: number }>(tab === "team" ? `/api/bi/team?month=${month}-01&offset=${teamOffset}` : null, revision);
+  const report = useData<Analysis>(tab === "sales" && source ? `/api/bi/sales?source_id=${source}&month=${month}-01&dimension=${dimension}&basis=${basis}&offset=${offset}` : null, revision);
+  const attention = useData<{ rows: { id: string; name: string; kind: string; days: number | null }[]; total: number; warnings: string[] }>(tab === "attention" && source ? `/api/bi/attention?source_id=${source}&offset=${attentionOffset}` : null);
   const tabs = role === "admin" ? [["settings", "日历与分析设置"]] : role === "finance" ? [["sales", "销售分析"], ["attention", "客户关注"], ["customers", "客户分析"]] : [["workbench", "个人工作台"], ...(role !== "sales" ? [["team", "团队执行"]] : []), ["sales", "销售分析"], ["attention", "客户关注"], ["customers", "客户分析"], ...(role === "owner" ? [["settings", "日历与分析设置"]] : [])];
   return <div className="bi"><div className="bi-head"><div><h1>{tabs.find(([key]) => key === tab)?.[1] || "分析"}</h1><p className="muted">以精斗云交易为实际业绩依据，让目标、客户动作和未来商机清楚可见。</p></div></div><nav className="bi-tabs" aria-label="分析导航">{tabs.map(([key, label]) => <button key={key} aria-current={tab === key ? "page" : undefined} onClick={() => { setTab(key); setDrill(undefined); }}>{label}</button>)}<button onClick={() => openCRM()}>进入客户与待办</button></nav><div className="bi-toolbar">{tab !== "settings" && tab !== "attention" && tab !== "customers" && <label>统计月份<input type="month" value={month} onChange={e => { setMonth(e.target.value || currentMonth()); setOffset(0); }} /></label>}{tab === "workbench" && <label>查看人员<select value={person} onChange={e => setPerson(e.target.value)}>{persons.data?.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>}{["sales", "attention", "customers", "settings"].includes(tab) && <label>分析数据源<select value={source} onChange={e => { setSource(e.target.value); setOffset(0); setAttentionOffset(0); }}><option value="">请选择数据源</option>{sources.data?.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</select></label>}{tab === "sales" && <><label>数据口径<select value={basis} onChange={e => { setBasis(e.target.value); setOffset(0); }}><option value="verified">已确认经营销售（导入即认可）</option><option value="source">源单据原始金额</option></select></label><label>分析维度<select value={dimension} onChange={e => { setDimension(e.target.value); setOffset(0); }}><option value="customer">客户</option><option value="product">商品</option><option value="person">业务员</option></select></label></>}</div><Feedback state={sources} /><Feedback state={persons} />
     {tab === "customers" && <CustomerAnalyticsPanel role={role} source={source} openCustomer={id => openCRM({tab:"customers",customerId:id})} />}

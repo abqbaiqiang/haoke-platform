@@ -2,18 +2,16 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { dateTime } from "./lib/format";
+import { api as baseApi } from "./lib/api";
 
 type Staff = { id: string; username: string; display_name: string; role_code: string; mobile: string | null; is_active: boolean; last_login_at: string | null };
 
 const roles: Record<string, string> = { owner: "老板", manager: "销售经理", sales: "销售业务员", finance: "财务", admin: "系统管理员" };
 const fmt = (v: string | null) => dateTime(v, "从未登录");
 
-async function api<T>(path: string, method = "GET", body?: unknown): Promise<T> {
-  const r = await fetch(`/api/staff${path}`, { method, headers: body === undefined ? undefined : { "Content-Type": "application/json" }, body: body === undefined ? undefined : JSON.stringify(body), cache: "no-store" });
-  const data = await r.json();
-  if (!r.ok) throw new Error(data.error?.message || "操作失败，请重试");
-  return data;
-}
+/** 人员管理 API：统一走 /api/staff 前缀与 lib/api 的请求/错误处理。 */
+const api = (<T,>(path: string, method = "GET", body?: unknown): Promise<T> =>
+  baseApi<T>(`/api/staff${path}`, body === undefined ? { method } : { method, json: body }));
 
 export default function Staff() {
   const [list, setList] = useState<Staff[]>([]);

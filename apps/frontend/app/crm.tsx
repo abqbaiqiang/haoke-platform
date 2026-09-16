@@ -3,6 +3,11 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
 import type { CRMEntry } from "./crm-navigation";
 import { dateTime, dayDiff, localTime, money as baseMoney } from "./lib/format";
+import { api as baseApi } from "./lib/api";
+
+/** CRM API：统一走 /api/crm 前缀与 lib/api 的请求/错误处理。 */
+const api = (<T,>(path: string, method = "GET", body?: unknown): Promise<T> =>
+  baseApi<T>(`/api/crm${path}`, body === undefined ? { method } : { method, json: body }));
 
 /** CRM 金额空值显示“未填写”，不加 ¥ 前缀。 */
 const money = (value: string | null) => baseMoney(value, { empty: "未填写" });
@@ -29,10 +34,6 @@ const lifecycle: [string, string][] = [["prospect","潜在"],["active","活跃"]
 const customerStage: [string, string][] = [["potential","新客户"],["contacted","已接触"],["demand","有需求"],["quoted","已报价"],["won","已成交"],["dormant","沉睡"]];
 const decisionRoles: [string, string][] = [["decision_maker","关键决策人"],["buyer","采购"],["boss","老板"],["finance","财务"],["influencer","影响人"],["user","使用者"],["key_relationship","关键关系人"],["introducer","引荐人"],["other","其他"]];
 const text = (options: [string,string][], value: string) => options.find(x => x[0] === value)?.[1] || value;
-async function api<T>(path: string, method = "GET", body?: unknown): Promise<T> {
-  const r = await fetch(`/api/crm${path}`,{method,headers:{"Content-Type":"application/json"},body:body === undefined ? undefined : JSON.stringify(body),cache:"no-store"});
-  const data = await r.json(); if (!r.ok) throw new Error(data.error?.message || "操作失败，请重试"); return data;
-}
 
 function Editor({title, fields, initial = {}, initialProducts = [], submit, save, cancel}: {title: string; fields: Field[]; initial?: Record<string, Value>; initialProducts?: {id: string; name: string}[]; submit: string; save: (data: Record<string, Value>) => Promise<void>; cancel?: () => void}) {
   const [busy,setBusy] = useState(false), [error,setError] = useState("");

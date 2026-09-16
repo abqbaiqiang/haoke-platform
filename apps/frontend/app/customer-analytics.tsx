@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { money } from "./lib/format";
+import { useData } from "./lib/api";
 
 type Role = "owner" | "manager" | "sales" | "finance" | "admin";
 type Metric = { code: string; label: string; value: string | null; unit: string; reason: string | null; definition: string; source: string };
@@ -25,23 +26,8 @@ const LAYER_COLORS: Record<string, string> = {
 const LAYER_FALLBACK = "#a1a1aa";
 
 export default function CustomerAnalyticsPanel({ role, source, openCustomer }: { role: Role; source: string; openCustomer: (id: string) => void }) {
-  const [data, setData] = useState<Analytics | null>(null);
-  const [error, setError] = useState("");
-  const [retry, setRetry] = useState(0);
-  const [loading, setLoading] = useState(false);
+  const { data, error, loading, retry } = useData<Analytics>(source ? `/api/bi/customer-analytics?source_id=${source}` : null);
   const chart = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!source) { setData(null); return; }
-    let live = true;
-    setLoading(true); setError(""); setData(null);
-    fetch(`/api/bi/customer-analytics?source_id=${source}`, { cache: "no-store" })
-      .then(async r => { const b = await r.json(); if (!r.ok) throw new Error(b.error?.message || "客户分析加载失败"); return b; })
-      .then(b => { if (live) setData(b); })
-      .catch((e: Error) => { if (live) setError(e.message); })
-      .finally(() => { if (live) setLoading(false); });
-    return () => { live = false; };
-  }, [source, retry]);
 
   useEffect(() => {
     if (!data?.trend?.length || !chart.current) return;
@@ -73,7 +59,7 @@ export default function CustomerAnalyticsPanel({ role, source, openCustomer }: {
   return <section className="customer-analytics" aria-label="客户分析">
     <p className="muted">客户分层（RFM）、复购、成交转化周期与客单价。基于已导入的源销售历史；口径与阈值见页面底部说明。</p>
     {loading && <p role="status">正在加载客户分析…</p>}
-    {error && <p className="error" role="alert">{error} <button onClick={() => setRetry(n => n + 1)}>重试</button></p>}
+    {error && <p className="error" role="alert">{error} <button onClick={retry}>重试</button></p>}
     {data && <>
       <p className="muted">{data.basis} · 统计截至 {data.through} · 覆盖 {data.total} 个有源销售记录的客户</p>
       {data.warnings.map(w => <p key={w} className="data-warning">{w}</p>)}

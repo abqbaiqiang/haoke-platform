@@ -267,7 +267,8 @@ def test_performance_last_year_yoy_gated_by_coverage(db, client, accounts, sign_
     from app.crm_service import TZ
     now = datetime.now(TZ)
     ly = now - timedelta(days=365)
-    coverage = (bi_shift(ly.date(), -16))
+    # 覆盖单固定放在去年同期窗口之前：若相对 ly 偏移，当“今天”落在每月 17—30 日时会漂进去年同期同月窗口。
+    coverage = (bi_shift(ly.date().replace(day=1), -16))
     src, c = _perf_source(db, accounts, [(now.date(), 8000), (ly.date(), 10000), (coverage, 500)])
     sign_in('S1')
     data = client.get('/api/sales/performance', params={'source_id': str(src.id), 'from': '2026-09-01', 'to': '2026-09-01'}).json()
