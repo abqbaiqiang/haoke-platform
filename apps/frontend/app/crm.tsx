@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useRef, useState } from "react";
 import type { CRMEntry } from "./crm-navigation";
 import { dateTime, dayDiff, localTime, money as baseMoney } from "./lib/format";
 import { api as baseApi } from "./lib/api";
+import type { Contact, CrmPerson as Person, CrmSettings as Settings, Customer, Followup as Follow, Opportunity, Role, Tag, Task } from "./lib/types";
 
 /** CRM API：统一走 /api/crm 前缀与 lib/api 的请求/错误处理。 */
 const api = (<T,>(path: string, method = "GET", body?: unknown): Promise<T> =>
@@ -13,15 +14,6 @@ const api = (<T,>(path: string, method = "GET", body?: unknown): Promise<T> =>
 const money = (value: string | null) => baseMoney(value, { empty: "未填写" });
 function relLabel(diff: number) { return diff === 0 ? "今天" : diff > 0 ? (diff === 1 ? "明天" : `${diff} 天后`) : (diff === -1 ? "1 天前" : `${-diff} 天前`); }
 
-type Role = "owner" | "manager" | "sales" | "finance" | "admin";
-type Person = { id: string; display_name: string; username: string };
-type Customer = { id: string; source_system: string; customer_code: string | null; customer_name: string; owner_user_id: string | null; ownership_status: string; customer_level: string | null; customer_type: string | null; customer_status: string | null; lifecycle_status: string; remark: string | null; bound_customer_id: string | null; bound_at: string | null; created_at: string; claims: {user_id: string; display_name: string; claimed_at: string}[] };
-type Contact = { id: string; customer_id: string; name: string; role_label: string | null; decision_role: string | null; mobile: string | null; wechat: string | null; email: string | null; is_primary: boolean; relationship_note: string | null; is_active: boolean };
-type Follow = { id: string; customer_id: string; owner_user_id: string; occurred_at: string; interaction_method: string; contact_result: string; summary: string | null; material_sent: boolean; material_note: string | null; quotation_sent: boolean; next_action: string | null; next_followup_at: string | null; contact_id: string | null; is_active: boolean };
-type Task = { id: string; customer_id: string | null; title: string; status: string; assignee_user_id: string; due_at: string; source_type: string; completed_at: string | null; completion_result: string | null };
-type Opportunity = { id: string; customer_id: string; opportunity_name: string; owner_user_id: string; stage: string; status: string; estimated_amount: string | null; probability: string | null; weighted_amount: string | null; expected_close_date: string | null; need_summary: string | null; current_blocker: string | null; next_promotion: string | null; lost_reason: string | null; closed_at: string | null; products: {id: string; name: string}[] };
- type Tag = { id: string; tag_name: string; tag_group: string | null; is_active: boolean; created_by?: string | null };
-type Settings = { sales_create_tags: boolean; followup_edit_hours: number; public_pool_claim_enabled: boolean; allow_prospect_create: boolean };
 type Detail = { has_more_history: boolean; sales_summary: { order_count: number; total_amount: string; year_amount: string; last_order_date: string | null; top_products: {name: string; amount: string}[] }; customer: Customer; contacts: Contact[]; followups: Follow[]; tasks: Task[]; opportunities: Opportunity[]; tags: Tag[]; events: { id: string; activity_type: string; occurred_at: string; user_id: string; details: { after?: { reason?: string; owner_user_id?: string } } | null }[]; orders: { id: string; order_no: string; order_date: string; sales_amount: string }[] };
 type Profile = { customer_id: string; name: string; layer: string | null; days_since: number | null; last_order_date: string | null; orders: number; amount: string; aov: string | null; is_repeat: boolean; convert_days: number | null; warnings: string[] };
 type Value = string | boolean | number | null | string[];

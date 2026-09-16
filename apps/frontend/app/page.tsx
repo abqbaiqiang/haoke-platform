@@ -9,11 +9,9 @@ import Staff from "./staff";
 import SalesWorkspace from "./sales";
 import LoginIllustration from "./login-illustration";
 import { dateTime } from "./lib/format";
+import type { Identity, Role, User } from "./lib/types";
 import type { CRMEntry } from "./crm-navigation";
 
-type Role = "owner" | "manager" | "sales" | "finance" | "admin";
-type User = { id: string; username: string; display_name: string; role_code: Role; last_login_at: string | null };
-type Identity = { user: User; scope_type: string; member_ids: string[]; timezone: string };
 const roles: Record<Role, string> = { owner: "老板", manager: "销售经理", sales: "销售业务员", finance: "财务", admin: "系统管理员" };
 
 export default function Home() {

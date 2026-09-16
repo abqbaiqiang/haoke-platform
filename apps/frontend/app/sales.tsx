@@ -4,20 +4,13 @@ import { FormEvent, Fragment, ReactNode, useEffect, useRef, useState } from "rea
 import CRM from "./crm";
 import { currentMonth, longDate, money as baseMoney, stamp } from "./lib/format";
 import { api, useData } from "./lib/api";
+import type { AttentionPage, Contact, CustomerRow as Customer, FollowupRow as Follow, Metric, OrderRow as Order, Page, TaskPage, TaskRow as Task, User } from "./lib/types";
 
 /** 销售员端金额统一带 ¥ 前缀。 */
 const money = (v: string | null | undefined) => baseMoney(v, { yuan: true });
 
-type User = { id: string; display_name: string; username: string };
 type Screen = "workbench" | "customers" | "tasks" | "performance";
-type Metric = { code: string; label: string; value: string | null; unit: string; reason: string | null; definition: string; source: string };
 type Work = { metrics: Metric[]; through: string; warnings: string[] };
-type Customer = { id: string; customer_name: string; customer_code: string | null; contact_name: string | null; last_followup: string | null; next_action: string | null; next_due: string | null; customer_level: string | null; customer_status: string | null; tags: string[]; claims: {user_id:string;display_name:string}[] };
-type Task = { id: string; title: string; customer_id: string | null; customer_name: string | null; due_at: string; completed_at: string | null; status: string; task_type: string; source_type: string; priority: string; customer_level: string | null };
-type Follow = { id: string; customer_id: string; customer_name: string; occurred_at: string; summary: string | null; next_action: string | null; next_followup_at: string | null; interaction_method: string };
-type Page<T> = { rows: T[]; total: number };
-type TaskPage = Page<Task> & {counts:Record<string,number>};
-type Order = {id:string;number:string;date:string;amount:string;status:string};
 type OrderDetail = {order_no:string;customer:string;amount:string;lines:{line_no:number;quantity:string;amount:string}[]};
 type PerfPreset = "this"|"last"|"quarter"|"year";
 type TrendPoint={date:string;value:string|null;last_year:string|null};
@@ -28,7 +21,6 @@ type RiskCount={kind:string;count:number};
 type Performance={through:string|null;verified:boolean;warnings:string[];month_amount:string|null;target_amount:string|null;completion:string|null;last_year_amount:string|null;yoy:string|null;remaining:string|null;workdays_remaining:number|null;daily_required:string|null;risks:RiskCount[];trend:TrendPoint[];key_metrics:Record<string,string|null>;top_customers:TopCustomer[];structure:Record<string,string|number|null>;products:ProductRow[];funnel:FunnelStage[]};
 type Source = {id:string;name:string};
 type Analysis = {basis:string; through:string; warnings:string[]; trend:{date:string;value:string}[]; rows:{id:string;name:string;current:string}[];total_rows:number};
-type Contact = {id:string;name:string;is_active:boolean};
 type OppRow = {id:string;customer_id:string;customer_name:string;opportunity_name:string;stage:string;estimated_amount:string|null;expected_close_date:string|null;created_at:string;products:{id:string;name:string}[]};
 type Route = {screen:Screen;pool?:boolean;customerId?:string;q?:string;taskView?:string};
 type DialogState = {kind:"follow"|"task"|"defer"|"complete";customer?:Customer;task?:Task};
@@ -68,7 +60,7 @@ export default function SalesWorkspace({user,onSignOut}:{user:User;onSignOut:()=
  const sources=useData<Source[]>(["workbench","performance"].includes(screen)?"/api/bi/sources":null,revision);
  const tagList=useData<{id:string;tag_name:string}[]>(screen==="customers"&&!route.pool?"/api/crm/tags":null,revision);
  const currentSource=sources.data?.some(s=>s.id===source)?source:sources.data?.[0]?.id||"";
- const attention=useData<{rows:{id:string;name:string;kind:string;days:number|null}[];total:number;warnings:string[]}>(screen==="workbench"&&currentSource?`/api/bi/attention?source_id=${currentSource}`:null,revision);
+ const attention=useData<AttentionPage>(screen==="workbench"&&currentSource?`/api/bi/attention?source_id=${currentSource}`:null,revision);
  const perfRangeValue=perfRange(perfPreset,month);
  const perf=useData<Performance>(screen==="performance"&&currentSource?`/api/sales/performance?source_id=${currentSource}&from=${perfRangeValue.from}&to=${perfRangeValue.to}&months=${perfMonths}`:null,revision);
  const allCustomers=useData<Analysis>(showAllCustomers&&screen==="performance"&&currentSource?`/api/bi/sales?source_id=${currentSource}&month=${month}-01&dimension=customer&basis=verified&offset=${allCustomerOffset}`:null,revision);

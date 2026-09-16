@@ -2,11 +2,10 @@
 import { useEffect, useRef, useState } from "react";
 import type { CRMEntry } from "./crm-navigation";
 import { compact, dateTime, money } from "./lib/format";
-type Metric = { definition: string; source: string; code: string; label: string; value: string | null; unit: string; reason: string | null };
+import type { Metric, OverviewAttention as Attention } from "./lib/types";
 type Point = { date: string; value: string };
 type Ranking = { user_id: string; name: string; amount: string; target: string | null; completion: string | null };
 type Contribution = { customer_id: string; name: string; owner_name: string | null; level: string | null; amount: string; orders: number };
-type Attention = { customer_id: string; name: string; kind: string; days: number | null };
 type OverviewData = {
   month: string; through: string; verified: boolean; warnings: string[]; finance_warnings: string[];
   sales_metrics: Metric[]; finance_metrics: Metric[]; trend: Point[]; customer_trend: Point[]; updated_at: string | null;

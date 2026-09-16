@@ -3,9 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { money } from "./lib/format";
 import { useData } from "./lib/api";
+import type { Metric, Role } from "./lib/types";
 
-type Role = "owner" | "manager" | "sales" | "finance" | "admin";
-type Metric = { code: string; label: string; value: string | null; unit: string; reason: string | null; definition: string; source: string };
 type Segment = { layer: string; hint: string; count: number; amount: string; share: string | null };
 type TrendMonth = { month: string; amount: string; orders: number; customers: number; repeat_rate: string | null; aov: string | null };
 type Bucket = { label: string; count: number };

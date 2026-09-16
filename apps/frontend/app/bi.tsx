@@ -5,17 +5,15 @@ import type { CRMEntry } from "./crm-navigation";
 import CustomerAnalyticsPanel from "./customer-analytics";
 import { compact, currentMonth, dateTime, money, signedMoney as signed } from "./lib/format";
 import { api as request, useData } from "./lib/api";
+import type { AttentionPage, BiPerson as Person, Metric, OrderRow, Page, Role } from "./lib/types";
 
-type Role = "owner" | "manager" | "sales" | "finance" | "admin";
-type Person = { id: string; name: string };
-type Metric = { definition: string; source: string; code: string; label: string; value: string | null; unit: string; reason: string | null };
 type Workbench = { user_id: string; name: string; month: string; through: string; metrics: Metric[]; warnings: string[]; today_tasks: number; week_tasks: number; overdue_tasks: number; open_opportunities: number };
 type Target = { amount: string | null; remark: string | null };
 type Dimension = { id: string; name: string; current: string; previous: string | null; change: string | null; orders: number; customers: number; quantity: string | null; unit: string | null; average_price: string | null };
 type Analysis = { month: string; through: string; previous_month: string; basis: string; verified: boolean; warnings: string[]; updated_at: string | null; metrics: Metric[]; trend: { date: string; value: string }[]; rows: Dimension[]; total_rows: number; total_change: string | null; other_change: string | null; line_difference: string | null };
 type Settings = { rfm_recent_days: number; rfm_freq_orders: number; work_week: number[]; calendar: Record<string, boolean>; personal_calendar: Record<string, Record<string, boolean>>; dormant_days: number; lost_warning_days: number; followup_days: Record<string, number>; effective_activity_types: string[]; cancelled_tasks: "include" | "exclude" | null };
 type Review = { coverage_from: string; coverage_to: string; valid_statuses: string[]; excluded_statuses: string[]; return_statuses: string[]; staff_mapping_complete: boolean; full_history: boolean; reason: string; acknowledge_export_scope: boolean };
-type OrderPage = { rows: { id: string; number: string; date: string; amount: string; status: string }[]; total: number };
+type OrderPage = Page<OrderRow>;
 type Detail = { order_no: string; amount: string; customer: string; lines: { line_no: number; quantity: string; amount: string }[] };
 
 const value = (v: string | null | undefined) => v == null ? "—" : v;
@@ -291,7 +289,7 @@ export default function BI({ role, userId, openCRM, entryTab, onTabChange }: { r
   const work = useData<Workbench>(tab === "workbench" && person ? `/api/bi/workbench/${person}?month=${month}-01` : null, revision);
   const team = useData<{ rows: Workbench[]; total: number }>(tab === "team" ? `/api/bi/team?month=${month}-01&offset=${teamOffset}` : null, revision);
   const report = useData<Analysis>(tab === "sales" && source ? `/api/bi/sales?source_id=${source}&month=${month}-01&dimension=${dimension}&basis=${basis}&offset=${offset}` : null, revision);
-  const attention = useData<{ rows: { id: string; name: string; kind: string; days: number | null }[]; total: number; warnings: string[] }>(tab === "attention" && source ? `/api/bi/attention?source_id=${source}&offset=${attentionOffset}` : null);
+  const attention = useData<AttentionPage>(tab === "attention" && source ? `/api/bi/attention?source_id=${source}&offset=${attentionOffset}` : null);
   const tabs = role === "admin" ? [["settings", "日历与分析设置"]] : role === "finance" ? [["sales", "销售分析"], ["attention", "客户关注"], ["customers", "客户分析"]] : [["workbench", "个人工作台"], ...(role !== "sales" ? [["team", "团队执行"]] : []), ["sales", "销售分析"], ["attention", "客户关注"], ["customers", "客户分析"], ...(role === "owner" ? [["settings", "日历与分析设置"]] : [])];
   return <div className="bi"><div className="bi-head"><div><h1>{tabs.find(([key]) => key === tab)?.[1] || "分析"}</h1><p className="muted">以精斗云交易为实际业绩依据，让目标、客户动作和未来商机清楚可见。</p></div></div><nav className="bi-tabs" aria-label="分析导航">{tabs.map(([key, label]) => <button key={key} aria-current={tab === key ? "page" : undefined} onClick={() => { setTab(key); setDrill(undefined); }}>{label}</button>)}<button onClick={() => openCRM()}>进入客户与待办</button></nav><div className="bi-toolbar">{tab !== "settings" && tab !== "attention" && tab !== "customers" && <label>统计月份<input type="month" value={month} onChange={e => { setMonth(e.target.value || currentMonth()); setOffset(0); }} /></label>}{tab === "workbench" && <label>查看人员<select value={person} onChange={e => setPerson(e.target.value)}>{persons.data?.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>}{["sales", "attention", "customers", "settings"].includes(tab) && <label>分析数据源<select value={source} onChange={e => { setSource(e.target.value); setOffset(0); setAttentionOffset(0); }}><option value="">请选择数据源</option>{sources.data?.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</select></label>}{tab === "sales" && <><label>数据口径<select value={basis} onChange={e => { setBasis(e.target.value); setOffset(0); }}><option value="verified">已确认经营销售（导入即认可）</option><option value="source">源单据原始金额</option></select></label><label>分析维度<select value={dimension} onChange={e => { setDimension(e.target.value); setOffset(0); }}><option value="customer">客户</option><option value="product">商品</option><option value="person">业务员</option></select></label></>}</div><Feedback state={sources} /><Feedback state={persons} />
     {tab === "customers" && <CustomerAnalyticsPanel role={role} source={source} openCustomer={id => openCRM({tab:"customers",customerId:id})} />}
