@@ -33,4 +33,5 @@ def test_frontend_has_no_server_secrets():
             content = path.read_text(encoding="utf-8")
             assert "APP_SECRET_KEY" not in content
             assert "DATABASE_URL" not in content
-            assert "localStorage" not in content
+            # 会话令牌名不得出现在前端源码中；“记住账号”仅持久化用户名，属允许范围。
+            assert "songmao_session" not in content

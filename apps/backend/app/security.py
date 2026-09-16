@@ -20,7 +20,7 @@ def hash_password(password: str) -> str:
 def verify_password(password: str, encoded: str) -> bool:
     try:
         return hasher.verify(encoded, password)
-    except VerificationError, InvalidHashError:
+    except (VerificationError, InvalidHashError):
         return False
 
 

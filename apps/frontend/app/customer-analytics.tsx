@@ -108,7 +108,7 @@ export default function CustomerAnalyticsPanel({ role, source, openCustomer }: {
         <div className="bi-table-wrap"><table>
           <thead><tr><th>分层</th><th>客户数</th><th>源销售金额</th><th>金额占比</th><th>经营建议</th></tr></thead>
           <tbody>{data.segments.map(s => <tr key={s.layer}>
-            <td><span className="layer-dot" style={{ background: LAYER_COLORS[s.layer] || "LAYER_FALLBACK" }} />{s.layer}</td>
+            <td><span className="layer-dot" style={{ background: LAYER_COLORS[s.layer] || LAYER_FALLBACK }} />{s.layer}</td>
             <td>{s.count}</td><td>{money(s.amount)}</td><td>{pct(s.share)}</td><td className="muted">{s.hint}</td></tr>)}</tbody>
         </table></div></section>
       <section className="card"><h2>客户金额排名（前 20）</h2>
@@ -116,7 +116,7 @@ export default function CustomerAnalyticsPanel({ role, source, openCustomer }: {
           <thead><tr><th>#</th><th>客户</th><th>分层</th><th>订单数</th><th>源销售金额</th><th>客单价</th><th>最近成交</th><th>距今天数</th></tr></thead>
           <tbody>{data.top.map((t, i) => <tr key={t.customer_id}>
             <td>{i + 1}</td><td><button className="text-button" onClick={() => openCustomer(t.customer_id)}>{t.name}</button></td>
-            <td><span className="layer-badge" style={{ background: `${LAYER_COLORS[t.layer] || "LAYER_FALLBACK"}1a`, color: LAYER_COLORS[t.layer] || "#52525b" }}>{t.layer}</span></td>
+            <td><span className="layer-badge" style={{ background: `${LAYER_COLORS[t.layer] || LAYER_FALLBACK}1a`, color: LAYER_COLORS[t.layer] || "#52525b" }}>{t.layer}</span></td>
             <td>{t.orders}</td><td>{money(t.amount)}</td><td>{money(t.aov)}</td><td>{t.last_order_date || "—"}</td><td>{t.days_since ?? "—"}</td></tr>)}
             {!data.top.length && <tr><td colSpan={8}>暂无成交客户。</td></tr>}</tbody>
         </table></div></section>
