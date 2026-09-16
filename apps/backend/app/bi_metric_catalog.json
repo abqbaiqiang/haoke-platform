@@ -198,5 +198,25 @@
   "FIN_GROSS_PROFIT": {
     "definition": "营业收入 - 营业成本",
     "source": "利润表"
+  },
+  "SALE_MOM_BASE": {
+    "definition": "上月完整月经营销售额",
+    "source": "精斗云销售"
+  },
+  "SALE_YOY_BASE": {
+    "definition": "去年同期经营销售额",
+    "source": "精斗云销售"
+  },
+  "TGT_QUARTER_AMT": {
+    "definition": "读取sales_target.sales_amount_target（季度）",
+    "source": "CRM目标"
+  },
+  "TGT_QUARTER_COMPLETION": {
+    "definition": "季度经营销售额 / 季度销售目标",
+    "source": "精斗云 + CRM目标"
+  },
+  "TGT_QUARTER_PROGRESS": {
+    "definition": "季度已过天数 / 季度总天数",
+    "source": "系统日历"
   }
 }

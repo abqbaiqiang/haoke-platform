@@ -1,5 +1,14 @@
 # Changelog
 
+## C1 护栏 1/4：指标码目录双向断言 - 2026-09-16
+
+- **双向断言护栏**：`tests/test_m3.py::test_metric_descriptions_match_dictionary` 升级——静态扫描 `bi_calculations.py`/`bi_service.py` 中全部 `metric()`/`m()` 调用 emit 的指标码，断言其 ⊆ `bi_metric_catalog.json`；目录条目与 `docs/04_V1指标字典.md` 的公式/来源逐字段一致（原有方向保留）。今后新增指标若未登记目录/字典，测试即失败。
+- **补齐 5 个只 emit 未登记的指标码**（目录 JSON + 字典文档各补 5 行）：`SALE_MOM_BASE`、`SALE_YOY_BASE`（环比/同比基期金额）、`TGT_QUARTER_AMT`、`TGT_QUARTER_COMPLETION`、`TGT_QUARTER_PROGRESS`（季度目标三件套）。`TGT_WORKDAYS_REMAINING` 为日历辅助字段，保留白名单并注明原因。
+- **顺手清理**：`tests/test_sales_workspace.py` 移除两处未用变量（上一提交遗留，ruff 门禁在基线即报错）。
+- **验证**：ruff 0 错误；pytest 全量 262 通过；E2E 38 通过、10 跳过（桌面/移动分组）。
+
+# Changelog
+
 ## 商机推荐产品 + 工作台商机面板 + 公海批量体验 - 2026-09-16
 
 - **商机可多选推荐产品**：新增 `crm_opportunity_product` 关联表（migration `0009_opp_prod`）；商机表单支持商品搜索多选（`GET /api/crm/products` 联想），保存/更新自动同步关联并写入审计事件；商机列表与客户详情展示推荐产品。

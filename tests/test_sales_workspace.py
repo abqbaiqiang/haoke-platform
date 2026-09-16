@@ -283,7 +283,6 @@ def test_performance_last_year_yoy_gated_by_coverage(db, client, accounts, sign_
 
 def test_opportunity_products_roundtrip_and_recent_list(db, client, accounts, sign_in):
     """商机可多选推荐产品：保存/更新/回读 + 工作台近期商机列表。"""
-    from datetime import datetime as dt
     from uuid import UUID
     from app.data_models import Product, ImportBatch, DataSource
     from app.crm_models import OpportunityProduct
@@ -300,7 +299,6 @@ def test_opportunity_products_roundtrip_and_recent_list(db, client, accounts, si
     p3 = Product(source_system='perf_src', product_code='P3', product_name='坐姿椅', last_import_batch_id=pbatch.id)
     db.add_all([p1, p2, p3])
     db.commit()
-    now = datetime.now(crm.TZ).isoformat()
     sign_in('S1')
     body = {'opportunity_name': '春节礼盒', 'owner_user_id': str(accounts['S1'].id), 'stage': 'quoted',
             'estimated_amount': '5000.00', 'product_ids': [str(p1.id), str(p2.id)]}

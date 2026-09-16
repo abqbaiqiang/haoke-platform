@@ -382,14 +382,25 @@ def test_fact_update_time_is_scoped(db, client, sign_in, sample):
 @pytest.mark.unit
 def test_metric_descriptions_match_dictionary():
     from pathlib import Path
+    import re
     from app.bi_calculations import CATALOG
+    app_dir = Path(__file__).resolve().parents[1]/'apps/backend/app'
+    emitted = set()
+    for src in ('bi_calculations.py', 'bi_service.py'):
+        text = (app_dir/src).read_text(encoding='utf-8')
+        emitted.update(re.findall(r"metric\('([A-Z][A-Z0-9_]+)'", text))
+        emitted.update(re.findall(r"\bm\('([A-Z][A-Z0-9_]+)'", text))
+    missing = emitted - set(CATALOG)
+    assert not missing, f'代码 emit 的指标码缺少目录条目: {sorted(missing)}'
     rows = {}
     for line in (Path(__file__).resolve().parents[1]/'docs/04_V1指标字典.md').read_text(encoding='utf-8').splitlines():
         parts = [c.strip() for c in line.split('|')]
         if len(parts) > 7:
             rows[parts[1]] = {'definition':parts[4], 'source':parts[5]}
+    # TGT_WORKDAYS_REMAINING 是日历辅助字段，不属于指标字典条目
+    not_in_dictionary = {'TGT_WORKDAYS_REMAINING'}
     for code, entry in CATALOG.items():
-        if code != 'TGT_WORKDAYS_REMAINING':
+        if code not in not_in_dictionary:
             assert entry == rows[code]
 
 @pytest.mark.integration
