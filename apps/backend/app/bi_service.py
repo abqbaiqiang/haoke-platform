@@ -15,13 +15,14 @@ from app import bi_schemas as dto, services
 from app.bi_calculations import ZERO, metric, money, month_end, month_start, ratio, shift_month, target_metrics, work_dates
 from app.bi_models import BISetting, SalesReview, SalesTarget
 from app.crm_models import CustomerClaim, Followup, Opportunity, Task
+from app.config import get_settings
 from app.data_models import Customer, DataSource, FinancialMetric, FinancialPeriod, Product, SalesOrder, SalesOrderLine
 from app.models import ActivityLog, User, utcnow
 from app.permissions import can_read_owned
 from app.constants import FULL_ACCESS_ROLES, ROLE_ADMIN, ROLE_FINANCE, ROLE_MANAGER, ROLE_OWNER, ROLE_SALES, \
     SALES_ACTOR_ROLES, TARGET_MONTHLY, TARGET_QUARTERLY
 
-TZ = ZoneInfo('Asia/Shanghai')
+TZ = ZoneInfo(get_settings().app_timezone)
 
 
 def require(actor, roles):

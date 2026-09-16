@@ -13,11 +13,15 @@ import openpyxl
 import xlrd
 from defusedxml import ElementTree
 
+from app.config import get_settings
+
 VERSION = "m1-template-1"
 KINDS = {"customer", "product", "sales", "profit", "balance_sheet"}
 MAX_ROWS = 50000
 MAX_COLS = 256
 MAX_CELLS = 1500000
+# 源文件无时区信息时按展示时区（Asia/Shanghai）解释，与 docs/03 时区口径一致。
+SOURCE_TZ = ZoneInfo(get_settings().app_timezone)
 
 
 class ParseError(ValueError):
@@ -63,7 +67,7 @@ def source_time(value, row):
     try:
         dt = datetime.fromisoformat(text(value).replace("/", "-"))
         if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=ZoneInfo("Asia/Shanghai"))
+            dt = dt.replace(tzinfo=SOURCE_TZ)
         return dt.isoformat()
     except ValueError:
         raise ParseError("源修改时间无效", row, "最后修改时间") from None

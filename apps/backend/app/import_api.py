@@ -249,7 +249,7 @@ def sales_monthly(db: DB, actor: Actor, source_id: uuid.UUID, date_from: date | 
     rows = db.execute(scoped_sales(query, db, actor).group_by(month).order_by(month)).all()
     return {'metric_code': 'DQ_SALES_RECON', 'label': '源销售金额月度核对（退货/作废口径待确认）',
             'rows': [{'month': r.month.strftime('%Y-%m'), 'orders': r.orders, 'amount': str(r.amount),
-                      'through': r.through, 'incomplete_month': r.month.strftime('%Y-%m') == utcnow().astimezone(ZoneInfo('Asia/Shanghai')).strftime('%Y-%m')} for r in rows]}
+                      'through': r.through, 'incomplete_month': r.month.strftime('%Y-%m') == utcnow().astimezone(ZoneInfo(get_settings().app_timezone)).strftime('%Y-%m')} for r in rows]}
 
 
 @router.get('/sales/orders')

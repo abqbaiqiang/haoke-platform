@@ -1,5 +1,15 @@
 # Changelog
 
+## C3 后端公共层 3/4：时区统一读 settings.app_timezone - 2026-09-16
+
+- **审计 P2-03（仅改 4 行）**：删除后端 4 处硬编码 `ZoneInfo('Asia/Shanghai')`，统一改为读 `settings.app_timezone`（当前配置契约仍限定 `Asia/Shanghai`，行为零变化）：
+  - `crm_service.py` / `bi_service.py` 模块级 `TZ`；
+  - `import_api.py` 源销售月度核对的“未完月”判定；
+  - `import_parser.py` 源文件无时区信息的解释时区（新增模块级 `SOURCE_TZ`，解析层仅依赖 config 基础层，无 DB 访问，分层不变）。
+- **验证**：ruff 0 错误；pytest 全量 264 通过；E2E 38 通过。
+
+# Changelog
+
 ## C3 后端公共层 2/4：新增 app/constants.py 常量层 - 2026-09-16
 
 - **审计 P3-08（后端侧）**：新增 `app/constants.py`，收敛跨模块比较/校验用的字面量：角色编码（ROLE_OWNER/ADMIN/MANAGER/SALES/FINANCE）、高频角色组合（FULL_ACCESS_ROLES、SALES_ACTOR_ROLES、ALL_WORK_ROLES）、客户归属状态（OWNERSHIP_OWNED/PUBLIC_POOL）、客户等级（CUSTOMER_LEVELS）、销售目标类型（TARGET_MONTHLY/QUARTERLY）。

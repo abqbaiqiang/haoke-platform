@@ -9,6 +9,7 @@ from sqlalchemy import exists, func, or_, select, update
 from sqlalchemy.exc import IntegrityError
 
 from app import crm_schemas as dto, services
+from app.config import get_settings
 from app.crm_models import Assignment, Contact, CRMSetting, CustomerClaim, CustomerTag, Followup, Opportunity, OpportunityProduct, Tag, Task
 from app.data_models import Customer, Product, SalesOrder, SalesOrderLine
 from app.models import ActivityLog, User, utcnow
@@ -16,7 +17,7 @@ from app.permissions import can_read_owned
 from app.constants import ALL_WORK_ROLES, FULL_ACCESS_ROLES, OWNERSHIP_PUBLIC_POOL, ROLE_ADMIN, ROLE_FINANCE, \
     ROLE_MANAGER, ROLE_OWNER, ROLE_SALES, SALES_ACTOR_ROLES
 
-TZ = ZoneInfo('Asia/Shanghai')
+TZ = ZoneInfo(get_settings().app_timezone)
 
 # WeChat-style preset tags so tagging and tag filtering work out of the box.
 DEFAULT_TAGS = [('重点客户', '分层'), ('老客户', '分层'), ('新客户', '分层'), ('潜在客户', '分层'),
