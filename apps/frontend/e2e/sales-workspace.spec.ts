@@ -36,9 +36,13 @@ SW${suffix},销售工作台验收 ${suffix}
  const t=await page.request.post('/api/crm/tasks',{headers,data:{title:'确认礼盒数量 '+suffix,customer_id:customer.id,assignee_user_id:me.id,due_at:due,task_type:'followup'}});
  expect(t.status()).toBe(201);
  const task=(await t.json());
+ // 到期时间按北京时间算：若 now+1h 跨天（23 点后运行），任务落入“全部未来”视图而非“今天”。
+ const bjDay=(d:Date)=>new Date(d.getTime()+8*3600000).toISOString().slice(0,10);
+ const dueToday=bjDay(new Date(due))===bjDay(new Date());
  await page.reload();
  await expect(page.locator('.sales-main')).not.toContainText('请求失败');
  await nav.getByRole('link',{name:'待办',exact:true}).click();
+ if (!dueToday) await page.getByRole('button',{name:'全部未来',exact:true}).click();
  const row=page.getByRole('row').filter({hasText:'确认礼盒数量 '+suffix});
  await expect(row).toBeVisible();
  await row.getByRole('button',{name:'记录跟进',exact:true}).click();
