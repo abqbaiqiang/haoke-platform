@@ -1,5 +1,6 @@
 import json
 import logging
+from pathlib import Path
 import uuid
 from typing import Annotated
 
@@ -43,6 +44,14 @@ def error_response(request: Request, status: int, message: str):
             }
         },
     )
+
+
+def alembic_head() -> str:
+    """当前迁移脚本的 head，避免在代码中硬编码版本串。"""
+    from alembic.config import Config
+    from alembic.script import ScriptDirectory
+    cfg = Config(str(Path(__file__).resolve().parents[1] / "alembic.ini"))
+    return ScriptDirectory.from_config(cfg).get_current_head()
 
 
 @app.middleware("http")
@@ -94,7 +103,7 @@ Current = Annotated[tuple, Depends(current)]
 def health(db: DB):
     try:
         db.execute(text("SELECT 1"))
-        if db.execute(text("SELECT version_num FROM alembic_version")).scalar_one() != "0008_v11":
+        if db.execute(text("SELECT version_num FROM alembic_version")).scalar_one() != alembic_head():
             raise HTTPException(503, "数据库版本未就绪")
     except SQLAlchemyError:
         raise HTTPException(503, "数据库未就绪") from None

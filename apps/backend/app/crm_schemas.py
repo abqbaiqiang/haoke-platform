@@ -171,6 +171,11 @@ class TaskView(TaskInput):
     followup_id: UUID | None
 
 
+class ProductRef(DTO):
+    id: UUID
+    name: str
+
+
 class OpportunityInput(DTO):
     opportunity_name: Name
     owner_user_id: UUID
@@ -180,6 +185,7 @@ class OpportunityInput(DTO):
     expected_close_date: date | None = None
     need_summary: Note | None = None
     lost_reason: Annotated[str, Field(max_length=255)] | None = None
+    product_ids: Annotated[list[UUID], Field(max_length=50)] = []
 
 
 class OpportunityView(OpportunityInput):
@@ -188,6 +194,7 @@ class OpportunityView(OpportunityInput):
     status: str
     weighted_amount: str | None = None
     closed_at: datetime | None
+    products: list[ProductRef] = []
 
 
 class Settings(DTO):

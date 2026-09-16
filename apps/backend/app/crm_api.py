@@ -2,13 +2,13 @@ from typing import Annotated, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app import crm_schemas as dto, crm_service as svc, services
 from app.crm_models import CRMSetting, CustomerTag, Followup, Opportunity, Tag
-from app.data_models import Customer
+from app.data_models import Customer, Product
 from app.db import get_db
 
 router = APIRouter(prefix='/api/crm', tags=['CRM'])
@@ -96,7 +96,8 @@ def opportunities(db: DB, actor: Actor, offset: int = Query(0,ge=0), owner_user_
     if status:
         query = query.where(Opportunity.status == status)
     rows = db.scalars(query.order_by(Opportunity.updated_at.desc(),Opportunity.id).offset(offset).limit(100)).all()
-    return [svc.opportunity_view(x) for x in rows]
+    views = [svc.opportunity_view(db, x) for x in rows]
+    return views
 
 
 @router.post('/customers', response_model=dto.CustomerCreated, status_code=201)
@@ -162,6 +163,16 @@ def followup_update(cid: UUID, fid: UUID, payload: dto.FollowupInput, db: DB, ac
 @router.post('/customers/{cid}/followups/{fid}/void', response_model=dto.FollowupView)
 def followup_void(cid: UUID, fid: UUID, payload: dto.VoidInput, db: DB, actor: Actor):
     return svc.void_followup(db, actor, cid, fid, payload.reason)
+
+
+@router.get('/products')
+def products(db: DB, actor: Actor, q: str = Query('', max_length=100), limit: int = Query(50, ge=1, le=200)):
+    svc.role(actor, {'owner', 'admin', 'manager', 'sales'})
+    query = select(Product.id, Product.product_name).where(Product.is_active)
+    if q:
+        query = query.where(or_(Product.product_name.icontains(q, autoescape=True),
+                                Product.product_code.icontains(q, autoescape=True)))
+    return [{'id': str(pid), 'name': name} for pid, name in db.execute(query.order_by(Product.product_name).limit(limit)).all()]
 
 
 @router.get('/tags', response_model=list[dto.TagView])

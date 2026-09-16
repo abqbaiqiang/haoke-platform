@@ -416,7 +416,8 @@ def test_m3_migration_preserves_configuration_on_downgrade(database_engine, monk
         with pytest.raises(RuntimeError, match='restore a verified backup'):
             command.downgrade(config, '0004_m2')
         with engine.connect() as conn:
-            assert conn.scalar(text('SELECT version_num FROM alembic_version')) == '0008_v11'
+            from app.main import alembic_head
+            assert conn.scalar(text('SELECT version_num FROM alembic_version')) == alembic_head()
             assert conn.scalar(text('SELECT count(*) FROM bi_setting')) == 1
     finally:
         engine.dispose()

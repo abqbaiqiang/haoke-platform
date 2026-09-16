@@ -1,3 +1,4 @@
+from collections import defaultdict
 from datetime import datetime, time, timedelta
 from decimal import Decimal, ROUND_HALF_UP
 from zoneinfo import ZoneInfo
@@ -8,7 +9,7 @@ from sqlalchemy import exists, func, or_, select, update
 from sqlalchemy.exc import IntegrityError
 
 from app import crm_schemas as dto, services
-from app.crm_models import Assignment, Contact, CRMSetting, CustomerClaim, CustomerTag, Followup, Opportunity, Tag, Task
+from app.crm_models import Assignment, Contact, CRMSetting, CustomerClaim, CustomerTag, Followup, Opportunity, OpportunityProduct, Tag, Task
 from app.data_models import Customer, Product, SalesOrder, SalesOrderLine
 from app.models import ActivityLog, User, utcnow
 from app.permissions import can_read_owned
@@ -519,10 +520,26 @@ def weighted(amount, probability):
     return None if amount is None or probability is None else format((amount * probability).quantize(Decimal('.01'), rounding=ROUND_HALF_UP), '.2f')
 
 
-def opportunity_view(obj):
+def attach_products(db, rows):
+    """批量装配商机的推荐产品列表。"""
+    ids = [r.id for r in rows]
+    if not ids:
+        return
+    links = db.execute(select(OpportunityProduct.opportunity_id, Product.id, Product.product_name)
+        .join(Product, Product.id == OpportunityProduct.product_id)
+        .where(OpportunityProduct.opportunity_id.in_(ids))).all()
+    grouped: dict = defaultdict(list)
+    for oid, pid, name in links:
+        grouped[oid].append(dto.ProductRef(id=pid, name=name))
+    for r in rows:
+        r.products = grouped.get(r.id, [])
+
+
+def opportunity_view(db, obj):
     result = dto.OpportunityView.model_validate(obj)
     # OPP_WEIGHTED_AMT: only open opportunities contribute. No sales facts are changed.
     result.weighted_amount = weighted(obj.estimated_amount,obj.probability) if obj.status == 'open' else None
+    attach_products(db, [result])
     return result
 
 
@@ -537,16 +554,30 @@ def save_opportunity(db, actor, cid, payload, oid=None):
     before = snapshot(obj) if oid else None
     if oid and obj.status != 'open' and payload.stage != obj.stage:
         raise HTTPException(409, '已关闭商机不能重新流转，请建立新商机')
-    for k,v in payload.model_dump().items():
+    data = payload.model_dump()
+    product_ids = data.pop('product_ids', [])
+    for k,v in data.items():
         setattr(obj,k,v)
     obj.status = payload.stage if payload.stage in {'won','lost'} else 'open'
     if obj.status in {'won', 'lost'} and obj.closed_at is None:
         obj.closed_at = utcnow()
     db.add(obj)
     db.flush()
-    event(db, actor, 'opportunity_update' if oid else 'opportunity_create', cid, obj.id, before,snapshot(obj))
+    existing = set(db.scalars(select(OpportunityProduct.product_id).where(OpportunityProduct.opportunity_id == obj.id)))
+    for pid in set(product_ids):
+        if not db.get(Product, pid):
+            raise HTTPException(422, '推荐产品不存在')
+        if pid not in existing:
+            db.add(OpportunityProduct(opportunity_id=obj.id, product_id=pid, created_by=actor.id))
+    for pid in existing - set(product_ids):
+        link = db.get(OpportunityProduct, (obj.id, pid))
+        if link:
+            db.delete(link)
+    after = snapshot(obj)
+    after['product_ids'] = sorted(set(product_ids))
+    event(db, actor, 'opportunity_update' if oid else 'opportunity_create', cid, obj.id, before, after)
     db.commit()
-    return opportunity_view(obj)
+    return opportunity_view(db, obj)
 
 
 def detail(db, actor, cid, history_offset=0):
@@ -580,7 +611,7 @@ def detail(db, actor, cid, history_offset=0):
             'tags':tags,
             'followups':[] if finance else db.scalars(select(Followup).where(Followup.customer_id == cid).order_by(Followup.occurred_at.desc(), Followup.id).offset(history_offset).limit(51)).all(),
             'tasks':[] if finance else work(Task,Task.assignee_user_id),
-            'opportunities':[] if finance else [opportunity_view(x) for x in work(Opportunity,Opportunity.owner_user_id)],
+            'opportunities':[] if finance else [opportunity_view(db,x) for x in work(Opportunity,Opportunity.owner_user_id)],
             'events':[] if finance else db.scalars(select(ActivityLog).where(ActivityLog.object_type == 'crm_customer',ActivityLog.object_id.in_(history_ids)).order_by(ActivityLog.occurred_at.desc(), ActivityLog.id).offset(history_offset).limit(51)).all(),
             'orders':db.scalars(orders.order_by(SalesOrder.order_date.desc(), SalesOrder.id).offset(history_offset).limit(51)).all(),
             'sales_summary': {'metric_code':'DQ_SALES_RECON', 'order_count':summary[0],

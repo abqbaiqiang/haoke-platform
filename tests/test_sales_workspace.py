@@ -279,3 +279,53 @@ def test_performance_last_year_yoy_gated_by_coverage(db, client, accounts, sign_
     assert top['last_year'] == '10000.00' and top['yoy'] == '-20.0'
     # structure: 该客户去年同期已成交，本月复购 → 老客户
     assert data['structure']['repeat_customers'] == 1 and data['structure']['new_deals'] == 0
+
+
+def test_opportunity_products_roundtrip_and_recent_list(db, client, accounts, sign_in):
+    """商机可多选推荐产品：保存/更新/回读 + 工作台近期商机列表。"""
+    from datetime import datetime as dt
+    from uuid import UUID
+    from app.data_models import Product, ImportBatch, DataSource
+    from app.crm_models import OpportunityProduct
+    mine, other = seed(db, accounts)
+    psrc = DataSource(source_code='opp_prod_src', source_name='商机产品测试源', entity_name='商机产品测试', is_enabled=True)
+    db.add(psrc)
+    db.flush()
+    pbatch = ImportBatch(data_source_id=psrc.id, business_type='product', original_filename='p.csv',
+                         storage_path='p.csv', file_hash='2' * 64, status='success', imported_by=accounts['S1'].id)
+    db.add(pbatch)
+    db.flush()
+    p1 = Product(source_system='perf_src', product_code='P1', product_name='钛杯', last_import_batch_id=pbatch.id)
+    p2 = Product(source_system='perf_src', product_code='P2', product_name='帐篷', last_import_batch_id=pbatch.id)
+    p3 = Product(source_system='perf_src', product_code='P3', product_name='坐姿椅', last_import_batch_id=pbatch.id)
+    db.add_all([p1, p2, p3])
+    db.commit()
+    now = datetime.now(crm.TZ).isoformat()
+    sign_in('S1')
+    body = {'opportunity_name': '春节礼盒', 'owner_user_id': str(accounts['S1'].id), 'stage': 'quoted',
+            'estimated_amount': '5000.00', 'product_ids': [str(p1.id), str(p2.id)]}
+    r = client.post(f'/api/crm/customers/{mine.id}/opportunities', json=body)
+    assert r.status_code == 201, r.text
+    view = r.json()
+    assert [p['name'] for p in view['products']] == ['钛杯', '帐篷']
+    assert db.scalar(select(func.count()).select_from(OpportunityProduct)) == 2
+    # 更新为只剩一款
+    body['product_ids'] = [str(p3.id)]
+    r = client.put(f"/api/crm/customers/{mine.id}/opportunities/{view['id']}", json=body)
+    assert r.status_code == 200, r.text
+    assert [p['name'] for p in r.json()['products']] == ['坐姿椅']
+    assert db.scalar(select(func.count()).select_from(OpportunityProduct)) == 1
+    # 非法产品 id → 422
+    body['product_ids'] = [str(UUID(int=999))]
+    assert client.put(f"/api/crm/customers/{mine.id}/opportunities/{view['id']}", json=body).status_code == 422
+    # 工作台近期商机列表（含客户名与产品）
+    sign_in('S1')
+    data = client.get('/api/sales/opportunities?days=30&limit=10').json()
+    assert data['total'] == 1
+    row = data['rows'][0]
+    assert row['customer_name'] == 'S1客户' and row['stage'] == 'quoted'
+    assert [p['name'] for p in row['products']] == ['坐姿椅']
+    # 不带产品的历史调用不受影响
+    r = client.post(f'/api/crm/customers/{mine.id}/opportunities',
+                    json={'opportunity_name': '无产品商机', 'owner_user_id': str(accounts['S1'].id), 'stage': 'initial'})
+    assert r.status_code == 201 and r.json()['products'] == []

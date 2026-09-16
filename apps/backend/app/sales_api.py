@@ -30,6 +30,12 @@ def customers(db: DB, actor: Actor, q: str = Query('', max_length=100), pool: bo
     return svc.customers(db, actor, q, pool, offset, limit, claim, level, tag_id)
 
 
+@router.get('/opportunities', response_model=svc.RecentOpportunities)
+def recent_opportunities(db: DB, actor: Actor, days: int = Query(30, ge=1, le=180),
+                         limit: int = Query(10, ge=1, le=50)):
+    return svc.recent_opportunities(db, actor, days, limit)
+
+
 @router.get('/tasks', response_model=svc.Tasks)
 def tasks(db: DB, actor: Actor, view: Literal['today', 'overdue', 'week', 'future', 'done'] = 'today',
           offset: int = Query(0, ge=0), limit: int = Query(20, ge=1, le=100)):

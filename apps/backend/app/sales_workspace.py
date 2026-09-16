@@ -10,7 +10,7 @@ from sqlalchemy import case, exists, func, or_, select
 
 from app import bi_service as bi, crm_schemas as dto, crm_service as crm
 from app.crm_api import Actor, DB
-from app.crm_models import Contact, CustomerClaim, CustomerTag, Followup, Tag, Task
+from app.crm_models import Contact, CustomerClaim, CustomerTag, Followup, Opportunity, Tag, Task
 from app.data_models import Customer, Product, SalesOrder, SalesOrderLine
 from app.models import utcnow
 
@@ -115,6 +115,23 @@ class MonthlyPoint(dto.DTO):
 class MonthlyTrend(dto.DTO):
     points: list[MonthlyPoint]
     warnings: list[str]
+
+
+class OpportunityRecentRow(dto.DTO):
+    id: UUID
+    customer_id: UUID
+    customer_name: str
+    opportunity_name: str
+    stage: str
+    estimated_amount: str | None
+    expected_close_date: date | None
+    created_at: datetime
+    products: list[dto.ProductRef]
+
+
+class RecentOpportunities(dto.DTO):
+    rows: list[OpportunityRecentRow]
+    total: int
 
 
 def monthly_trend(db, actor, source_id, period):
@@ -414,3 +431,23 @@ def performance(db: DB, actor: Actor, source_id: UUID, from_month: date, to_mont
         products=product_rows,
         funnel=[FunnelStage(stage=s, current=c, prev=p) for s, c, p in
                 [('跟进客户', followed, p_followed), ('有需求', good, p_good), ('报价', quoted, p_quoted), ('成交', deal_n, None)]])
+
+
+def recent_opportunities(db: DB, actor: Actor, days: int = 30, limit: int = 10):
+    """工作台首页：最近创建的开放商机及其推荐产品。身份取自登录态。"""
+    crm.role(actor, {'sales'})
+    since = bi.utcnow() - timedelta(days=days)
+    query = select(Opportunity, Customer.customer_name).join(Customer, Customer.id == Opportunity.customer_id).where(
+        Opportunity.owner_user_id == actor.id, Opportunity.status == 'open', Opportunity.is_active,
+        Opportunity.created_at >= since)
+    total = db.scalar(select(func.count()).select_from(query.subquery()))
+    rows = db.execute(query.order_by(Opportunity.created_at.desc(), Opportunity.id).limit(limit)).all()
+    views = [dto.OpportunityView.model_validate(o) for o, _ in rows]
+    crm.attach_products(db, views)
+    out = [OpportunityRecentRow(id=v.id, customer_id=v.customer_id, customer_name=name,
+                                opportunity_name=v.opportunity_name, stage=v.stage,
+                                estimated_amount=bi.money(v.estimated_amount) if v.estimated_amount is not None else None,
+                                expected_close_date=v.expected_close_date,
+                                created_at=o.created_at, products=v.products)
+           for v, (o, name) in zip(views, rows)]
+    return RecentOpportunities(rows=out, total=total)

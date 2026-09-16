@@ -128,6 +128,14 @@ class Task(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 
+class OpportunityProduct(Base):
+    __tablename__ = 'crm_opportunity_product'
+    opportunity_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('crm_opportunity.id'), primary_key=True)
+    product_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('product.id'), primary_key=True, index=True)
+    created_by: Mapped[uuid.UUID] = mapped_column(ForeignKey('sys_user.id'))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
 class CRMSetting(Base):
     __tablename__ = 'crm_setting'
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
