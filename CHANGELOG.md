@@ -1,5 +1,15 @@
 # Changelog
 
+## C3 后端公共层 1/4：新增 app/deps.py 收敛 Actor/DB/Current - 2026-09-16
+
+- **审计 P2-09**：新增 `app/deps.py`，统一持有 `DB`（会话依赖）、`Actor`（已认证用户）、`Current`（user+session 元组）三个请求级依赖注解。此前同一概念分散在 main/import_api/crm_api/user_api 四处定义，且 `sales_workspace`（service 层）反向导入 `crm_api`（API 层）、`bi_api`/`sales_api` 互相导入对方局部定义。
+- **依赖方向修正**：`sales_workspace`、`bi_api`、`sales_api` 改从 `deps.py` 导入；service→API 反向依赖消除。
+- **main.py 末端 `noqa: E402` 导入全部移除**：五个 router 导入上移至文件头部，路由挂载紧随 app 创建之后（模块间已无环，无需末置导入）。
+- **行为不变**：`Actor` 注解由 `Annotated[object]`/`Annotated[User]` 两种统一为 `Annotated[User]`（FastAPI 对 Depends 返回值不做注解校验，纯类型提示差异）；conftest 的 `get_db` override 路径不变。
+- **验证**：ruff 0 错误；pytest 全量 264 通过；E2E 38 通过。
+
+# Changelog
+
 ## C1 护栏 4/4：storage_init 最小单测 - 2026-09-16
 
 - **审计 P1-15**：新增 `tests/test_unit.py::test_storage_init_prepares_configured_directories`——以 tmp 目录 + monkeypatch 打桩（`os.chown` 在 Windows 不存在，统一打桩以跨平台运行）执行 `storage_init.py`，断言：仅创建配置的目录（UPLOAD_ROOT 下 raw/attachments、BACKUP_ROOT），每个目录逐一 `chown 10001:10001`、`chmod 0700`。代码行为未改动。

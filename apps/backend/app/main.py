@@ -2,21 +2,24 @@ import json
 import logging
 from pathlib import Path
 import uuid
-from typing import Annotated
 
-from fastapi import Depends, FastAPI, HTTPException, Request, Response
+from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import Session
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app import services
+from app.bi_api import router as bi_router
 from app.config import get_settings
-from app.db import get_db
+from app.crm_api import router as crm_router
+from app.deps import Current, DB
+from app.import_api import router as data_router
 from app.models import utcnow
+from app.sales_api import router as sales_router
 from app.schemas import LoginInput, ProfilePatch, SessionView, StatusView, UserView
+from app.user_api import router as user_router
 
 settings = get_settings()
 logging.basicConfig(level=logging.INFO, format="%(message)s")
@@ -29,8 +32,13 @@ app = FastAPI(
     redoc_url=None,
     openapi_url=None if settings.app_env == "production" else "/api/openapi.json",
 )
-DB = Annotated[Session, Depends(get_db)]
 COOKIE = "songmao_session"
+
+app.include_router(data_router)
+app.include_router(crm_router)
+app.include_router(bi_router)
+app.include_router(user_router)
+app.include_router(sales_router)
 
 
 def error_response(request: Request, status: int, message: str):
@@ -90,13 +98,6 @@ async def http_error(request: Request, exc: StarletteHTTPException):
 @app.exception_handler(RequestValidationError)
 async def validation_error(request: Request, exc: RequestValidationError):
     return error_response(request, 422, "输入字段不符合要求")
-
-
-def current(request: Request, db: DB):
-    return services.authenticate(db, request.cookies.get(COOKIE))
-
-
-Current = Annotated[tuple, Depends(current)]
 
 
 @app.get("/health", response_model=StatusView)
@@ -175,24 +176,3 @@ def user_detail(user_id: uuid.UUID, db: DB, identity: Current):
 @app.patch("/api/users/{user_id}", response_model=UserView)
 def profile_update(user_id: uuid.UUID, payload: ProfilePatch, db: DB, identity: Current):
     return services.edit_profile(db, services.principal_for(db, identity[0]), user_id, payload)
-
-
-from app.import_api import router as data_router  # noqa: E402
-
-app.include_router(data_router)
-
-from app.crm_api import router as crm_router  # noqa: E402
-
-app.include_router(crm_router)
-
-from app.bi_api import router as bi_router  # noqa: E402
-
-app.include_router(bi_router)
-
-from app.user_api import router as user_router  # noqa: E402
-
-app.include_router(user_router)
-
-from app.sales_api import router as sales_router  # noqa: E402
-
-app.include_router(sales_router)

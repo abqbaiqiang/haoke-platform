@@ -5,7 +5,7 @@ from uuid import UUID
 from fastapi import APIRouter, Query
 
 from app import crm_schemas as dto, sales_workspace as svc
-from app.crm_api import Actor, DB
+from app.deps import Actor, DB
 
 router = APIRouter(prefix='/api/sales', tags=['销售日常工作'])
 

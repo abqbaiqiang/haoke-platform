@@ -7,7 +7,7 @@ from sqlalchemy import select
 
 from app import bi_schemas as dto, bi_service as svc
 from app.bi_models import SalesReview
-from app.import_api import Actor, DB
+from app.deps import Actor, DB
 
 router = APIRouter(prefix='/api/bi', tags=['销售工作台与分析'])
 

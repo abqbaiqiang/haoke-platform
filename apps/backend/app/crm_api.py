@@ -1,25 +1,16 @@
-from typing import Annotated, Literal
+from typing import Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy import or_, select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
 
-from app import crm_schemas as dto, crm_service as svc, services
+from app import crm_schemas as dto, crm_service as svc
 from app.crm_models import CRMSetting, CustomerTag, Followup, Opportunity, Tag
 from app.data_models import Customer, Product
-from app.db import get_db
+from app.deps import Actor, DB
 
 router = APIRouter(prefix='/api/crm', tags=['CRM'])
-DB = Annotated[Session, Depends(get_db)]
-
-
-def current(request: Request, db: DB):
-    return services.authenticate(db, request.cookies.get('songmao_session'))[0]
-
-
-Actor = Annotated[object, Depends(current)]
 
 
 @router.get('/settings', response_model=dto.Settings)

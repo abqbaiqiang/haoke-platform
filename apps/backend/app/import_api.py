@@ -2,34 +2,25 @@ import uuid
 from zoneinfo import ZoneInfo
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Annotated, Literal
+from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
 
 from app import import_service as svc, services
 from app.config import get_settings
+from app.deps import Actor, DB
 from app.import_parser import BALANCE_NAMES, PROFIT_NAMES
 from app.data_models import (Customer, DataSource, FinancialMetric, FinancialPeriod, ImportBatch,
                              RawImportRow, SalesOrder, SalesOrderLine)
-from app.db import get_db
 from app.models import User, utcnow
 from app.permissions import can_read_owned
 
 router = APIRouter(prefix='/api/data', tags=['数据中心'])
-DB = Annotated[Session, Depends(get_db)]
-
-
-def identity(request: Request, db: DB):
-    return services.authenticate(db, request.cookies.get('songmao_session'))[0]
-
-
-Actor = Annotated[User, Depends(identity)]
 Kind = Literal['customer', 'product', 'sales', 'profit', 'balance_sheet']
 
 

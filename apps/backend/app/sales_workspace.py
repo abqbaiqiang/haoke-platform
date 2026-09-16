@@ -9,9 +9,9 @@ from fastapi import HTTPException
 from sqlalchemy import case, exists, func, or_, select
 
 from app import bi_service as bi, crm_schemas as dto, crm_service as crm
-from app.crm_api import Actor, DB
 from app.crm_models import Contact, CustomerClaim, CustomerTag, Followup, Opportunity, Tag, Task
 from app.data_models import Customer, Product, SalesOrder, SalesOrderLine
+from app.deps import Actor, DB
 from app.models import utcnow
 
 
