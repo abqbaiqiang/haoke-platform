@@ -5,10 +5,13 @@ async function login(page:Page,role:string) {
   await page.getByLabel('账号',{exact:true}).fill(`demo_${role}`);
   await page.getByLabel('密码',{exact:true}).fill(process.env.DEMO_PASSWORD!);
   await page.getByRole('button',{name:'登录',exact:true}).click();
+  if (role==='sales') await page.locator('details.sales-account summary').click();
   await expect(page.getByRole('button',{name:'退出登录',exact:true})).toBeVisible();
 }
 
-test('workbench preserves CRM view and person, open status and quick followup',async({page})=>{
+// FIXME(2026-09-15 验收同步)：新增潜客已按产品决策关闭、销售端迁移到销售工作台（sales.tsx），
+// 本用例的潜客创建/CRM 工作台路径不复存在；待按“导入→公海→认养”与销售工作台重写。
+test.fixme('workbench preserves CRM view and person, open status and quick followup',async({page})=>{
   test.setTimeout(60000);
   await login(page,'sales');
   const headers={Origin:new URL(page.url()).origin};
@@ -24,7 +27,7 @@ test('workbench preserves CRM view and person, open status and quick followup',a
     const r=await page.request.post(`/api/crm/customers/${cid}/opportunities`,{headers,data:{opportunity_name:`快捷商机 ${stage} ${suffix}`,owner_user_id:uid,stage}});
     expect(r.status()).toBe(201);
   }
-  await page.getByRole('button',{name:'销售工作台',exact:true}).click();
+  await page.getByRole('navigation',{name:'主导航'}).getByRole('link',{name:'销售工作台',exact:true}).click();
   await page.getByRole('button',{name:/^今日待办/}).click();
   await expect(page.getByRole('button',{name:'今天',exact:true})).toHaveAttribute('aria-pressed','true');
   await expect(page.getByLabel('筛选负责人')).toHaveValue(uid);
@@ -42,7 +45,7 @@ test('workbench preserves CRM view and person, open status and quick followup',a
   await page.getByRole('button',{name:'退出登录'}).click();
   await login(page,'owner');
   for(const [button,view] of [['本周待办','本周'],['逾期待办','逾期'],['开放商机','']]){
-    await page.getByRole('button',{name:'销售工作台',exact:true}).click();
+    await page.getByRole('navigation',{name:'主导航'}).getByRole('link',{name:'销售工作台',exact:true}).click();
     await page.getByLabel('查看人员').selectOption(uid);
     await expect(page.locator('.bi-metrics')).toBeVisible();
     await page.getByRole('button',{name:new RegExp('^'+button)}).click();

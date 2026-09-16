@@ -1,0 +1,330 @@
+/* Shared application layout. Color tokens live once in globals.css (forest green). */
+body{font-size:14px;line-height:1.55}
+h1{font-size:26px;letter-spacing:-.6px}h2{font-size:17px}h3{font-size:15px}
+button{font-size:13px;border-radius:7px;padding:8px 12px}
+button:disabled{cursor:not-allowed}
+.workspace.dash-root{grid-template-columns:208px minmax(0,1fr)}
+.dash-root aside{background:#1e2a38;border-right:0;padding:24px 14px;align-self:start;position:sticky;top:0;min-height:100dvh;max-height:100dvh;overflow-y:auto}
+.dash-root .brand{gap:10px;padding:0 8px;font-size:18px;color:#f8fafc}
+.dash-root .brand-mark.small{width:33px;height:38px;border-radius:8px;font-family:serif;font-size:22px;flex-shrink:0;border-color:#3d5266;background:#ffffff10}
+.dash-root .brand strong{font-weight:600;letter-spacing:1px}
+.dash-root .brand small{font-size:11px;letter-spacing:1px;margin-top:4px}
+.dash-root aside .nav-label{font-size:10px;letter-spacing:2px;margin:22px 10px 6px;color:#7e93a6}
+.dash-root aside nav{gap:2px;display:grid}
+.dash-root aside nav :is(a,button){display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:7px;color:#c2d0dd;background:transparent;font-size:13px;font-weight:400;box-shadow:none;text-decoration:none}
+.dash-root aside nav :is(a,button):hover{color:#fff;background:#ffffff12}
+.dash-root aside nav :is(a,button)[aria-current=page]{background:var(--accent);color:#fff;box-shadow:none;font-weight:600}
+.nav-icon{display:block;width:15px;height:15px;flex-shrink:0;opacity:.9}
+.dash-root .sidebar-bottom{padding:18px 10px 0;margin-top:auto;font-size:11px;color:#7e93a6;border-top:1px solid #31435a}
+.content>header{min-height:60px;padding:12px 28px;background:#fff;backdrop-filter:none;font-size:12px}
+.dashboard{max-width:1600px;padding:26px 28px 36px}
+.mobile-menu{display:none}
+.card,.notice{border-radius:var(--radius);box-shadow:none;padding:20px}
+.eyebrow{font-size:10px;letter-spacing:1.8px}
+.primary{width:auto;font-size:13px;padding:10px 18px;margin-top:12px}
+.login-panel .primary{width:100%;font-size:15px;padding:13px;margin-top:24px}
+.data-tabs{gap:7px;margin:18px 0}
+.data-tabs button{padding:9px 13px;border:1px solid var(--line);font-size:13px}
+.data-tabs button[aria-pressed=true]{background:var(--accent-soft);border-color:#bfdbfe;color:var(--accent-strong)}
+.bi-tabs{display:flex;gap:6px;flex-wrap:wrap;margin:20px 0;padding-bottom:10px;border-bottom:1px solid var(--line)}
+.bi-tabs button{color:#52525b;background:#fff;border:1px solid var(--line);padding:8px 12px;box-shadow:none;font-weight:500}
+.bi-tabs button[aria-current=page]{background:var(--accent-soft);border-color:#bfdbfe;color:var(--accent-strong);box-shadow:none}
+.bi-tabs button:hover{background:#f4f4f5;color:var(--accent-strong)}
+.bi-toolbar{align-items:flex-end;gap:14px}
+.bi-toolbar label{flex:0 1 240px;min-width:0}
+.bi-metrics{gap:12px;margin:18px 0}
+.bi-metrics strong{font-size:25px}
+.bi .card,.customer-analytics{min-width:0}
+.bi-form-grid{grid-template-columns:repeat(auto-fit,minmax(min(210px,100%),1fr))}
+.analytics-charts{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:16px;margin:18px 0}
+.customer-analytics>.card{margin:16px 0}
+.bi-table-wrap,.table-scroll{min-width:0;width:100%}
+.table-scroll th,.table-scroll td,.bi th,.bi td{padding:11px 12px;font-size:13px}
+.table-scroll th,.bi th{background:#fafafa;color:#71717a}
+.text-button{background:transparent;border:0;color:var(--accent);padding:3px 0;font-weight:500;text-align:left}
+.text-button:hover:not(:disabled){background:transparent;color:var(--accent-strong);text-decoration:underline;border-color:transparent}
+.text-button.customer-link{max-width:100%;white-space:normal;overflow-wrap:anywhere}
+
+/* ==========================================================================
+   经营驾驶舱 · 数据看板
+   契约（DESIGN.md）：品牌蓝 #2563eb + zinc 中性灰；侧栏 #1e2a38。
+   硬约束：禁绿色系、禁单侧色条、禁 eyebrow 小标签、禁渐变文字。
+   表达原则：金额优先用比例条 / 进度条呈现，不铺灰方块占位；
+             未核实的派生比例（占比、完成率）一律不渲染。
+   ========================================================================== */
+.cockpit{display:grid;gap:18px;min-width:0}
+
+/* 顶栏 */
+.cockpit-top{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.cockpit-title h1{margin:0 0 8px}
+.cockpit-trust{display:flex;align-items:center;flex-wrap:wrap;gap:8px 16px;color:var(--muted);font-size:12px}
+.trust-warnings{min-width:180px}
+.trust-warnings p{margin:6px 0;overflow-wrap:anywhere}
+.cockpit-source{display:flex;align-items:center;gap:12px;font-size:12px}
+.cockpit-source select{padding:8px 12px;border:1px solid var(--line);border-radius:6px;max-width:300px;min-width:0;background:#fff;color:var(--ink)}
+.status-ready,.status-pending{padding:4px 10px;border-radius:5px;font-weight:500}
+.status-ready{background:var(--accent-soft);color:var(--accent-strong)}
+.status-pending{background:var(--warn-bg);color:var(--warn-ink)}
+
+/* 英雄区：一位主角数字 + 右侧指标列 */
+.cockpit-hero{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(270px,1fr);gap:14px 48px;align-items:start;padding:26px 28px;background:var(--card);border:1px solid var(--line);border-radius:var(--radius)}
+.hero-main{min-width:0}
+.hero-label{display:block;color:var(--muted);font-size:13px;letter-spacing:.3px}
+.hero-value{display:block;font-size:clamp(44px,5.2vw,76px);font-weight:700;letter-spacing:-2.5px;line-height:1.08;margin:8px 0 6px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.hero-value small{font-size:16px;font-weight:400;letter-spacing:0;margin-left:8px;color:var(--muted)}
+.hero-sub{display:flex;align-items:baseline;flex-wrap:wrap;gap:6px 14px;font-size:14px}
+.mom{display:inline-flex;align-items:center;gap:4px;font-weight:600;font-variant-numeric:tabular-nums}
+.mom small{font-weight:400;color:var(--muted);margin-left:5px;font-size:12px}
+.mom-up{color:var(--accent-strong)}
+.mom-down{color:var(--danger)}
+.hero-caliber{font-size:11px;color:var(--muted);margin-top:12px}
+.hero-caliber p{margin:6px 0;overflow-wrap:anywhere}
+.hero-kpis{display:grid;gap:0;margin:0}
+.hero-kpis>div{padding:12px 0;border-bottom:1px solid var(--line)}
+.hero-kpis>div:first-child{padding-top:0}
+.hero-kpis>div:last-child{border-bottom:0;padding-bottom:0}
+.hero-kpis dt{font-size:12px;color:var(--muted)}
+.hero-kpis dd{margin:2px 0 0;font-size:30px;font-weight:650;letter-spacing:-1px;font-variant-numeric:tabular-nums}
+.hero-kpis dd small{font-size:12px;font-weight:400;letter-spacing:0;color:var(--muted);margin-left:5px}
+.hero-target .target-track{display:block;height:8px;margin-top:10px}
+.target-note{display:block;font-size:11px;color:var(--muted);margin-top:7px;overflow-wrap:anywhere}
+.target-note .text-button{margin-left:8px}
+.target-track{display:block;background:#f1f1f3;border-radius:5px;overflow:hidden}
+.target-track i{display:block;height:100%;border-radius:5px;background:var(--accent)}
+
+/* 面板通用 */
+.cockpit-panel{min-width:0;background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:22px}
+.panel-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.panel-heading h2{margin:0;font-size:16px;font-weight:650}
+.panel-sub{color:var(--muted);font-size:12px;margin:4px 0 0}
+.panel-heading .text-button{font-size:12px}
+.panel-note{color:var(--muted);font-size:11px;margin:12px 0 0;line-height:1.7}
+.chart-switch{display:flex;padding:3px;border-radius:6px;background:var(--paper);gap:3px}
+.chart-switch button{border:0;font-size:11px;padding:5px 10px;background:transparent;color:var(--muted);border-radius:4px}
+.chart-switch button:hover:not(:disabled){background:transparent;color:var(--accent-strong);border-color:transparent}
+.chart-switch button[aria-pressed=true]{background:#fff;color:var(--accent-strong);font-weight:600;box-shadow:0 1px 3px #00000012}
+.cockpit-chart{width:100%;max-width:100%;height:260px;overflow:hidden}
+.cockpit-grid{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:18px;align-items:start}
+.cockpit-grid.single{grid-template-columns:minmax(0,1fr)}
+
+/* 客户贡献：横向比例条（条长=组内相对值，占比=占本月经营销售额的真实份额） */
+.contrib-list{list-style:none;margin:0;padding:0;display:grid;gap:16px}
+.contrib-item{display:grid;gap:7px;min-width:0}
+.contrib-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+.contrib-name{min-width:0;overflow-wrap:anywhere;font-size:13px;font-weight:500;color:var(--ink)}
+.contrib-amount{font-size:14px;font-weight:650;font-variant-numeric:tabular-nums;white-space:nowrap}
+.contrib-amount small{font-weight:400;font-size:11px;color:var(--muted);margin-left:3px}
+.contrib-bar{display:block;height:8px;border-radius:4px;background:#f4f4f5;overflow:hidden}
+.contrib-bar i{display:block;height:100%;border-radius:4px;background:var(--accent)}
+.contrib-meta{display:flex;flex-wrap:wrap;gap:2px 14px;font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+.contrib-share{color:var(--accent-strong);font-weight:600}
+.contrib-total{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:6px 14px;margin-top:16px;padding-top:14px;border-top:1px solid var(--line);font-size:12px;color:var(--muted)}
+.contrib-total strong{font-size:15px;color:var(--ink);font-variant-numeric:tabular-nums}
+
+/* 团队目标：进度条 + 完成率（低于阈值的完成率以琥珀标注，仅阅读提示，不改指标口径） */
+.team-list{list-style:none;margin:0;padding:0;display:grid;gap:16px}
+.team-item{display:grid;grid-template-columns:26px minmax(0,1fr) auto;gap:10px;align-items:center}
+.team-avatar{width:26px;height:26px;display:grid;place-items:center;border-radius:50%;background:var(--accent-soft);color:var(--accent-strong);font-size:12px;font-weight:600}
+.team-body{min-width:0}
+.team-body strong{display:block;font-size:13px;font-weight:500;margin-bottom:6px;overflow-wrap:anywhere}
+.team-body .target-track{height:6px}
+.team-figures{text-align:right;font-variant-numeric:tabular-nums}
+.team-figures strong{display:block;font-size:14px;font-weight:650}
+.team-figures small{display:block;font-size:10px;color:var(--muted);white-space:nowrap;margin-top:2px}
+.team-rate-behind{color:var(--warn-ink)}
+.team-toggle{display:flex;justify-content:center;margin-top:14px}
+
+/* 需要关注 */
+.attn-list{list-style:none;margin:0;padding:0;display:grid}
+.attn-item{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding:14px 0;border-bottom:1px solid var(--line)}
+.attn-item:first-child{padding-top:0}
+.attn-item:last-child{border-bottom:0;padding-bottom:0}
+.attn-main{min-width:0}
+.attn-main .customer-link{font-size:13px;font-weight:500}
+.attn-kind{display:block;font-size:12px;color:var(--muted);margin-top:4px}
+.attn-days{flex-shrink:0;font-size:12px;font-weight:600;color:var(--warn-ink);white-space:nowrap;font-variant-numeric:tabular-nums}
+.panel-actions{display:flex;flex-wrap:wrap;gap:6px 20px;margin-top:14px}
+
+/* 财务视图：口径未确认时只标状态，不估数 */
+.finance-panel{padding:20px 22px}
+.finance-alert{display:flex;gap:10px;align-items:flex-start;background:var(--warn-bg);border:1px solid #efdfae;border-radius:6px;padding:12px 14px;font-size:12px;color:var(--warn-ink);line-height:1.7;margin-top:12px}
+.finance-alert p{margin:4px 0 0;font-size:12px}
+.finance-alert p:first-child{margin-top:0}
+.finance-values{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-top:14px}
+.finance-values .cockpit-stat{padding:14px 16px;background:#fafafa}
+.finance-values .cockpit-stat>strong{font-size:24px}
+.cockpit-stat{min-width:0;background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:18px 20px}
+.cockpit-stat>span{color:var(--muted);font-size:12px}
+.cockpit-stat>strong{display:block;font-size:28px;letter-spacing:-.8px;font-weight:650;margin:8px 0 6px;line-height:1.35;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.cockpit-stat strong small{font-size:11px;font-weight:400;letter-spacing:0;margin-left:5px;color:var(--muted)}
+.cockpit-stat>p,.cockpit-stat details{font-size:11px;color:var(--muted);margin:7px 0 0}
+.cockpit-stat details p{margin:6px 0;overflow-wrap:anywhere}
+.cockpit summary{cursor:pointer}
+
+/* 驾驶舱内数据表 */
+.cockpit .table-scroll{overflow:auto;max-width:100%;margin:14px 0 0}
+.cockpit .table-scroll table{width:100%;min-width:420px;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums}
+.cockpit .table-scroll th,.cockpit .table-scroll td{text-align:left;padding:11px 12px;border-bottom:1px solid var(--line);max-width:450px;overflow-wrap:anywhere}
+.cockpit .table-scroll th{background:#fafafa;color:var(--muted);font-weight:500;white-space:nowrap}
+.cockpit .number-cell{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+.contribution-table td:first-child{width:42%}
+.level-tag{font-size:10px;background:var(--accent-soft);color:var(--accent-strong);border-radius:4px;padding:3px 6px;margin-left:6px;white-space:nowrap}
+
+/* 空态：说明原因并提供下一步，不用灰方块占位 */
+.cockpit-empty{display:grid;gap:6px;margin:6px 0 0}
+.cockpit-empty strong{font-size:13px;font-weight:600}
+.cockpit-empty p{margin:0;font-size:12px;color:var(--muted);line-height:1.7}
+
+@media(max-width:1200px){
+ .cockpit-grid{grid-template-columns:minmax(0,1.15fr) minmax(0,1fr)}
+ .hero-value{font-size:clamp(40px,4.6vw,64px)}
+}
+@media(max-width:980px){
+ .cockpit-hero{grid-template-columns:minmax(0,1fr);gap:6px 0}
+ .hero-kpis{grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:0 32px;margin-top:18px}
+ .hero-kpis>div:first-child{padding-top:12px}
+ .hero-kpis>div:last-child{border-bottom:0}
+ .cockpit-grid{grid-template-columns:minmax(0,1fr)}
+}
+@media(max-width:640px){
+ .cockpit{gap:14px}
+ .cockpit-hero{padding:18px 16px}
+ .hero-value{font-size:clamp(34px,10vw,46px);letter-spacing:-1.5px}
+ .hero-kpis{grid-template-columns:minmax(0,1fr)}
+ .hero-kpis dd{font-size:26px}
+ .cockpit-panel{padding:16px}
+ .cockpit-chart{height:236px}
+ .panel-heading h2{font-size:15px}
+ .contrib-head{flex-wrap:wrap;gap:2px}
+ .contrib-amount{font-size:13px}
+ .team-item{grid-template-columns:24px minmax(0,1fr);gap:8px 10px}
+ .team-figures{grid-column:2;display:flex;align-items:baseline;gap:8px;text-align:left}
+ .team-figures small{white-space:normal;margin-top:0}
+}
+
+.crm-search{align-items:flex-end;gap:12px;margin:18px 0}
+.crm-search form{flex:1 1 280px;max-width:470px}
+.crm-search>label{flex:0 1 190px}
+.crm-search input,.crm-search select{padding:9px 11px}
+.customer-table-wrap{width:100%;overflow-x:auto;background:#fff;border:1px solid var(--line);border-radius:10px;min-width:0}
+.customer-table{border-collapse:collapse;width:100%;font-size:13px;min-width:540px}
+.customer-table th{font-size:12px;font-weight:500;color:var(--muted);background:#f8fafc;text-align:left;padding:12px 16px;white-space:nowrap}
+.customer-table td{padding:12px 16px;border-top:1px solid var(--line);overflow-wrap:anywhere}
+.customer-table td:first-child{width:40%}.customer-table td:first-child strong{font-weight:500}
+.customer-table tbody tr:hover{background:#fafafa}.customer-table td:last-child{white-space:nowrap}
+.customer-table .level-tag{margin:0}
+.crm-item{padding:14px 18px;margin:10px 0}
+.crm-item h3{margin:0 0 8px}
+.crm-form{scroll-margin-top:85px;border-radius:8px}
+.crm .data-section{margin-top:18px}
+.crm-fields{grid-template-columns:repeat(auto-fit,minmax(min(240px,100%),1fr))}
+footer{padding:18px 28px;font-size:10px}
+@media(max-width:1200px){.cockpit-stat{padding:15px}.cockpit-stat>strong{font-size:24px}.cockpit-grid{grid-template-columns:minmax(0,1.4fr) minmax(0,1fr)}.team-value small{max-width:100px;display:block}.hero-value{font-size:clamp(42px,5vw,72px)}}
+@media(max-width:980px){.workspace.dash-root{grid-template-columns:184px minmax(0,1fr)}.dashboard{padding:22px}.cockpit-grid{grid-template-columns:minmax(0,1fr)}.analytics-charts{grid-template-columns:minmax(0,1fr)}.team-value small{max-width:none}.cockpit-chart{height:250px}.cockpit-hero{grid-template-columns:minmax(0,1fr);gap:14px}.hero-kpis{grid-template-columns:repeat(auto-fit,minmax(140px,max-content));gap:6px 28px}}
+@media(max-width:640px){.workspace.dash-root{grid-template-columns:minmax(0,1fr)}.dash-root aside{position:static;min-height:0;max-height:none;padding:14px 16px}.dash-root .brand{padding:0;font-size:17px}.dash-root .brand>div{flex-direction:column}.mobile-menu{display:block;margin-left:auto;background:var(--accent);border-color:var(--accent);color:#fff;font-size:12px}.dash-root aside nav{display:flex;overflow-x:auto;max-width:100%;flex-wrap:nowrap;gap:5px;margin-top:12px}.dash-root aside nav :is(a,button){flex:0 0 auto;padding:9px 11px}.dash-root.navigation-open aside nav{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px;margin-top:10px}.dash-root aside .nav-label{grid-column:1/-1;display:none;margin:12px 10px 2px}.dash-root.navigation-open aside nav .nav-label{display:block}.dash-root .sidebar-bottom{display:none}.content>header{position:static;padding:10px 16px;min-height:48px}.dashboard{padding:18px 14px 26px}.cockpit{gap:14px}.cockpit-stat{padding:13px 12px}.cockpit-stat>strong{font-size:23px}.cockpit-stat>span{font-size:11px}.cockpit-panel{padding:16px}.cockpit-title h1{font-size:24px}.cockpit-trust{gap:6px 12px;font-size:11px}.cockpit-source select{max-width:220px}.bi-tabs{gap:5px}.bi-tabs button{font-size:12px}.bi-form-grid{grid-template-columns:minmax(0,1fr)}.bi-chart{height:260px}.cockpit-panel .table-scroll table{min-width:360px}.crm-search form,.crm-search>label{max-width:none;flex:1 1 100%}.customer-table{min-width:0}.customer-table th:nth-child(2),.customer-table td:nth-child(2){display:none}.customer-table th,.customer-table td{padding:11px 7px;font-size:12px}.customer-table td:first-child{width:40%}.customer-table button{font-size:12px}.crm .data-section{padding:16px}.crm-fields{grid-template-columns:minmax(0,1fr)}.cockpit-grid{gap:14px}.cockpit-fold{gap:10px}.team-value small{font-size:10px}.finance-values{grid-template-columns:minmax(0,1fr)}.content header>div{gap:14px}footer{padding:14px}.bi-toolbar label{flex-basis:100%}.cockpit-hero{gap:10px;padding:16px 0}.hero-value{font-size:clamp(36px,11vw,44px);letter-spacing:-1.5px}.hero-kpis{grid-template-columns:minmax(0,1fr)}.hero-kpis dd{font-size:26px}.fold{padding:2px 14px}}
+
+.customer-sections{display:flex;gap:8px;flex-wrap:wrap;margin:16px 0}.customer-sections button{padding:8px 14px;background:#fff;border:1px solid var(--line);border-radius:8px;color:var(--ink)}.crm [id^=customer-]{scroll-margin-top:20px}
+
+.assignment-help{padding:16px 18px;border:1px solid var(--line);background:#fafafa;border-radius:10px;margin:18px 0}.assignment-help p{margin:6px 0 12px}.assignment-help label{display:block;max-width:240px}.assignment-help select{margin-top:6px}.batch-assignment{padding:18px;background:#fff;border:1px solid var(--line);border-radius:10px;margin:16px 0}.batch-assignment .crm-fields{margin-top:16px}.batch-assignment p{font-size:12px;color:var(--muted)}.customer-table .customer-select{width:18px;height:18px;display:inline-block;margin:0 9px 0 0;vertical-align:middle;accent-color:var(--accent)}
+
+/* ==========================================================================
+   销售分析（BI · 销售分析分栏）
+   契约（DESIGN.md）：品牌蓝 #2563eb + zinc 中性灰；正增长蓝、负增长红。
+   硬约束：不改指标口径、不估算缺失值；比例条一律按本组数值缩放，
+           不推导新指标；口径未核实时不渲染派生比例。
+   ========================================================================== */
+.bi-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.bi-head h1{margin:0 0 6px}
+.bi-head p{margin:0;max-width:76ch;font-size:13px}
+
+/* 口径状态行 */
+.sa-status{display:flex;align-items:center;flex-wrap:wrap;gap:8px 14px;margin:20px 0 0}
+.sa-basis{margin:0;font-size:16px;font-weight:650}
+.sa-meta{color:var(--muted);font-size:12px}
+
+/* 英雄区：主角数字 + 指标列 */
+.bi-metrics.sa-metrics{grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.bi-metrics .sa-hero{grid-column:1/-1;display:grid;grid-template-columns:minmax(0,1.25fr) minmax(250px,1fr);gap:16px 48px;align-items:start;padding:26px 28px}
+.sa-hero-main{min-width:0}
+.bi-metrics .sa-value{font-size:clamp(42px,5vw,72px);letter-spacing:-2.5px;line-height:1.08;margin:8px 0;white-space:nowrap}
+.sa-value small{font-size:16px;font-weight:400;letter-spacing:0;margin-left:8px;color:var(--muted)}
+.sa-deltas{display:flex;align-items:baseline;flex-wrap:wrap;gap:6px 18px;font-size:13px}
+.sa-delta{display:inline-flex;align-items:baseline;gap:6px;color:var(--muted)}
+.sa-delta b{font-weight:650;font-variant-numeric:tabular-nums}
+.sa-up{color:var(--accent-strong)}
+.sa-down{color:var(--danger)}
+.sa-delta-missing small{font-size:11px;color:var(--muted);margin-left:4px}
+.sa-cmp-caption{color:var(--muted);font-size:12px}
+
+/* 基期比例对照：三根横条，长度按本组最大金额缩放 */
+.sa-compare{display:grid;gap:8px;margin:18px 0 0;padding-top:16px;border-top:1px solid var(--line)}
+.sa-cmp{display:grid;grid-template-columns:108px minmax(0,1fr) auto;gap:4px 12px;align-items:center;font-size:12px}
+.sa-cmp-label{color:var(--muted);white-space:nowrap}
+.sa-cmp-track{display:block;height:10px;border-radius:5px;background:#f4f4f5;overflow:hidden}
+.sa-cmp-track i{display:block;height:100%;border-radius:5px;background:#bfdbfe}
+.sa-cmp.is-current .sa-cmp-label{color:var(--ink);font-weight:600}
+.sa-cmp.is-current .sa-cmp-track i{background:var(--accent)}
+.sa-cmp-value{font-weight:600;white-space:nowrap;font-variant-numeric:tabular-nums}
+.sa-cmp-value small{font-weight:400;font-size:10px;color:var(--muted);margin-left:3px}
+.sa-cmp-reason{grid-column:2/4;color:var(--warn-ink);font-size:11px}
+.sa-caliber{font-size:11px;color:var(--muted);margin-top:14px}
+.sa-caliber p{margin:6px 0;overflow-wrap:anywhere}
+
+.sa-kpis{display:grid;grid-template-columns:minmax(0,1fr);gap:0;margin:0}
+.sa-kpis>div{padding:12px 0;border-bottom:1px solid var(--line)}
+.sa-kpis>div:first-child{padding-top:0}
+.sa-kpis>div:last-child{border-bottom:0;padding-bottom:0}
+.sa-kpis dt{font-size:12px;color:var(--muted)}
+.sa-kpis dd{margin:2px 0 0;font-size:30px;font-weight:650;letter-spacing:-1px;font-variant-numeric:tabular-nums}
+.sa-kpis dd small{font-size:12px;font-weight:400;letter-spacing:0;color:var(--muted);margin-left:5px}
+
+/* 指标带：占比类给比例条，计数类只给数字 */
+.bi-metrics .sa-stat{padding:16px 18px}
+.bi-metrics .sa-stat>strong{font-size:24px;margin:10px 0 0}
+.sa-bar{display:block;height:6px;margin-top:9px;border-radius:3px;background:#f1f1f3;overflow:hidden}
+.sa-bar i{display:block;height:100%;border-radius:3px;background:var(--accent)}
+.sa-stat>p{font-size:11px;margin:7px 0 0}
+.sa-stat details{font-size:11px;color:var(--muted);margin-top:8px}
+.sa-stat details p{margin:5px 0;overflow-wrap:anywhere}
+
+/* 日趋势与变化贡献的卡头 */
+.sa-panel-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.sa-trend h2,.sa-change h2{margin:0;font-size:17px;font-weight:650}
+.sa-panel-head p{margin:4px 0 0;font-size:12px}
+
+/* 变化贡献：单元格内嵌双向比例条，中点为增长零点 */
+.sa-change-table td:first-child{white-space:normal;overflow-wrap:anywhere;min-width:170px}
+.sa-change-table .sa-num{font-variant-numeric:tabular-nums}
+.sa-change-cell{min-width:200px}
+.sa-change-value{display:block;font-weight:600;font-variant-numeric:tabular-nums}
+.sa-change-value small{font-weight:400;font-size:10px;color:var(--muted);margin-left:3px}
+.sa-diverge{display:flex;width:180px;height:8px;margin-top:7px}
+.sa-diverge-neg{display:flex;flex:1;justify-content:flex-end;background:#f4f4f5;border-right:1px solid var(--line-strong);border-radius:5px 0 0 5px;overflow:hidden}
+.sa-diverge-neg i{display:block;height:100%;background:var(--danger);border-radius:5px 0 0 5px}
+.sa-diverge-pos{display:flex;flex:1;justify-content:flex-start;background:#f4f4f5;border-radius:0 5px 5px 0;overflow:hidden}
+.sa-diverge-pos i{display:block;height:100%;background:var(--accent);border-radius:0 5px 5px 0}
+.sa-change-foot{display:flex;flex-wrap:wrap;gap:8px 32px;margin-top:14px;padding-top:14px;border-top:1px solid var(--line);font-size:12px;color:var(--muted)}
+.sa-change-foot b{margin-left:8px;color:var(--ink);font-variant-numeric:tabular-nums}
+
+@media(max-width:1200px){
+ .bi-metrics.sa-metrics{grid-template-columns:repeat(3,minmax(0,1fr))}
+ .bi-metrics .sa-hero{grid-template-columns:minmax(0,1fr);gap:6px 0}
+ .sa-kpis{grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:0 32px;margin-top:18px}
+ .sa-kpis>div:first-child{padding-top:12px}
+}
+@media(max-width:860px){
+ .bi-metrics.sa-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:640px){
+ .bi-metrics.sa-metrics{grid-template-columns:minmax(0,1fr);gap:10px}
+ .bi-metrics .sa-hero{padding:18px 16px}
+ .bi-metrics .sa-value{font-size:clamp(32px,9.5vw,42px);letter-spacing:-1.5px}
+ .sa-kpis{grid-template-columns:minmax(0,1fr)}
+ .sa-kpis dd{font-size:26px}
+ .sa-meta{font-size:11px}
+ .sa-cmp{grid-template-columns:minmax(0,1fr) auto;gap:3px 10px}
+ .sa-cmp-track{grid-column:1/-1}
+ .sa-cmp-reason{grid-column:1/-1}
+ .sa-diverge{width:132px}
+ .sa-change-cell{min-width:160px}
+}

@@ -29,13 +29,14 @@ def save_settings(payload: dto.Settings, db: DB, actor: Actor):
 
 
 @router.get('/targets/{uid}', response_model=dto.TargetView)
-def target(uid: UUID, month: date, db: DB, actor: Actor):
-    return svc.get_target(db, actor, uid, month)
+def target(uid: UUID, month: date, db: DB, actor: Actor, type: Literal['monthly', 'quarterly'] = 'monthly'):
+    return svc.get_target(db, actor, uid, month, type)
 
 
 @router.put('/targets/{uid}', response_model=dto.TargetView)
-def save_target(uid: UUID, month: date, payload: dto.TargetInput, db: DB, actor: Actor):
-    return svc.save_target(db, actor, uid, month, payload)
+def save_target(uid: UUID, month: date, payload: dto.TargetInput, db: DB, actor: Actor,
+                type: Literal['monthly', 'quarterly'] = 'monthly'):
+    return svc.save_target(db, actor, uid, month, payload, type)
 
 
 @router.get('/sources', response_model=list[dto.SourceView])
@@ -84,6 +85,16 @@ def orders(source_id: UUID, month: date, db: DB, actor: Actor,
 @router.get('/attention', response_model=dto.AttentionPage)
 def attention(source_id: UUID, db: DB, actor: Actor, offset: int = Query(0, ge=0)):
     return svc.attention(db, actor, source_id, offset)
+
+
+@router.get('/customer-analytics', response_model=dto.CustomerAnalytics)
+def customer_analytics(source_id: UUID, db: DB, actor: Actor):
+    return svc.customer_analytics(db, actor, source_id)
+
+
+@router.get('/customer-profile/{customer_id}', response_model=dto.CustomerProfile)
+def customer_profile(customer_id: UUID, db: DB, actor: Actor):
+    return svc.customer_profile(db, actor, customer_id)
 
 
 @router.get('/overview', response_model=dto.Overview)

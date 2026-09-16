@@ -16,6 +16,8 @@ class Settings(Strict):
     personal_calendar: dict[UUID, dict[date, bool]] = Field(default_factory=dict, max_length=200)
     dormant_days: int = Field(90, ge=1, le=3650)
     lost_warning_days: int = Field(180, ge=2, le=7300)
+    rfm_recent_days: int = Field(90, ge=1, le=3650)
+    rfm_freq_orders: int = Field(2, ge=1, le=1000)
     followup_days: dict[Literal['A', 'B', 'C'], int] = Field(default_factory=dict)
     effective_activity_types: list[Literal['followup_create', 'followup_update', 'task_complete',
         'opportunity_create', 'opportunity_update', 'customer_update', 'contact_create', 'contact_update']] = Field(
@@ -82,6 +84,7 @@ class TargetView(BaseModel):
     month: date
     amount: str | None
     remark: str | None = None
+    target_type: str = 'monthly'
 
 
 class SourceView(BaseModel):
@@ -135,6 +138,7 @@ class AttentionPage(BaseModel):
     rows: list[Attention]
     total: int
     warnings: list[str]
+    counts: dict[str, int] = {}
 
 
 class Workbench(BaseModel):
@@ -183,9 +187,19 @@ class PersonRankRow(BaseModel):
 
 
 class AttentionItem(BaseModel):
+    customer_id: UUID
     name: str
     kind: str
     days: int | None = None
+
+
+class CustomerContribution(BaseModel):
+    customer_id: UUID
+    name: str
+    owner_name: str | None = None
+    level: str | None = None
+    amount: str
+    orders: int
 
 
 class Overview(BaseModel):
@@ -197,9 +211,73 @@ class Overview(BaseModel):
     sales_metrics: list[Metric]
     finance_metrics: list[Metric]
     trend: list[Point]
+    customer_trend: list[Point] = []
+    customer_contributions: list[CustomerContribution] = []
     updated_at: datetime | None
     customer_structure: list[StructureSlice] = []
     product_structure: list[StructureSlice] = []
     person_ranking: list[PersonRankRow] = []
     attention_items: list[AttentionItem] = []
     attention_total: int = 0
+
+
+class SegmentRow(BaseModel):
+    layer: str
+    hint: str
+    count: int = 0
+    amount: str = '0.00'
+    share: str | None = None
+
+
+class CustomerTrendMonth(BaseModel):
+    month: date
+    amount: str
+    orders: int
+    customers: int
+    repeat_rate: str | None = None
+    aov: str | None = None
+
+
+class ConvertBucket(BaseModel):
+    label: str
+    count: int = 0
+
+
+class CustomerTopRow(BaseModel):
+    customer_id: UUID
+    name: str
+    layer: str
+    last_order_date: date | None = None
+    days_since: int | None = None
+    orders: int = 0
+    amount: str = '0.00'
+    aov: str | None = None
+
+
+class CustomerAnalytics(BaseModel):
+    through: date
+    basis: str
+    verified: bool
+    warnings: list[str]
+    metrics: list[Metric]
+    segments: list[SegmentRow]
+    trend: list[CustomerTrendMonth]
+    conversion_counted: int = 0
+    conversion_average_days: str | None = None
+    conversion_buckets: list[ConvertBucket] = []
+    top: list[CustomerTopRow] = []
+    total: int = 0
+
+
+class CustomerProfile(BaseModel):
+    customer_id: UUID
+    name: str
+    layer: str | None = None
+    days_since: int | None = None
+    last_order_date: date | None = None
+    orders: int = 0
+    amount: str = '0.00'
+    aov: str | None = None
+    is_repeat: bool = False
+    convert_days: int | None = None
+    warnings: list[str] = []

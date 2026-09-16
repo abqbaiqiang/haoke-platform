@@ -70,6 +70,11 @@ def test_customer_scope_read_and_write(db,client,accounts,sign_in,name,visible):
 
 
 def test_complete_sales_chain_and_audit(db,client,accounts,sign_in):
+    # 新增潜客默认关闭（客户以精斗云导入为准）；老板可在 CRM 设置中开启。
+    sign_in('S1')
+    assert client.post('/api/crm/customers',json={'customer_name':'独立潜客','mobile':'test-phone'}).status_code == 403
+    sign_in('Owner')
+    assert client.put('/api/crm/settings',json={'allow_prospect_create':True,'followup_edit_hours':12}).status_code == 200
     sign_in('S1')
     r = client.post('/api/crm/customers',json={'customer_name':'独立潜客','mobile':'test-phone'})
     assert r.status_code == 201, r.text
@@ -154,12 +159,50 @@ def test_transfer_pool_claim_keeps_history_and_work(db,client,accounts,sign_in):
     assert db.scalar(select(Task)).assignee_user_id==accounts['S3'].id
     assert len(client.get(f'/api/crm/customers/{obj.id}').json()['followups'])==1
     sign_in('S2')
+    # 认养不唯一：另一位业务员可以认养同一客户，仅第一个认养人成为负责人。
+    assert client.post(f'/api/crm/customers/{obj.id}/claim').status_code==200
+    assert client.get(f'/api/crm/customers/{obj.id}').status_code==200
+    assert client.get('/api/crm/customers').json()['total']==1
+    row=client.get('/api/crm/customers?pool=true').json()['rows'][0]
+    assert row['owner_user_id']==str(accounts['S3'].id)
+    assert {x['display_name'] for x in row['claims']}=={'S2','S3'}
+    assert {x['user_id'] for x in client.get(f'/api/crm/customers/{obj.id}').json()['customer']['claims']}=={str(accounts['S2'].id),str(accounts['S3'].id)}
     assert client.post(f'/api/crm/customers/{obj.id}/claim').status_code==409
     assert db.scalar(select(func.count()).select_from(Assignment))==3
 
 
+def test_default_tags_seeded_once_and_tag_filter(db,client,accounts,sign_in):
+    sign_in('S1')
+    tags=client.get('/api/crm/tags').json()
+    assert {'重点客户','价格敏感','已流失'} <= {x['tag_name'] for x in tags}
+    # Seeding is idempotent: a second read neither duplicates nor changes tags.
+    assert client.get('/api/crm/tags').json()==tags
+    tag_id=next(x['id'] for x in tags if x['tag_name']=='重点客户')
+    obj=make_customer(db,accounts['S1'].id)
+    assert client.put(f'/api/crm/customers/{obj.id}/tags',json={'tag_ids':[tag_id]}).status_code==200
+    assert client.get('/api/crm/customers',params={'tag_id':tag_id}).json()['total']==1
+
+
+def test_tag_rename_and_soft_delete_keeps_history(db,client,accounts,sign_in):
+    sign_in('Admin')
+    tag=client.post('/api/crm/tags',json={'tag_name':'旧名'}).json()
+    renamed=client.put(f"/api/crm/tags/{tag['id']}",json={'tag_name':'新名','tag_group':'活动'}).json()
+    assert renamed['tag_name']=='新名' and renamed['tag_group']=='活动'
+    obj=make_customer(db,accounts['S1'].id)
+    assert client.put(f"/api/crm/customers/{obj.id}/tags",json={'tag_ids':[tag['id']]}).status_code==200
+    assert client.put(f"/api/crm/tags/{tag['id']}",json={'tag_name':'新名','is_active':False}).json()['is_active'] is False
+    other=make_customer(db,accounts['S1'].id,'其他客户')
+    sign_in('S1')
+    # 已删除（停用）标签不能再打给新客户；原客户的关联与历史保留。
+    assert client.put(f"/api/crm/customers/{other.id}/tags",json={'tag_ids':[tag['id']]}).status_code==422
+    assert {x['tag_name'] for x in client.get(f"/api/crm/customers/{obj.id}").json()['tags']}=={'新名'}
+
+
 def test_tags_config_and_filter(db,client,accounts,sign_in):
     obj=make_customer(db,accounts['S1'].id)
+    sign_in('Admin')
+    # 销售默认可建标签（sales_create_tags 默认开启）；显式关闭后禁止。
+    assert client.put('/api/crm/settings',json={'sales_create_tags':False,'followup_edit_hours':12,'public_pool_claim_enabled':False}).status_code==200
     sign_in('S1')
     assert client.post('/api/crm/tags',json={'tag_name':'福利'}).status_code==403
     sign_in('Admin')
@@ -177,6 +220,29 @@ def test_tags_config_and_filter(db,client,accounts,sign_in):
     assert client.get('/api/crm/customers',params={'tag_id':tid}).json()['total']==1
     assert client.put(f'/api/crm/customers/{obj.id}/tags',json={'tag_ids':[]}).status_code==200
     assert client.get('/api/crm/customers',params={'tag_id':tid}).json()['total']==0
+
+
+def test_tag_creator_self_management(db,client,accounts,sign_in):
+    # 销售默认可自建标签并自行改名/停用；他人标签不可改，老板与管理员可管理全部。
+    sign_in('S1')
+    mine=client.post('/api/crm/tags',json={'tag_name':'销售自建'})
+    assert mine.status_code==201
+    body=mine.json()
+    assert body['created_by']==str(accounts['S1'].id)
+    assert client.put(f"/api/crm/tags/{body['id']}",json={'tag_name':'销售改名','tag_group':None}).json()['tag_name']=='销售改名'
+    assert client.put(f"/api/crm/tags/{body['id']}",json={'tag_name':'销售改名','is_active':False}).json()['is_active'] is False
+    sign_in('S2')
+    assert client.put(f"/api/crm/tags/{body['id']}",json={'tag_name':'抢改他人标签'}).status_code==403
+    assert client.put(f"/api/crm/tags/{body['id']}",json={'tag_name':'抢恢复','is_active':True}).status_code==403
+    sign_in('Manager')
+    assert client.put(f"/api/crm/tags/{body['id']}",json={'tag_name':'经理抢改'}).status_code==403
+    sign_in('Owner')
+    assert client.put(f"/api/crm/tags/{body['id']}",json={'tag_name':'老板接管','is_active':True}).json()['tag_name']=='老板接管'
+    # 经理同样可以自建并管理自己创建的标签。
+    sign_in('Manager')
+    manager_tag=client.post('/api/crm/tags',json={'tag_name':'经理自建'}).json()
+    assert manager_tag['created_by']==str(accounts['Manager'].id)
+    assert client.put(f"/api/crm/tags/{manager_tag['id']}",json={'tag_name':'经理改名'}).status_code==200
 
 
 def test_bind_preserves_prospect_and_erp_namespace(db,client,accounts,sign_in):

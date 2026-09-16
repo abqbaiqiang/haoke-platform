@@ -3,7 +3,7 @@ import uuid
 from datetime import date, datetime
 from decimal import Decimal
 
-from sqlalchemy import Boolean, CheckConstraint, Date, DateTime, ForeignKey, Integer, Numeric, String, Text
+from sqlalchemy import Boolean, CheckConstraint, Date, DateTime, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -20,6 +20,16 @@ class Assignment(Base):
     reason: Mapped[str] = mapped_column(Text)
     operated_by: Mapped[uuid.UUID] = mapped_column(ForeignKey('sys_user.id'))
     operated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class CustomerClaim(Base):
+    """Non-exclusive claim (认养). One customer may be claimed by several salespeople."""
+    __tablename__ = 'customer_claim'
+    __table_args__ = (UniqueConstraint('customer_id', 'user_id', name='uq_customer_claim_once'),)
+    id: Mapped[uuid.UUID] = mapped_column(UUID, primary_key=True, default=uuid.uuid4)
+    customer_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('customer.id'), index=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('sys_user.id'), index=True)
+    claimed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 
 class Contact(Base):
@@ -66,6 +76,7 @@ class Followup(Base):
     occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     interaction_method: Mapped[str] = mapped_column(String(24))
     contact_result: Mapped[str] = mapped_column(String(32))
+    is_effective: Mapped[bool | None] = mapped_column(Boolean)
     summary: Mapped[str | None] = mapped_column(Text)
     material_sent: Mapped[bool] = mapped_column(Boolean, default=False)
     material_note: Mapped[str | None] = mapped_column(String(255))

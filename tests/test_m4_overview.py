@@ -5,8 +5,12 @@ from uuid import uuid4
 
 import pytest
 
+from sqlalchemy import select
+
 from app.bi_models import SalesTarget
-from app.data_models import FinancialMetric, FinancialPeriod, ImportBatch
+from app.crm_models import Followup, Task
+from app.data_models import Customer, FinancialMetric, FinancialPeriod, ImportBatch, SalesOrder
+from app.models import utcnow
 from test_m3 import NOW, sample  # noqa: F401  (fixture re-export)
 
 
@@ -50,7 +54,8 @@ def test_owner_overview_sales_and_finance_side_by_side(db, client, accounts, sig
     assert r.status_code == 200, r.text
     body = r.json()
     # 2026-09 orders: 0.10 + 0.20 + 100.00 + 900.00 (S3 is inside the owner scope).
-    assert by_code(body, 'DQ_SALES_RECON')['value'] == '1000.30'
+    # 导入即认可：未保存核实结论时经营销售额按已核实公式直接计算。
+    assert by_code(body, 'EXEC_SALES_AMT')['value'] == '1000.30'
     assert by_code(body, 'SALE_ORDER_COUNT')['value'] == '4'
     assert by_code(body, 'SALE_CUSTOMER_COUNT')['value'] == '3'
     assert by_code(body, 'EXEC_FIN_REVENUE')['value'] == '1000.00'
@@ -59,9 +64,9 @@ def test_owner_overview_sales_and_finance_side_by_side(db, client, accounts, sig
     assert by_code(body, 'EXEC_NET_MARGIN')['value'] == '20.00'
     assert by_code(body, 'EXEC_CASH_BAL')['value'] == '300.00'
     assert by_code(body, 'EXEC_CASH_MOM')['value'] == '50.00'
-    # Sales unverified: reconciliation difference must not be computed as if verified.
-    assert all(m['code'] != 'EXEC_RECON_DIFF' for m in body['finance_metrics'])
-    assert any('未核实' in w for w in body['finance_warnings'])
+    # 导入即认可：销售侧视为已核实，经营-财务勾稽差异正常给出（1000.30 - 1000.00）。
+    assert by_code(body, 'EXEC_RECON_DIFF')['value'] == '0.30'
+    assert not any('未核实' in w for w in body['finance_warnings'])  # 销售侧已视为核实，勾稽正常给出
     assert len(body['trend']) == 6 and body['trend'][-1]['date'] == '2026-09-01'
     assert body['trend'][-1]['value'] == '1000.30'
     # August only has the 0.10 order in history.
@@ -94,18 +99,18 @@ def test_overview_role_scope_and_finance_redaction(db, client, accounts, sign_in
     # Sales sees own orders only and no finance figures.
     sign_in('S1')
     body = client.get(f'/api/bi/overview?source_id={source.id}').json()
-    assert by_code(body, 'DQ_SALES_RECON')['value'] == '0.30'
+    assert by_code(body, 'EXEC_SALES_AMT')['value'] == '0.30'
     assert body['finance_metrics'] == []
     assert not body['finance_warnings']
     # Manager team scope excludes S3.
     sign_in('Manager')
     body = client.get(f'/api/bi/overview?source_id={source.id}').json()
-    assert by_code(body, 'DQ_SALES_RECON')['value'] == '100.30'
+    assert by_code(body, 'EXEC_SALES_AMT')['value'] == '100.30'
     assert body['finance_metrics'] == []
     # Finance sees finance figures but the source scope is the authorized subset.
     sign_in('Finance')
     body = client.get(f'/api/bi/overview?source_id={source.id}').json()
-    assert by_code(body, 'DQ_SALES_RECON')['value'] == '0.30'
+    assert by_code(body, 'EXEC_SALES_AMT')['value'] == '0.30'
     assert by_code(body, 'EXEC_FIN_REVENUE')['value'] == '1000.00'
     # Admin has no business data access at all.
     sign_in('Admin')
@@ -195,3 +200,91 @@ def test_owner_dashboard_structure_ranking_and_attention(db, client, accounts, s
     sign_in('S1')
     empty = client.get(f'/api/bi/overview?source_id={source.id}').json()
     assert empty['customer_structure'] == [] and empty['person_ranking'] == []
+
+
+@pytest.mark.integration
+def test_workbench_warns_when_orders_have_no_salesperson(db, client, accounts, sign_in, sample):  # noqa: F811
+    source, product, customers, add = sample
+    # Order without a mappable salesperson stays unattributed; the workbench must say so
+    # instead of silently excluding it from personal performance.
+    add('未映射客户', '55.00', '2026-09-05', None)
+    db.commit()
+    sign_in('S1')
+    body = client.get(f"/api/bi/workbench/{accounts['S1'].id}?month=2026-09-01").json()
+    assert any('未关联业务员' in w and source.source_name in w for w in body['warnings'])
+    # Simulate the mapping being completed and the file re-imported: every order now attributes.
+    unmapped = db.scalar(select(SalesOrder).where(SalesOrder.sales_user_id.is_(None)))
+    unmapped.sales_user_id = accounts['S1'].id
+    db.commit()
+    body = client.get(f"/api/bi/workbench/{accounts['S1'].id}?month=2026-09-01").json()
+    assert not any('未关联业务员' in w for w in body['warnings'])
+
+
+@pytest.mark.integration
+def test_quarterly_target_save_and_workbench_completion(db, client, accounts, sign_in, sample):  # noqa: F811
+    source, product, customers, add = sample
+    # Q3 (Jul-Sep) orders for S1: 0.10 (Aug) + 0.10 + 0.20 (Sep) = 0.40; monthly target stays separate.
+    sign_in('Owner')
+    assert client.put(f"/api/bi/targets/{accounts['S1'].id}", params={'month': '2026-09-01', 'type': 'monthly'},
+                      json={'amount': '0.50', 'remark': None}).status_code == 200
+    bad = client.put(f"/api/bi/targets/{accounts['S1'].id}", params={'month': '2026-09-01', 'type': 'quarterly'},
+                     json={'amount': '1.00', 'remark': None})
+    assert bad.status_code == 422  # quarter target must sit on a quarter start month
+    assert client.put(f"/api/bi/targets/{accounts['S1'].id}", params={'month': '2026-07-01', 'type': 'quarterly'},
+                      json={'amount': '0.60', 'remark': 'Q3'}).status_code == 200
+    body = client.get(f"/api/bi/targets/{accounts['S1'].id}", params={'month': '2026-07-01', 'type': 'quarterly'}).json()
+    assert body['amount'] == '0.60' and body['target_type'] == 'quarterly'
+    sign_in('S1')
+    work = client.get(f"/api/bi/workbench/{accounts['S1'].id}", params={'month': '2026-09-01'}).json()
+    m = {x['code']: x['value'] for x in work['metrics']}
+    assert m['TGT_MONTH_AMT'] == '0.50' and m['EXEC_SALES_AMT'] == '0.30'
+    assert m['TGT_QUARTER_AMT'] == '0.60' and m['TGT_QUARTER_COMPLETION'] == '66.67'
+    assert m['TGT_QUARTER_PROGRESS'] is not None
+    # Monthly row and quarterly row coexist for the same user.
+    assert client.get(f"/api/bi/targets/{accounts['S1'].id}", params={'month': '2026-09-01', 'type': 'monthly'}).json()['amount'] == '0.50'
+
+
+@pytest.mark.integration
+def test_quarterly_only_target_stays_out_of_month_metrics(db, client, accounts, sign_in, sample):  # noqa: F811
+    source, _, _, _ = sample
+    # 季度目标不能被月度口径读取：仅设置 Q3 目标时，七月工作台月目标必须为空。
+    sign_in('Owner')
+    assert client.put(f"/api/bi/targets/{accounts['S1'].id}", params={'month': '2026-07-01', 'type': 'quarterly'},
+                      json={'amount': '9.00', 'remark': None}).status_code == 200
+    sign_in('S1')
+    work = client.get(f"/api/bi/workbench/{accounts['S1'].id}", params={'month': '2026-07-01'}).json()
+    m = {x['code']: x['value'] for x in work['metrics']}
+    assert m['TGT_MONTH_AMT'] is None and m['TGT_QUARTER_AMT'] == '9.00'
+    # 同月同时存在月度与季度目标：月度读取必须拿到月度记录，两者互不串用。
+    sign_in('Owner')
+    assert client.put(f"/api/bi/targets/{accounts['S1'].id}", params={'month': '2026-07-01', 'type': 'monthly'},
+                      json={'amount': '0.50', 'remark': None}).status_code == 200
+    sign_in('S1')
+    work = client.get(f"/api/bi/workbench/{accounts['S1'].id}", params={'month': '2026-07-01'}).json()
+    m = {x['code']: x['value'] for x in work['metrics']}
+    assert m['TGT_MONTH_AMT'] == '0.50' and m['TGT_QUARTER_AMT'] == '9.00'
+
+
+@pytest.mark.integration
+def test_workbench_counts_claimed_pool_customer_process_data(db, client, accounts, sign_in):  # noqa: F811
+    # 公海认养客户的过程数据（跟进/待办/商机）必须进入认养人的工作台统计，与 CRM 可见范围一致。
+    pool = Customer(source_system='fixture', customer_code='POOL-CLAIM-1', customer_name='公海认养客户',
+                    normalized_name='公海认养客户', owner_user_id=None, ownership_status='public_pool', crm_managed=False)
+    db.add(pool)
+    db.commit()
+    sign_in('S1')
+    assert client.post(f'/api/crm/customers/{pool.id}/claim').status_code == 200
+    db.add(Followup(customer_id=pool.id, owner_user_id=accounts['S1'].id, interaction_method='phone',
+                    contact_result='good', summary='认养后首次跟进', occurred_at=utcnow()))
+    db.add(Task(customer_id=pool.id, assignee_user_id=accounts['S1'].id, title='今日跟进认养客户',
+                due_at=utcnow(), source_type='manual', created_by=accounts['S1'].id, task_type='followup'))
+    db.commit()
+    body = client.get(f"/api/bi/workbench/{accounts['S1'].id}", params={'month': '2026-09-01'}).json()
+    assert body['today_tasks'] == 1
+    m = {x['code']: x['value'] for x in body['metrics']}
+    assert m['CRM_FOLLOWUP_COUNT'] == '1' and m['CRM_FOLLOWUP_CUSTOMERS'] == '1'
+    # 未认养该客户的他人仍看不到这些过程数据。
+    sign_in('S2')
+    other = client.get(f"/api/bi/workbench/{accounts['S2'].id}", params={'month': '2026-09-01'}).json()
+    om = {x['code']: x['value'] for x in other['metrics']}
+    assert other['today_tasks'] == 0 and om['CRM_FOLLOWUP_COUNT'] == '0'

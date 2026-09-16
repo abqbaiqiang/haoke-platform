@@ -5,11 +5,14 @@ async function login(page: Page, role: string) {
   await page.getByLabel("账号", { exact: true }).fill(`demo_${role}`);
   await page.getByLabel("密码", { exact: true }).fill(process.env.DEMO_PASSWORD!);
   await page.getByRole("button", { name: "登录", exact: true }).click();
+  if (role === "sales") await page.locator("details.sales-account summary").click();
   await expect(page.getByRole("button", { name: "退出登录", exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "客户与待办", exact: true }).click();
+  await page.getByRole("navigation", {name:"主导航"}).getByRole("link", { name: "客户管理", exact: true }).click();
 }
 
-test("M2 binding navigates to canonical customer and keeps contact and followup history", async ({ page }) => {
+// FIXME(2026-09-15 验收同步)：新增潜客已按产品决策关闭、销售端迁移到销售工作台（sales.tsx），
+// 本用例的潜客创建/CRM 工作台路径不复存在；待按“导入→公海→认养”与销售工作台重写。
+test.fixme("M2 binding navigates to canonical customer and keeps contact and followup history", async ({ page }) => {
   test.setTimeout(60000);
   const errors: string[] = [];
   page.on("pageerror", e => errors.push(e.message));
@@ -23,6 +26,7 @@ test("M2 binding navigates to canonical customer and keeps contact and followup 
   expect((await page.request.post(`/api/crm/customers/${cid}/contacts`, { headers: { Origin: origin }, data: { name: "绑定联系人", role_label: "采购" } })).status()).toBe(201);
   expect((await page.request.post(`/api/crm/customers/${cid}/followups`, { headers: { Origin: origin }, data: { interaction_method: "phone", contact_result: "good", summary: "绑定前沟通证据" } })).status()).toBe(201);
   await page.getByRole("button", { name: "退出登录" }).click();
+  await expect(page.getByRole("heading", { name: "欢迎登录" })).toBeVisible();
   await login(page, "admin");
   const source = await page.request.post("/api/data/sources", { headers: { Origin: origin }, data: { source_code: `bind_${unique}`, source_name: `绑定样本 ${unique}`, entity_name: "测试公司" } });
   expect(source.status()).toBe(201);
@@ -33,7 +37,7 @@ test("M2 binding navigates to canonical customer and keeps contact and followup 
   expect((await page.request.post(`/api/data/imports/${batch}/confirm`, { headers: { Origin: origin }, data: { acknowledge_warnings: true } })).status()).toBe(200);
   await page.getByLabel("搜索客户", { exact: true }).fill(name);
   await page.getByRole("button", { name: "搜索", exact: true }).click();
-  await page.locator('article').filter({ has: page.getByRole('heading', {name, exact:true}) }).getByRole("button", { name: "查看客户", exact: true }).click();
+  await page.getByRole('row').filter({ has: page.getByText(name, {exact:true}) }).getByRole("button", { name: "查看客户", exact: true }).click();
   await page.getByRole("button", { name: "绑定精斗云客户", exact: true }).click();
   const form = page.getByRole("form", { name: "查找精斗云正式客户" });
   await form.getByLabel("正式客户名称", { exact: true }).fill(official);
@@ -52,7 +56,9 @@ test("M2 binding navigates to canonical customer and keeps contact and followup 
   expect(errors).toEqual([]);
 });
 
-test("M2 history pagination and retry remain accessible", async ({ page }) => {
+// FIXME(2026-09-15 验收同步)：新增潜客已按产品决策关闭、销售端迁移到销售工作台（sales.tsx），
+// 本用例的潜客创建/CRM 工作台路径不复存在；待按“导入→公海→认养”与销售工作台重写。
+test.fixme("M2 history pagination and retry remain accessible", async ({ page }) => {
   await login(page, "sales");
   let failed = true;
   await page.route("**/api/crm/followups?**", async route => {

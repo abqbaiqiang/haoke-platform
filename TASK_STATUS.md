@@ -1,5 +1,153 @@
 # Project Task Status
 
+## 2026-09-15 Audit findings fixed and acceptance re-run
+
+- [x] P1 fixed with regressions: monthly targets read with target_type='monthly'; identical re-import reactivates deactivated CRM-referenced masters; BI workbench process stats include claimed pool customers
+- [x] P2 fixed: sales search state follows the route; pool hides inapplicable level/tag filters and resets them on toggle; unified control heights with ~44px touch targets; sticky operations column and sticky pager on mobile; contrast darkened to AA (primary #0b62d8, muted text >= 4.5:1)
+- [x] Ruff clean; full pytest 252 passed (3 new regressions); TypeScript and production build passed
+- [x] Browser suite repaired and re-run: stale nav/menu/form/selectors fixed, fixtures aligned with actual config (username-based staff lookup, import-to-pool-to-claim seeding); 5 legacy prospect-creation cases marked test.fixme citing the closed-feature decision
+- [x] Final acceptance via scripts/run_e2e.py (desktop + mobile, 48 cases): 38 passed, 10 skipped (5 documented fixme), 0 failed
+- [ ] Docker acceptance and real-business owner sign-off remain separate
+
+## 2026-09-15 Code and UI audit
+
+- [x] Read-only code review and owner/sales UI checks at 1440/768/390 px; report in docs/25_代码与界面审查_20260915.md
+- [x] Three business defects reproduced in isolated PostgreSQL schemas: quarterly/monthly target mixing, claimed-customer BI omission, inactive master skipped on identical re-import
+- [x] 249 existing pytest cases passed after using a workspace temporary directory; TypeScript, production build and 21 bundle secret checks passed
+- [ ] Ruff has 2 errors; browser suite has 3 confirmed stale-navigation/menu failures and was stopped before remaining cases
+- [ ] 3 P1 and 5 P2 findings require fixes and regression; this audit does not claim implementation or business/Docker acceptance
+
+## 2026-09-15 Sales UI final verification
+
+- [x] Monthly trend uses verified monthly amounts, missing months stay null; transaction rows and details are separate from followups
+- [x] Full backend suite: 237 passed; sales desktop/mobile end-to-end acceptance: 2 passed
+- [x] Local database/services restored and all four sales pages verified without changing business data
+- [ ] User visual/business acceptance and Docker acceptance remain separate
+
+## 2026-09-14 Sales reference-image implementation
+
+- [x] Dedicated sales navigation and four pages; customer pool remains available inside customers
+- [x] Actionable customer/task lists; lightweight followup dialog with atomic task completion and next-step creation
+- [x] Backend self-scope, search privacy, pagination/date counts, duplicate completion and claimant ownership tested
+- [x] Full native suite: 236 tests; dedicated desktop/mobile browser acceptance: 2 tests; production build and bundle secret scan passed
+- [x] Existing localhost services refreshed; four sales pages and mobile logout verified read-only against local data
+- [ ] User visual/business acceptance and Docker acceptance remain separate
+
+## 2026-09-14 Sales UI structure review
+
+- [x] Current sales navigation, CRM list and workbench inspected; desktop/mobile evidence captured
+- [x] Findings, retain/merge/demote proposal and tooling limitations recorded in docs/23
+- [ ] Confirm actual opportunity workflow and primary sales device before removing main navigation entries
+- [ ] Build and validate connected sales prototypes; no UI implementation claimed in this review
+
+## 2026-09-14 Full-site restyle: blue-white SaaS theme (user-provided sample)
+
+- [x] Owner verdict: forest green rejected, no brand color; final direction locked by user's blue-white SaaS sample poster
+- [x] Competitor references captured to `docs/ui-reference/` (Attio / Twenty / folk + before/after)
+- [x] Palette swapped site-wide via tokens: neutral gray ground, brand blue `#2563eb` as the single accent (primary buttons, links, sidebar selection, charts, progress, focus), amber reserved for pending-verification warnings
+- [x] Dark navy sidebar (`#1e2a38`) with hand-drawn line SVG icons per nav item (square placeholders removed), blue active state, blue-gradient login panel; DESIGN.md and PRODUCT.md updated
+- [x] TypeScript and production build passed; cockpit verified with live browser screenshots (docs/ui-reference/ours-after.png)
+- [ ] Browser e2e rerun pending (selectors unaffected by color change)
+
+## 2026-09-14 Cockpit redesign "晨会大屏" (Impeccable direction B) + common base fixes
+
+- [x] Impeccable dual-agent critique delivered (26/40) with two directions; user picked B; direction contract in `.impeccable/surfaces/`
+- [x] Cockpit rebuilt: trust line → hero amount with mom direction → KPI + target progress → full-width trend → folded details; zero-value sections no longer render
+- [x] P0 mobile overflow fixed (390 viewport scrollWidth 702 → 375; ECharts resize + chart clipping)
+- [x] Tokens unified to forest green; two detector anti-patterns cleared; detect now 0 findings; PRODUCT.md / DESIGN.md written
+- [x] Sidebar nav converted to real links; 6 e2e spec files updated for link role and new cockpit structure
+- [x] TypeScript, production build passed; finish review run degraded inline (disclosed) with captures in `.impeccable/review/`
+- [ ] Browser e2e rerun pending; RFM aggregate-completion metric wording (已设目标人员合计) awaits owner confirmation for the metric dictionary
+
+## 2026-09-14 Impeccable project installation
+
+- [x] Installed project-local Codex skill, Windows engine and hook manifests through the official installer
+- [x] Launcher/context/status/detector smoke checks passed; 33 skill reference links validated
+- [ ] Reload Codex and confirm project hook trust when prompted; automatic host execution not verified
+- [ ] Initialize design context and run the separately requested UI design review
+
+## 2026-09-14 Inline tag management (add / rename / delete)
+
+- [x] "管理标签" panel in customer 360 for owner/admin: add tag, rename + regroup, delete/restore
+- [x] Delete = soft deactivate per no-trace-delete rule: customer associations and audit history kept, hidden from picker/filter, re-assign to new customers blocked (422)
+- [x] Rename/soft-delete regression test added; 226 pytest, Ruff, TypeScript and production build passed
+- [x] Local stack restarted and verified healthy
+
+## 2026-09-14 WeChat-style customer tags
+
+- [x] 11 preset tags seeded lazily and idempotently on first tags read (layers / traits / follow-up / status groups)
+- [x] Customer 360 tag editing replaced with click-to-toggle chip picker plus single save; read-only roles see chips
+- [x] Tag filter dropdown in customer list now usable with presets; custom tags still via CRM 设置
+- [x] Seed/filter tests added; 225 pytest, Ruff, TypeScript and production build passed
+- [x] Local stack restarted; tags endpoint verified returning presets against the live database
+
+## 2026-09-14 All customers moved to pool + pool entry/import UI
+
+- [x] Migration 0006_m5 executed on the local database; 495 unmanaged imports backfilled to public pool
+- [x] Remaining 18 previously assigned test customers moved to pool per owner request, owners and history kept, per-customer audit entries written; all 513 active customers now in pool
+- [x] New endpoints: `POST /api/crm/customers/pool` (single entry) and `POST /api/crm/customers/pool-import` (bulk ≤500, duplicates skipped and reported), owner/manager/admin only
+- [x] Pool page gains "录入公海客户" button and bulk-entry card with per-line parsing (名称,电话,备注) and result feedback
+- [x] 3 new tests; 224 pytest, Ruff, TypeScript and production build passed
+- [ ] Local backend service must be restarted to load new endpoints; browser e2e rerun pending
+
+## 2026-09-14 Sales navigation: CRM first, performance second
+
+- [x] Main nav reordered to 工作台 → 客户管理（含新增客户公海/商机管理入口）→ 业绩管理（原经营视图组整体后置）→ 管理与设置
+- [x] Sales role now lands on 客户管理 after login; owner/manager still land on 经营总览
+- [x] CRM page tabs reordered: 客户列表 → 客户公海 → 商机列表 → 跟进记录 → 我的待办
+- [x] `CRMEntry.tab` extended with `pool`; nav entry names unchanged so existing e2e selectors keep working
+- [x] TypeScript and production build passed
+- [ ] Browser e2e rerun and business owner acceptance remain pending
+
+## 2026-09-14 Public pool multi-claim and customer management UX
+
+- [x] Imported customers default to public pool (migration 0006_m5 backfills non-CRM-managed imports; mapped primary owner preserved)
+- [x] Non-exclusive claims: `customer_claim` table, multiple salespeople may claim one customer, first claimer becomes owner, co-claims keep ownership and leave audit trail
+- [x] Claim visibility: claimed customers appear in "我的客户"; claimant names shown in list, pool and customer 360
+- [x] Customer management UX: header select-all checkbox, page-size selector (10/20/30/50/100), batch assignment works on unassigned + pool filters and excludes already-claimed rows
+- [x] 221 pytest, Ruff, TypeScript, production build and 21 browser asset secret checks passed
+- [ ] Playwright e2e specs updated (`crm.spec`, `batch-assignment.spec`) but not re-run in this session; browser regression pending
+- [ ] Business owner acceptance on live data and Docker/NAS checks remain pending
+
+## 2026-09-14 Imported customer batch assignment
+
+- [x] Ownership filter and owner/admin batch assignment: row selection, current page, all filtered results across pages (up to 1000)
+- [x] Atomic validation and assignment history; refuse stale/owned/inactive customers; retain CRM ownership on reimport
+- [x] Sales empty-state guidance: imported customers need assignment, not duplicate creation
+- [x] 219 pytest, Ruff, TypeScript, production build and 21 browser asset secret checks passed
+- [x] 10 desktop/mobile browser cases passed, including 65-customer real import and batch assignment, cross-sales isolation and existing CRM workflows
+- [x] Updated local service and read-only verification: 513 unassigned customers remain unchanged
+- [ ] Business owner selects the intended customers and actual sales assignee; Docker/NAS acceptance remains pending
+
+Usage and evidence: `docs/21_导入客户批量分配.md`.
+
+## 2026-09-14 Data cockpit implementation and review fixes
+
+- [x] Implement approved cockpit layout, compact customer table, detail sections and direct navigation
+- [x] Fix bound-prospect conversion, reviewed return/AOV deductions and fixed repeat-purchase formula
+- [x] Owner BI/CRM configuration and RFM controls; scoped contribution and customer trend APIs
+- [x] 207 pytest, Ruff, TypeScript, production build and 21 browser asset secret checks passed
+- [x] Full 44-case browser run: 40 passed, 4 failed; all affected cases passed in final 12-case desktop/mobile cockpit/CRM rerun after selector and logout-wait fixes
+- [x] Live 1440/768/390 px read-only UI checks: no document overflow or browser page errors
+- [x] No schema change or new migration; real business facts and confirmation settings unchanged
+- [ ] Manual UI/business acceptance and Docker/NAS checks remain pending
+
+Report: `docs/20_驾驶舱改版与问题修复验收.md`.
+
+## 2026-09-12 Codex independent review
+
+- [x] Current working tree, recent changes, backend tests and desktop/mobile UI reviewed; see `docs/19_总体检查与UI改版建议.md`
+- [x] Existing pytest: 197 passed; TypeScript, production build and browser asset secret scan passed
+- [x] Three review-only regression cases reproduce conversion binding, repeat-rate threshold and return/AOV defects
+- [x] Desktop browser regression: 9 passed, 1 stale-navigation failure, 10 not run after fail-fast; isolated ports verified closed
+- [x] User selected a data-cockpit UI direction; homepage layout preview prepared separately from the application
+- [x] Fix the three confirmed metric defects and add permanent regression coverage
+- [x] Restore owner configuration entry points and add usable RFM controls
+- [x] Fix mobile analytics overflow and analysis navigation contrast
+- [x] Resolve Ruff E731 and refresh browser tests for renamed navigation
+- [x] Implement user-approved data-cockpit layout; see `docs/20_驾驶舱改版与问题修复验收.md`
+- [ ] User visual/manual acceptance and existing business/Docker acceptance remain separate
+
 ## Planning / Design
 
 - [x] PRD
@@ -204,3 +352,14 @@ Report: `docs/18_M3实施与验收.md`. This task does not confirm real sales/fi
 - [ ] Final desktop/mobile browser regression
 - [x] Local frontend/backend/worker restarted; HTTP 200 health and fresh worker heartbeat; desktop/mobile read-only shortcut and backend parameter smoke passed
 - [ ] Existing manual sales/finance/CRM acceptance and Docker/NAS checks remain pending
+
+## Customer analytics suite — delivered 2026-09-12 (ZCode, user moved up from backlog)
+
+- [x] Customer RFM eight-layer segmentation (R/F/M vs configurable thresholds; 重要价值/保持/发展/挽留 + 一般四层)
+- [x] Repeat-purchase rate (累计 + 近六个月逐月趋势)
+- [x] First-deal conversion cycle (CRM 潜客创建 → 首次成交, 分桶统计, 仅统计已绑定并有源销售的潜客)
+- [x] Average order value (整体 + 逐月趋势 + 客户排名)
+- [x] Metric definitions added to docs/04 (CUS_RFM_LAYER, CUS_CONVERT_CYCLE) with catalog consistency guard
+- [x] CRM integration: customer 360 经营画像 card + customer level filter; UI redesign shipped (globals.css design system, 好客齐鲁 branding)
+- Known limit unchanged: customer-level gross profit stays out of scope (no cost data in V1 by design)
+- [x] Browser e2e regression for new pages (desktop + mobile); final evidence in docs/20

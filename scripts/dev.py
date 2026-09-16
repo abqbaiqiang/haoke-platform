@@ -32,7 +32,7 @@ commands = [
         "--no-proxy-headers",
     ],
     [sys.executable, "apps/worker/main.py"],
-    ["node", "node_modules/next/dist/bin/next", "dev", "--webpack", "--hostname", "127.0.0.1", "--port", "3000"],
+    ["node", "node_modules/next/dist/bin/next", "dev", "--webpack", "--hostname", os.environ.get("FRONTEND_HOST", "127.0.0.1"), "--port", "3000"],
 ]
 children = []
 try:

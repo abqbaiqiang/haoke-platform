@@ -7,7 +7,7 @@ async function login(page: Page, role: string) {
   await page.getByLabel("密码", { exact: true }).fill(password);
   await page.getByRole("button", { name: "登录", exact: true }).click();
   await expect(page.getByRole("button", { name: "退出登录", exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "数据中心", exact: true }).click();
+  await page.getByRole("navigation", { name: "主导航" }).getByRole("link", { name: "数据中心", exact: true }).click();
 }
 async function createSource(page: Page) {
   await page.getByRole("button", { name: "数据源与人员映射" }).click();
@@ -27,7 +27,7 @@ async function upload(page: Page, kind: string, name: string, body: string) {
   await expect(page.getByRole("region", { name: "预检结果" })).toBeVisible();
   await expect(page.getByRole("status").first()).toContainText("预检完成");
   await page.getByLabel("已核对本次预检提示与金额").check();
-  await page.getByRole("button", { name: "确认导入", exact: true }).click();
+  await page.getByRole("region", { name: "预检结果" }).getByRole("button", { name: "确认导入", exact: true }).click();
   await expect(page.getByRole("status").first()).toContainText("导入完成");
 }
 
@@ -71,7 +71,7 @@ test("M1 finance files, period confirmation and owner view", async ({ page }) =>
     await page.getByRole("button", { name: "上传并预检", exact: true }).click();
     await expect(page.getByRole("status").first()).toContainText("预检完成");
     await page.getByLabel("已核对本次预检提示与金额").check();
-    await page.getByRole("button", { name: "确认导入", exact: true }).click();
+    await page.getByRole("region", { name: "预检结果" }).getByRole("button", { name: "确认导入", exact: true }).click();
     await expect(page.getByRole("status").first()).toContainText("导入完成");
   }
   await page.getByRole("button", { name: "财务期间确认", exact: true }).click();
@@ -94,7 +94,8 @@ test("M1 invalid columns show readable precheck errors", async ({ page }) => {
   await page.getByLabel("选择文件").setInputFiles({ name: "invalid.csv", mimeType: "text/csv", buffer: Buffer.from("foo,bar\n1,2\n") });
   await page.getByRole("button", { name: "上传并预检", exact: true }).click();
   await expect(page.getByRole("region", { name: "预检结果" })).toContainText("缺少关键列");
-  await expect(page.getByRole("button", { name: "确认导入", exact: true })).toHaveCount(0);
+  // 历史表中也存在行内“确认导入”，判定必须限定在本次预检结果区域内。
+  await expect(page.getByRole("region", { name: "预检结果" }).getByRole("button", { name: "确认导入", exact: true })).toHaveCount(0);
 });
 
 test("M1 long monthly table opens visible orders, pagination and detail", async ({ page }) => {

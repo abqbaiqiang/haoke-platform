@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>经营驾驶舱 · 改版看版</title>
+<style>
+:root{color-scheme:light;--ink:#18181b;--muted:#71717a;--accent:#2563eb;--accent-strong:#1d4ed8;--accent-soft:#eff6ff;--line:#e4e4e7;--line-strong:#d4d4d8;--paper:#f7f7f8;--card:#ffffff;--shadow:0 1px 2px #0000000a,0 4px 16px #0000000d;--shadow-lift:0 2px 4px #00000012,0 10px 28px #00000014;--radius:10px;--danger:#dc2626;--warn-bg:#fffaea;--warn-ink:#7a5a17}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;font-family:system-ui,-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;font-size:15px;line-height:1.65;color:var(--ink);background:var(--paper);-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font:inherit}
+h1{font-size:30px;line-height:1.35;letter-spacing:-.6px;margin:10px 0 6px;font-weight:700}
+h2{font-size:19px;font-weight:650;letter-spacing:-.2px}
+h3{font-size:16px;font-weight:650}
+p{line-height:1.75}
+a{color:var(--accent)}
+button{cursor:pointer;border:1px solid var(--line-strong);background:var(--card);color:#27272a;border-radius:8px;padding:8px 14px;font-weight:500;transition:background .15s,border-color .15s,box-shadow .15s,color .15s}
+button:hover:not(:disabled){border-color:var(--accent);color:var(--accent);background:#f4f4f5}
+button:disabled{cursor:wait;opacity:.55}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid #93c5fd;outline-offset:2px}
+.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.primary:hover:not(:disabled){background:var(--accent-strong);border-color:var(--accent-strong);color:#fff}
+.eyebrow{font-size:11px;letter-spacing:2.5px;font-weight:700;color:var(--accent);text-transform:uppercase}
+.muted,.footnote{color:var(--muted)}
+.error{color:var(--danger);background:#fef2f2;border:1px solid #fecaca;padding:11px 14px;border-radius:10px}
+.data-warning{color:var(--warn-ink)!important;background:var(--warn-bg);border:1px solid #efdfae;padding:10px 14px;border-radius:10px}
+.data-success{color:var(--accent);background:var(--accent-soft);border:1px solid #bfdbfe;padding:11px 14px;border-radius:10px}
+.login-layout{min-height:100dvh;display:grid;grid-template-columns:1fr 1fr}
+.intro{position:relative;display:flex;flex-direction:column;justify-content:center;padding:9vw;color:#fafafa;background:radial-gradient(ellipse at 90% 0%,#60a5fa 0%,transparent 65%),linear-gradient(160deg,#1e3fae 0%,#2563eb 100%)}
+.brand-mark{width:64px;height:64px;display:grid;place-items:center;border:1px solid #52525b;border-radius:18px;font-size:30px;margin-bottom:32px;background:#ffffff12}
+.intro h1{font-size:clamp(28px,3vw,46px);margin:8px 0}
+.intro>p{color:#a1a1aa}
+.intro-footer{position:absolute;bottom:40px;left:9vw;right:9vw;display:flex;justify-content:space-between;font-size:12px;color:#a1a1aa}
+.login-panel{padding:60px 24px;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--card)}
+.login-panel form{width:min(100%,380px)}
+.login-panel h2{font-size:27px;margin:12px 0}
+.login-panel label{display:block;font-size:14px;font-weight:550;margin:26px 0 8px}
+.login-panel input{width:100%;padding:13px 14px;border:1px solid var(--line-strong);border-radius:10px;background:#fbfcfa;transition:border-color .15s,box-shadow .15s}
+.login-panel input:focus{border-color:var(--accent);box-shadow:0 0 0 3px #2563eb22;outline:none}
+.primary{width:100%;padding:13px;margin-top:26px;font-size:16px;border-radius:10px}
+.footnote{font-size:12px;text-align:center}
+.login-panel small{margin-top:56px;color:var(--muted)}
+.loading{min-height:100dvh;display:grid;place-items:center;color:var(--muted)}
+.workspace{display:grid;grid-template-columns:248px 1fr;min-height:100dvh}
+aside{background:#1e2a38;border-right:0;padding:28px 18px;display:flex;flex-direction:column;color:#c2d0dd}
+.brand{display:flex;align-items:center;gap:10px;font-size:14px;color:#fff}
+.brand-mark.small{width:38px;height:38px;border-radius:11px;font-size:19px;margin:0;color:#c2d0dd;border-color:#3d5266;background:#ffffff14}
+.nav-label{color:#7e93a6;font-size:10px;margin-top:34px;letter-spacing:2.5px;text-transform:uppercase}
+aside nav{display:grid;gap:4px}
+aside nav button{text-align:left;padding:11px 14px;border-radius:9px;color:#c2d0dd;background:transparent;border-color:transparent;font-weight:500}
+aside nav button:hover:not(:disabled){background:#ffffff14;color:#fff;border-color:transparent}
+aside nav button[aria-current=page]{background:var(--accent);color:#fff;font-weight:600;box-shadow:none}
+.sidebar-bottom{margin-top:auto;padding:22px 10px 0;color:#a1a1aa;font-size:12px;display:flex;justify-content:space-between}
+.dot{height:7px;width:7px;background:var(--accent);border-radius:50%;box-shadow:0 0 0 3px #2563eb2e}
+.content{min-width:0;display:flex;flex-direction:column}
+header{background:#ffffffd9;backdrop-filter:blur(8px);border-bottom:1px solid var(--line);min-height:64px;display:flex;align-items:center;justify-content:space-between;padding:12px 36px;font-size:13px;position:sticky;top:0;z-index:20}
+header>div{display:flex;gap:20px;align-items:center}
+header button{padding:7px 13px}
+.dashboard{padding:36px 40px 48px;max-width:1440px;width:100%;margin:0 auto}
+.dashboard h1{margin-bottom:6px}
+.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:32px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:24px;box-shadow:var(--shadow)}
+.card>span{color:var(--muted);font-size:13px}
+.card h2{margin:20px 0 10px}
+.card p{color:var(--muted);font-size:13px}
+.notice{margin-top:28px;border:1px solid var(--line);background:var(--card);border-radius:var(--radius);padding:26px 30px;box-shadow:var(--shadow)}
+.notice h2{font-size:17px}
+.notice p{font-size:14px;color:var(--muted)}
+.notice button{padding:7px 0;font-weight:650;border:0;background:transparent;color:var(--accent)}
+footer{margin-top:auto;padding:22px 40px;color:var(--muted);font-size:11px}
+.account{max-width:680px;margin-top:28px}
+dl{display:grid;grid-template-columns:120px 1fr;gap:22px;font-size:14px}
+dt{color:var(--muted)}
+dd{margin:0;overflow-wrap:anywhere}
+table{font-variant-numeric:tabular-nums}
+@media(max-width:900px){.workspace{grid-template-columns:200px 1fr}.cards{grid-template-columns:1fr}.dashboard{padding:22px}.intro{padding:6vw}.intro-footer{left:6vw;right:6vw}}
+@media(max-width:600px){.login-layout{grid-template-columns:1fr}.intro{padding:32px 24px}.intro .brand-mark{display:none}.intro-footer{display:none}.intro h1{font-size:27px}.login-panel{padding:32px 24px}.workspace{grid-template-columns:1fr}aside{padding:14px;border-right:0;border-bottom:1px solid var(--line)}.nav-label,.sidebar-bottom{display:none}aside nav{display:flex;margin-top:16px;gap:4px;flex-wrap:wrap}aside nav :is(a,button){padding:9px 11px}.brand{font-size:15px}header{padding:14px 16px;gap:8px}header>span{display:none}.dashboard{padding:22px 14px}h1{font-size:25px}.card,.notice{padding:20px}.cards{margin-top:22px;gap:12px}footer{padding:18px 16px}dl{grid-template-columns:85px 1fr;gap:18px}}
+/* ---- M5 shared analytics bits ---- */
+.layer-dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:8px;vertical-align:1px}
+.layer-badge{display:inline-block;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap}
+.conv-bar{display:block;height:8px;border-radius:4px;background:#f4f4f5;overflow:hidden}
+.conv-bar i{display:block;height:100%;border-radius:4px;background:linear-gradient(90deg,#2563eb,#60a5fa)}
+
+
+.data-section{margin-top:24px}.data-section h2{margin-top:0}.data-section form{max-width:680px}.data-section label{display:block;margin:16px 0}.data-section input:not([type=checkbox]),.data-section select,.data-section textarea,.data-toolbar select{display:block;width:100%;padding:11px;border:1px solid var(--line);border-radius:6px;margin-top:8px;font:inherit;background:white;color:var(--ink)}.data-section .check{display:flex;gap:10px;align-items:flex-start;line-height:1.6}.data-section .primary{max-width:400px;margin-top:16px}.data-toolbar,.data-tabs{display:flex;flex-wrap:wrap;gap:16px;align-items:center;margin:18px 0}.data-toolbar label{min-width:200px}.data-tabs button{padding:12px;border-bottom:2px solid transparent}.data-tabs button[aria-pressed=true]{border-color:var(--accent);font-weight:bold}.table-scroll{overflow:auto;max-width:100%;margin:16px 0}.table-scroll table{border-collapse:collapse;min-width:540px;width:100%;font-size:13px}.table-scroll th,.table-scroll td{text-align:left;border-bottom:1px solid var(--line);padding:13px;max-width:450px;overflow-wrap:anywhere}.table-scroll th{background:#fafafa;white-space:nowrap}.data-warning{color:#825e21!important;background:#fffaea;padding:10px}.data-success{color:var(--accent-strong);background:var(--accent-soft);padding:12px}.data-section pre{overflow:auto;max-height:250px}.data-section details{margin:16px 0}.data-section button{min-height:40px}.data-section a{color:var(--accent)}.confirm-inline{background:var(--accent);border-color:var(--accent);color:#fff}.confirm-inline:hover:not(:disabled){background:var(--accent-strong);border-color:var(--accent-strong);color:#fff}
+
+.orders-dialog{width:min(960px,calc(100% - 24px));max-height:90dvh;padding:0;border:1px solid var(--line);border-radius:14px;color:var(--ink);background:#fff;box-shadow:0 24px 80px #18181b33}.orders-dialog[open]{display:flex;flex-direction:column}.orders-dialog::backdrop{background:#18181b66}.orders-dialog-header{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:18px 24px;border-bottom:1px solid var(--line);flex-shrink:0}.orders-dialog-header h2,.orders-dialog-header p{margin:0}.orders-dialog-header button{border:1px solid var(--line);border-radius:6px;padding:10px 16px;flex-shrink:0}.orders-dialog-body{padding:8px 24px 20px;overflow:auto;overscroll-behavior:contain;min-height:100px}.orders-dialog-body h3{overflow-wrap:anywhere}.orders-dialog .table-scroll{margin:12px 0}.orders-dialog .data-toolbar{justify-content:space-between}.orders-dialog button{min-height:44px}.orders-dialog .orders-back{padding:8px 0}.orders-dialog button:disabled{cursor:default}@media(max-width:600px){.orders-dialog-header{padding:16px}.orders-dialog-body{padding:8px 16px 16px}.orders-dialog-header h2{font-size:20px}.orders-dialog .table-scroll table{min-width:440px}}
+
+.crm input:not([type=checkbox]),.crm select,.crm textarea{font:inherit;display:block;width:100%;min-width:0;padding:10px;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--ink);margin:8px 0}.crm textarea{min-height:88px;resize:vertical}.crm input[type=checkbox]{margin:8px}.crm button{min-height:44px}.crm-search,.crm-search form,.crm-actions{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin:12px 0}.crm-search label{flex:1;min-width:150px}.crm-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 20px}.crm-form{margin:20px 0;padding:20px;background:#fafafa;border:1px solid var(--line);border-radius:8px;scroll-margin:20px}.crm-form label{margin:8px 0}.crm-form .primary{width:auto;margin:0;padding:12px 22px}.crm-list{display:grid;gap:12px}.crm-item{background:white;border:1px solid var(--line);border-radius:8px;padding:18px;overflow-wrap:anywhere}.crm-item h3{margin:0 0 8px}.crm-item p{margin:8px 0}.crm .muted{font-size:14px}.crm .card{overflow-wrap:anywhere}.crm .data-section p{font-size:14px}.crm-actions span{font-size:13px}@media(max-width:600px){.crm-fields{grid-template-columns:1fr}.crm-form{padding:14px}.crm-search form{width:100%}.crm .data-tabs{gap:4px}.crm .data-tabs button{padding:10px}.crm-item{padding:14px}}
+/* M3 analysis stays readable on narrow screens; wide tables scroll within their cards. */
+.bi { min-width: 0; }
+.bi-tabs, .bi-toolbar, .bi-pages { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; margin: 20px 0; }
+.bi-tabs button[aria-current="page"] { color: var(--accent-strong); border-bottom: 2px solid var(--accent-strong); font-weight: 700; }
+.bi-toolbar label { flex: 1 1 170px; max-width: 270px; }
+.bi select, .bi input, .bi textarea, .bi-dialog input { max-width: 100%; box-sizing: border-box; }
+.bi select, .bi-dialog select { width: 100%; padding: 12px; border: 1px solid var(--line); border-radius: 6px; background: white; color: var(--ink); }
+.bi .card { margin-bottom: 18px; min-width: 0; }
+.bi-metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; margin: 22px 0; }
+.bi-metrics .card { margin: 0; padding: 22px; }
+.bi-metrics strong { display: block; font-size: 27px; margin: 16px 0; overflow-wrap: anywhere; }
+.bi-metrics strong small { font-size: 13px; font-weight: 400; }
+.bi-metrics details { color: var(--muted); font-size: 12px; }
+.bi-notes { background: var(--warn-bg); border: 1px solid #efdfae; border-radius: 8px; padding: 10px 18px; line-height: 1.7; }
+.bi-notes p { margin: 8px 0; }
+.bi-summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 20px; }
+.bi-summary button { padding: 22px; background: #f4f4f5; text-align: left; border-radius: 8px; }
+.bi-summary strong { display: block; margin-top: 10px; font-size: 28px; }
+.bi-table-wrap { max-width: 100%; overflow-x: auto; }
+.bi table, .bi-dialog table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.bi th, .bi td, .bi-dialog th, .bi-dialog td { padding: 14px 12px; text-align: left; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.bi th, .bi-dialog th { color: var(--muted); background: #fafafa; font-weight: 500; }
+.bi-chart { width: 100%; height: 320px; }
+.bi-form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 16px; margin: 18px 0; }
+.bi-checks { display: flex; flex-wrap: wrap; gap: 12px 22px; margin: 16px 0; }
+.bi-checks label { display: flex; align-items: center; gap: 7px; }
+.bi-checks input { width: auto; margin: 0; }
+.bi fieldset { border: 1px solid var(--line); border-radius: 6px; margin-top: 18px; }
+.bi-calendar-list { max-height: 280px; overflow: auto; padding-left: 24px; }
+.bi-calendar-list li { padding: 8px 0; }
+.bi-calendar-list button { margin-left: 16px; }
+.bi-attention { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; }
+.bi-dialog { width: min(1000px, calc(100vw - 32px)); max-height: 85vh; overflow: auto; border: 1px solid var(--line); border-radius: 12px; padding: 24px; color: var(--ink); }
+.bi-dialog::backdrop { background: #18181b73; }
+.bi-dialog-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.bi-dialog label { display: block; margin-bottom: 16px; }
+.bi-dialog input { display: block; padding: 10px; }
+@media (max-width: 640px) {
+  .bi-summary { grid-template-columns: repeat(2, 1fr); }
+  .bi-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .bi-metrics .card { padding: 16px 12px; }
+  .bi-metrics strong { font-size: 22px; }
+  .bi-toolbar label { max-width: none; }
+  .bi .card { padding: 20px 14px; }
+  .bi-dialog { padding: 16px; }
+}
+
+.bi input:not([type=checkbox]), .bi textarea { display: block; width: 100%; min-width: 0; padding: 12px; margin-top: 8px; font: inherit; color: var(--ink); border: 1px solid var(--line); border-radius: 6px; background: white; }
+.bi button, .bi-dialog button { min-height: 44px; }
+.bi textarea { resize: vertical; min-height: 90px; }
+
+/* WeChat-style customer tag chips: click to toggle, then save. */
+.tag-picker{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:10px 0}
+.tag-picker>button{border-radius:999px;padding:6px 16px;min-height:36px;background:#fff}
+.tag-picker>button[aria-pressed=true]{background:var(--accent);border-color:var(--accent);color:#fff}
+.tag-picker>button[aria-pressed=true]:hover{background:var(--accent-strong);color:#fff}
+.tag-picker .tag-save{width:auto;margin:0 0 0 6px;padding:6px 18px}
+.tag-chip{display:inline-block;border:1px solid #bfdbfe;border-radius:999px;padding:3px 12px;font-size:13px;background:var(--accent-soft);color:var(--accent-strong);margin:0 6px 6px 0}
+.tag-create{display:inline-flex;gap:6px;align-items:center;margin:0 6px}
+.tag-create input{width:110px;padding:6px 12px;border:1px dashed var(--line-strong);border-radius:999px;font-size:13px}
+.tag-create input:focus{border-style:solid;border-color:var(--accent);outline:none}
+.tag-create button{border-radius:999px;padding:6px 14px;min-height:36px;font-size:13px}
+
+/* Inline tag management: add / rename / soft-delete. */
+.tag-manager{margin:12px 0;padding:16px;background:#fafafa;border:1px solid var(--line);border-radius:10px;max-width:760px}
+.tag-manager .tag-add{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:12px}
+.tag-manager .tag-add input{flex:1;min-width:140px;padding:9px 12px;border:1px solid var(--line-strong);border-radius:8px}
+.tag-manager .tag-add .primary{width:auto;margin:0;padding:9px 18px}
+.tag-manager ul{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.tag-manager li{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.tag-manager li input{flex:1;min-width:120px;padding:8px 12px;border:1px solid var(--line);border-radius:8px}
+.tag-manager li button{min-height:36px;padding:6px 12px}
+.tag-manager li .muted{font-size:12px}
+
+
+/* Shared application layout. Color tokens live once in globals.css (forest green). */
+body{font-size:14px;line-height:1.55}
+h1{font-size:26px;letter-spacing:-.6px}h2{font-size:17px}h3{font-size:15px}
+button{font-size:13px;border-radius:7px;padding:8px 12px}
+button:disabled{cursor:not-allowed}
+.workspace.dash-root{grid-template-columns:208px minmax(0,1fr)}
+.dash-root aside{background:#1e2a38;border-right:0;padding:24px 14px;align-self:start;position:sticky;top:0;min-height:100dvh;max-height:100dvh;overflow-y:auto}
+.dash-root .brand{gap:10px;padding:0 8px;font-size:18px;color:#f8fafc}
+.dash-root .brand-mark.small{width:33px;height:38px;border-radius:8px;font-family:serif;font-size:22px;flex-shrink:0;border-color:#3d5266;background:#ffffff10}
+.dash-root .brand strong{font-weight:600;letter-spacing:1px}
+.dash-root .brand small{font-size:11px;letter-spacing:1px;margin-top:4px}
+.dash-root aside .nav-label{font-size:10px;letter-spacing:2px;margin:22px 10px 6px;color:#7e93a6}
+.dash-root aside nav{gap:2px;display:grid}
+.dash-root aside nav :is(a,button){display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:7px;color:#c2d0dd;background:transparent;font-size:13px;font-weight:400;box-shadow:none;text-decoration:none}
+.dash-root aside nav :is(a,button):hover{color:#fff;background:#ffffff12}
+.dash-root aside nav :is(a,button)[aria-current=page]{background:var(--accent);color:#fff;box-shadow:none;font-weight:600}
+.nav-icon{display:block;width:15px;height:15px;flex-shrink:0;opacity:.9}
+.dash-root .sidebar-bottom{padding:18px 10px 0;margin-top:auto;font-size:11px;color:#7e93a6;border-top:1px solid #31435a}
+.content>header{min-height:60px;padding:12px 28px;background:#fff;backdrop-filter:none;font-size:12px}
+.dashboard{max-width:1600px;padding:26px 28px 36px}
+.mobile-menu{display:none}
+.card,.notice{border-radius:var(--radius);box-shadow:none;padding:20px}
+.eyebrow{font-size:10px;letter-spacing:1.8px}
+.primary{width:auto;font-size:13px;padding:10px 18px;margin-top:12px}
+.login-panel .primary{width:100%;font-size:15px;padding:13px;margin-top:24px}
+.data-tabs{gap:7px;margin:18px 0}
+.data-tabs button{padding:9px 13px;border:1px solid var(--line);font-size:13px}
+.data-tabs button[aria-pressed=true]{background:var(--accent-soft);border-color:#bfdbfe;color:var(--accent-strong)}
+.bi-tabs{display:flex;gap:6px;flex-wrap:wrap;margin:20px 0;padding-bottom:10px;border-bottom:1px solid var(--line)}
+.bi-tabs button{color:#52525b;background:#fff;border:1px solid var(--line);padding:8px 12px;box-shadow:none;font-weight:500}
+.bi-tabs button[aria-current=page]{background:var(--accent-soft);border-color:#bfdbfe;color:var(--accent-strong);box-shadow:none}
+.bi-tabs button:hover{background:#f4f4f5;color:var(--accent-strong)}
+.bi-toolbar{align-items:flex-end;gap:14px}
+.bi-toolbar label{flex:0 1 240px;min-width:0}
+.bi-metrics{gap:12px;margin:18px 0}
+.bi-metrics strong{font-size:25px}
+.bi .card,.customer-analytics{min-width:0}
+.bi-form-grid{grid-template-columns:repeat(auto-fit,minmax(min(210px,100%),1fr))}
+.analytics-charts{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:16px;margin:18px 0}
+.customer-analytics>.card{margin:16px 0}
+.bi-table-wrap,.table-scroll{min-width:0;width:100%}
+.table-scroll th,.table-scroll td,.bi th,.bi td{padding:11px 12px;font-size:13px}
+.table-scroll th,.bi th{background:#fafafa;color:#71717a}
+.text-button{background:transparent;border:0;color:var(--accent);padding:3px 0;font-weight:500;text-align:left}
+.text-button:hover:not(:disabled){background:transparent;color:var(--accent-strong);text-decoration:underline;border-color:transparent}
+.text-button.customer-link{max-width:100%;white-space:normal;overflow-wrap:anywhere}
+
+/* ==========================================================================
+   经营驾驶舱 · 数据看板
+   契约（DESIGN.md）：品牌蓝 #2563eb + zinc 中性灰；侧栏 #1e2a38。
+   硬约束：禁绿色系、禁单侧色条、禁 eyebrow 小标签、禁渐变文字。
+   表达原则：金额优先用比例条 / 进度条呈现，不铺灰方块占位；
+             未核实的派生比例（占比、完成率）一律不渲染。
+   ========================================================================== */
+.cockpit{display:grid;gap:18px;min-width:0}
+
+/* 顶栏 */
+.cockpit-top{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.cockpit-title h1{margin:0 0 8px}
+.cockpit-trust{display:flex;align-items:center;flex-wrap:wrap;gap:8px 16px;color:var(--muted);font-size:12px}
+.trust-warnings{min-width:180px}
+.trust-warnings p{margin:6px 0;overflow-wrap:anywhere}
+.cockpit-source{display:flex;align-items:center;gap:12px;font-size:12px}
+.cockpit-source select{padding:8px 12px;border:1px solid var(--line);border-radius:6px;max-width:300px;min-width:0;background:#fff;color:var(--ink)}
+.status-ready,.status-pending{padding:4px 10px;border-radius:5px;font-weight:500}
+.status-ready{background:var(--accent-soft);color:var(--accent-strong)}
+.status-pending{background:var(--warn-bg);color:var(--warn-ink)}
+
+/* 英雄区：一位主角数字 + 右侧指标列 */
+.cockpit-hero{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(270px,1fr);gap:14px 48px;align-items:start;padding:26px 28px;background:var(--card);border:1px solid var(--line);border-radius:var(--radius)}
+.hero-main{min-width:0}
+.hero-label{display:block;color:var(--muted);font-size:13px;letter-spacing:.3px}
+.hero-value{display:block;font-size:clamp(44px,5.2vw,76px);font-weight:700;letter-spacing:-2.5px;line-height:1.08;margin:8px 0 6px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.hero-value small{font-size:16px;font-weight:400;letter-spacing:0;margin-left:8px;color:var(--muted)}
+.hero-sub{display:flex;align-items:baseline;flex-wrap:wrap;gap:6px 14px;font-size:14px}
+.mom{display:inline-flex;align-items:center;gap:4px;font-weight:600;font-variant-numeric:tabular-nums}
+.mom small{font-weight:400;color:var(--muted);margin-left:5px;font-size:12px}
+.mom-up{color:var(--accent-strong)}
+.mom-down{color:var(--danger)}
+.hero-caliber{font-size:11px;color:var(--muted);margin-top:12px}
+.hero-caliber p{margin:6px 0;overflow-wrap:anywhere}
+.hero-kpis{display:grid;gap:0;margin:0}
+.hero-kpis>div{padding:12px 0;border-bottom:1px solid var(--line)}
+.hero-kpis>div:first-child{padding-top:0}
+.hero-kpis>div:last-child{border-bottom:0;padding-bottom:0}
+.hero-kpis dt{font-size:12px;color:var(--muted)}
+.hero-kpis dd{margin:2px 0 0;font-size:30px;font-weight:650;letter-spacing:-1px;font-variant-numeric:tabular-nums}
+.hero-kpis dd small{font-size:12px;font-weight:400;letter-spacing:0;color:var(--muted);margin-left:5px}
+.hero-target .target-track{display:block;height:8px;margin-top:10px}
+.target-note{display:block;font-size:11px;color:var(--muted);margin-top:7px;overflow-wrap:anywhere}
+.target-note .text-button{margin-left:8px}
+.target-track{display:block;background:#f1f1f3;border-radius:5px;overflow:hidden}
+.target-track i{display:block;height:100%;border-radius:5px;background:var(--accent)}
+
+/* 面板通用 */
+.cockpit-panel{min-width:0;background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:22px}
+.panel-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.panel-heading h2{margin:0;font-size:16px;font-weight:650}
+.panel-sub{color:var(--muted);font-size:12px;margin:4px 0 0}
+.panel-heading .text-button{font-size:12px}
+.panel-note{color:var(--muted);font-size:11px;margin:12px 0 0;line-height:1.7}
+.chart-switch{display:flex;padding:3px;border-radius:6px;background:var(--paper);gap:3px}
+.chart-switch button{border:0;font-size:11px;padding:5px 10px;background:transparent;color:var(--muted);border-radius:4px}
+.chart-switch button:hover:not(:disabled){background:transparent;color:var(--accent-strong);border-color:transparent}
+.chart-switch button[aria-pressed=true]{background:#fff;color:var(--accent-strong);font-weight:600;box-shadow:0 1px 3px #00000012}
+.cockpit-chart{width:100%;max-width:100%;height:260px;overflow:hidden}
+.cockpit-grid{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:18px;align-items:start}
+.cockpit-grid.single{grid-template-columns:minmax(0,1fr)}
+
+/* 客户贡献：横向比例条（条长=组内相对值，占比=占本月经营销售额的真实份额） */
+.contrib-list{list-style:none;margin:0;padding:0;display:grid;gap:16px}
+.contrib-item{display:grid;gap:7px;min-width:0}
+.contrib-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+.contrib-name{min-width:0;overflow-wrap:anywhere;font-size:13px;font-weight:500;color:var(--ink)}
+.contrib-amount{font-size:14px;font-weight:650;font-variant-numeric:tabular-nums;white-space:nowrap}
+.contrib-amount small{font-weight:400;font-size:11px;color:var(--muted);margin-left:3px}
+.contrib-bar{display:block;height:8px;border-radius:4px;background:#f4f4f5;overflow:hidden}
+.contrib-bar i{display:block;height:100%;border-radius:4px;background:var(--accent)}
+.contrib-meta{display:flex;flex-wrap:wrap;gap:2px 14px;font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+.contrib-share{color:var(--accent-strong);font-weight:600}
+.contrib-total{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:6px 14px;margin-top:16px;padding-top:14px;border-top:1px solid var(--line);font-size:12px;color:var(--muted)}
+.contrib-total strong{font-size:15px;color:var(--ink);font-variant-numeric:tabular-nums}
+
+/* 团队目标：进度条 + 完成率（低于阈值的完成率以琥珀标注，仅阅读提示，不改指标口径） */
+.team-list{list-style:none;margin:0;padding:0;display:grid;gap:16px}
+.team-item{display:grid;grid-template-columns:26px minmax(0,1fr) auto;gap:10px;align-items:center}
+.team-avatar{width:26px;height:26px;display:grid;place-items:center;border-radius:50%;background:var(--accent-soft);color:var(--accent-strong);font-size:12px;font-weight:600}
+.team-body{min-width:0}
+.team-body strong{display:block;font-size:13px;font-weight:500;margin-bottom:6px;overflow-wrap:anywhere}
+.team-body .target-track{height:6px}
+.team-figures{text-align:right;font-variant-numeric:tabular-nums}
+.team-figures strong{display:block;font-size:14px;font-weight:650}
+.team-figures small{display:block;font-size:10px;color:var(--muted);white-space:nowrap;margin-top:2px}
+.team-rate-behind{color:var(--warn-ink)}
+.team-toggle{display:flex;justify-content:center;margin-top:14px}
+
+/* 需要关注 */
+.attn-list{list-style:none;margin:0;padding:0;display:grid}
+.attn-item{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding:14px 0;border-bottom:1px solid var(--line)}
+.attn-item:first-child{padding-top:0}
+.attn-item:last-child{border-bottom:0;padding-bottom:0}
+.attn-main{min-width:0}
+.attn-main .customer-link{font-size:13px;font-weight:500}
+.attn-kind{display:block;font-size:12px;color:var(--muted);margin-top:4px}
+.attn-days{flex-shrink:0;font-size:12px;font-weight:600;color:var(--warn-ink);white-space:nowrap;font-variant-numeric:tabular-nums}
+.panel-actions{display:flex;flex-wrap:wrap;gap:6px 20px;margin-top:14px}
+
+/* 财务视图：口径未确认时只标状态，不估数 */
+.finance-panel{padding:20px 22px}
+.finance-alert{display:flex;gap:10px;align-items:flex-start;background:var(--warn-bg);border:1px solid #efdfae;border-radius:6px;padding:12px 14px;font-size:12px;color:var(--warn-ink);line-height:1.7;margin-top:12px}
+.finance-alert p{margin:4px 0 0;font-size:12px}
+.finance-alert p:first-child{margin-top:0}
+.finance-values{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-top:14px}
+.finance-values .cockpit-stat{padding:14px 16px;background:#fafafa}
+.finance-values .cockpit-stat>strong{font-size:24px}
+.cockpit-stat{min-width:0;background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:18px 20px}
+.cockpit-stat>span{color:var(--muted);font-size:12px}
+.cockpit-stat>strong{display:block;font-size:28px;letter-spacing:-.8px;font-weight:650;margin:8px 0 6px;line-height:1.35;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.cockpit-stat strong small{font-size:11px;font-weight:400;letter-spacing:0;margin-left:5px;color:var(--muted)}
+.cockpit-stat>p,.cockpit-stat details{font-size:11px;color:var(--muted);margin:7px 0 0}
+.cockpit-stat details p{margin:6px 0;overflow-wrap:anywhere}
+.cockpit summary{cursor:pointer}
+
+/* 驾驶舱内数据表 */
+.cockpit .table-scroll{overflow:auto;max-width:100%;margin:14px 0 0}
+.cockpit .table-scroll table{width:100%;min-width:420px;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums}
+.cockpit .table-scroll th,.cockpit .table-scroll td{text-align:left;padding:11px 12px;border-bottom:1px solid var(--line);max-width:450px;overflow-wrap:anywhere}
+.cockpit .table-scroll th{background:#fafafa;color:var(--muted);font-weight:500;white-space:nowrap}
+.cockpit .number-cell{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+.contribution-table td:first-child{width:42%}
+.level-tag{font-size:10px;background:var(--accent-soft);color:var(--accent-strong);border-radius:4px;padding:3px 6px;margin-left:6px;white-space:nowrap}
+
+/* 空态：说明原因并提供下一步，不用灰方块占位 */
+.cockpit-empty{display:grid;gap:6px;margin:6px 0 0}
+.cockpit-empty strong{font-size:13px;font-weight:600}
+.cockpit-empty p{margin:0;font-size:12px;color:var(--muted);line-height:1.7}
+
+@media(max-width:1200px){
+ .cockpit-grid{grid-template-columns:minmax(0,1.15fr) minmax(0,1fr)}
+ .hero-value{font-size:clamp(40px,4.6vw,64px)}
+}
+@media(max-width:980px){
+ .cockpit-hero{grid-template-columns:minmax(0,1fr);gap:6px 0}
+ .hero-kpis{grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:0 32px;margin-top:18px}
+ .hero-kpis>div:first-child{padding-top:12px}
+ .hero-kpis>div:last-child{border-bottom:0}
+ .cockpit-grid{grid-template-columns:minmax(0,1fr)}
+}
+@media(max-width:640px){
+ .cockpit{gap:14px}
+ .cockpit-hero{padding:18px 16px}
+ .hero-value{font-size:clamp(34px,10vw,46px);letter-spacing:-1.5px}
+ .hero-kpis{grid-template-columns:minmax(0,1fr)}
+ .hero-kpis dd{font-size:26px}
+ .cockpit-panel{padding:16px}
+ .cockpit-chart{height:236px}
+ .panel-heading h2{font-size:15px}
+ .contrib-head{flex-wrap:wrap;gap:2px}
+ .contrib-amount{font-size:13px}
+ .team-item{grid-template-columns:24px minmax(0,1fr);gap:8px 10px}
+ .team-figures{grid-column:2;display:flex;align-items:baseline;gap:8px;text-align:left}
+ .team-figures small{white-space:normal;margin-top:0}
+}
+
+.crm-search{align-items:flex-end;gap:12px;margin:18px 0}
+.crm-search form{flex:1 1 280px;max-width:470px}
+.crm-search>label{flex:0 1 190px}
+.crm-search input,.crm-search select{padding:9px 11px}
+.customer-table-wrap{width:100%;overflow-x:auto;background:#fff;border:1px solid var(--line);border-radius:10px;min-width:0}
+.customer-table{border-collapse:collapse;width:100%;font-size:13px;min-width:540px}
+.customer-table th{font-size:12px;font-weight:500;color:var(--muted);background:#f8fafc;text-align:left;padding:12px 16px;white-space:nowrap}
+.customer-table td{padding:12px 16px;border-top:1px solid var(--line);overflow-wrap:anywhere}
+.customer-table td:first-child{width:40%}.customer-table td:first-child strong{font-weight:500}
+.customer-table tbody tr:hover{background:#fafafa}.customer-table td:last-child{white-space:nowrap}
+.customer-table .level-tag{margin:0}
+.crm-item{padding:14px 18px;margin:10px 0}
+.crm-item h3{margin:0 0 8px}
+.crm-form{scroll-margin-top:85px;border-radius:8px}
+.crm .data-section{margin-top:18px}
+.crm-fields{grid-template-columns:repeat(auto-fit,minmax(min(240px,100%),1fr))}
+footer{padding:18px 28px;font-size:10px}
+@media(max-width:1200px){.cockpit-stat{padding:15px}.cockpit-stat>strong{font-size:24px}.cockpit-grid{grid-template-columns:minmax(0,1.4fr) minmax(0,1fr)}.team-value small{max-width:100px;display:block}.hero-value{font-size:clamp(42px,5vw,72px)}}
+@media(max-width:980px){.workspace.dash-root{grid-template-columns:184px minmax(0,1fr)}.dashboard{padding:22px}.cockpit-grid{grid-template-columns:minmax(0,1fr)}.analytics-charts{grid-template-columns:minmax(0,1fr)}.team-value small{max-width:none}.cockpit-chart{height:250px}.cockpit-hero{grid-template-columns:minmax(0,1fr);gap:14px}.hero-kpis{grid-template-columns:repeat(auto-fit,minmax(140px,max-content));gap:6px 28px}}
+@media(max-width:640px){.workspace.dash-root{grid-template-columns:minmax(0,1fr)}.dash-root aside{position:static;min-height:0;max-height:none;padding:14px 16px}.dash-root .brand{padding:0;font-size:17px}.dash-root .brand>div{flex-direction:column}.mobile-menu{display:block;margin-left:auto;background:var(--accent);border-color:var(--accent);color:#fff;font-size:12px}.dash-root aside nav{display:flex;overflow-x:auto;max-width:100%;flex-wrap:nowrap;gap:5px;margin-top:12px}.dash-root aside nav :is(a,button){flex:0 0 auto;padding:9px 11px}.dash-root.navigation-open aside nav{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px;margin-top:10px}.dash-root aside .nav-label{grid-column:1/-1;display:none;margin:12px 10px 2px}.dash-root.navigation-open aside nav .nav-label{display:block}.dash-root .sidebar-bottom{display:none}.content>header{position:static;padding:10px 16px;min-height:48px}.dashboard{padding:18px 14px 26px}.cockpit{gap:14px}.cockpit-stat{padding:13px 12px}.cockpit-stat>strong{font-size:23px}.cockpit-stat>span{font-size:11px}.cockpit-panel{padding:16px}.cockpit-title h1{font-size:24px}.cockpit-trust{gap:6px 12px;font-size:11px}.cockpit-source select{max-width:220px}.bi-tabs{gap:5px}.bi-tabs button{font-size:12px}.bi-form-grid{grid-template-columns:minmax(0,1fr)}.bi-chart{height:260px}.cockpit-panel .table-scroll table{min-width:360px}.crm-search form,.crm-search>label{max-width:none;flex:1 1 100%}.customer-table{min-width:0}.customer-table th:nth-child(2),.customer-table td:nth-child(2){display:none}.customer-table th,.customer-table td{padding:11px 7px;font-size:12px}.customer-table td:first-child{width:40%}.customer-table button{font-size:12px}.crm .data-section{padding:16px}.crm-fields{grid-template-columns:minmax(0,1fr)}.cockpit-grid{gap:14px}.cockpit-fold{gap:10px}.team-value small{font-size:10px}.finance-values{grid-template-columns:minmax(0,1fr)}.content header>div{gap:14px}footer{padding:14px}.bi-toolbar label{flex-basis:100%}.cockpit-hero{gap:10px;padding:16px 0}.hero-value{font-size:clamp(36px,11vw,44px);letter-spacing:-1.5px}.hero-kpis{grid-template-columns:minmax(0,1fr)}.hero-kpis dd{font-size:26px}.fold{padding:2px 14px}}
+
+.customer-sections{display:flex;gap:8px;flex-wrap:wrap;margin:16px 0}.customer-sections button{padding:8px 14px;background:#fff;border:1px solid var(--line);border-radius:8px;color:var(--ink)}.crm [id^=customer-]{scroll-margin-top:20px}
+
+.assignment-help{padding:16px 18px;border:1px solid var(--line);background:#fafafa;border-radius:10px;margin:18px 0}.assignment-help p{margin:6px 0 12px}.assignment-help label{display:block;max-width:240px}.assignment-help select{margin-top:6px}.batch-assignment{padding:18px;background:#fff;border:1px solid var(--line);border-radius:10px;margin:16px 0}.batch-assignment .crm-fields{margin-top:16px}.batch-assignment p{font-size:12px;color:var(--muted)}.customer-table .customer-select{width:18px;height:18px;display:inline-block;margin:0 9px 0 0;vertical-align:middle;accent-color:var(--accent)}
+
+
+.preview-banner{background:var(--warn-bg);color:var(--warn-ink);border-bottom:1px solid #efdfae;padding:10px 24px;font-size:12px;text-align:center;line-height:1.6}
+.preview-banner code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px}
+@media(max-width:640px){.preview-banner{padding:10px 14px;text-align:left}}
+</style>
+</head>
+<body>
+<div class="preview-banner">离线看版预览 · 结构与样式取自改版后的 <code>app/overview.tsx</code> + <code>app/cockpit.css</code>；数字为示例数据，不代表真实经营结果</div>
+<div class="workspace dash-root">
+  <aside>
+    <div class="brand">
+      <div class="brand-mark small">齐</div>
+      <div><strong>好客齐鲁</strong><small>经营管理平台</small></div>
+    </div>
+    <nav aria-label="主导航">
+      <p class="nav-label">工作台</p>
+      <a href="#"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h6v6H4z"/><path d="M14 4h6v6h-6z"/><path d="M4 14h6v6H4z"/><path d="M14 14h6v6h-6z"/></svg>销售工作台</a>
+      <p class="nav-label">客户管理</p>
+      <a href="#"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><path d="M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"/></svg>客户管理</a>
+      <a href="#"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/></svg>客户公海</a>
+      <a href="#"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z"/><path d="M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10z"/><path d="M12 11a1 1 0 1 0 0 2 1 1 0 0 0 0-2z"/></svg>商机管理</a>
+      <a href="#"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11.5l2 2 4.5-4.5"/><path d="M5 4h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z"/></svg>待办与跟进</a>
+      <p class="nav-label">业绩管理</p>
+      <a href="#" aria-current="page"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21.2 15.9A10 10 0 1 1 8 2.8"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>经营总览</a>
+      <a href="#"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg>销售分析</a>
+      <a href="#"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><path d="M8.5 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"/><path d="M20 21v-2a4 4 0 0 0-3-3.9"/><path d="M15.5 3.1a4 4 0 0 1 0 7.8"/></svg>客户分析</a>
+      <a href="#"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><path d="M10 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"/><path d="M21 21v-2a4 4 0 0 0-3-3.9"/></svg>团队执行</a>
+      <p class="nav-label">管理与设置</p>
+      <a href="#"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3c4.4 0 8 1.3 8 3s-3.6 3-8 3-8-1.3-8-3 3.6-3 8-3z"/><path d="M4 6v6c0 1.7 3.6 3 8 3s8-1.3 8-3V6"/><path d="M4 12v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/></svg>数据中心</a>
+      <a href="#"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h14a1 1 0 0 1 1 1v15a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M4 10h16"/></svg>日历与分析设置</a>
+    </nav>
+    <div class="sidebar-bottom">老板工作空间</div>
+  </aside>
+  <div class="content">
+    <header><span>老板工作空间</span><div><span>张总</span><button>退出登录</button></div></header>
+    <main class="dashboard">
+      <section class="cockpit" aria-label="经营驾驶舱">
+        <div class="cockpit-top">
+          <div class="cockpit-title">
+            <h1>经营驾驶舱</h1>
+            <div class="cockpit-trust">
+              <span class="status-ready">销售口径已核实</span>
+              <span class="trust-meta">截至 2026-08-31 · 更新 2026/9/15 09:20</span>
+              <details class="trust-warnings"><summary>数据状态与比较说明</summary><p>8 月为未完月，与 3–7 月完整月不可直接同比；此处为示例说明。</p></details>
+            </div>
+          </div>
+          <label class="cockpit-source">数据源<select><option>精斗云导出 · 2026年8月</option></select></label>
+        </div>
+
+        <section class="cockpit-hero">
+          <div class="hero-main">
+            <span class="hero-label">本月经营销售额 · 2026-08</span>
+            <strong class="hero-value">2,486,320.00<small>元</small></strong>
+            <div class="hero-sub">
+              <span class="mom mom-up">▲ 12.36%<small>较上月完整月</small></span>
+              <button class="text-button">销售分析 →</button>
+            </div>
+            <details class="hero-caliber"><summary>指标口径</summary><p>已扣除确认退货、排除作废与未来单 · 公式 SALE_AMOUNT</p><p>来源：精斗云销售明细（SHA256 已归档）</p></details>
+          </div>
+          <dl class="hero-kpis">
+            <div><dt>销售订单</dt><dd>1,284<small>单</small></dd></div>
+            <div><dt>成交客户</dt><dd>316<small>家</small></dd></div>
+            <div class="hero-target">
+              <dt>目标完成率</dt>
+              <dd>82.4%</dd>
+              <span class="target-track"><i style="width:82.4%"></i></span>
+              <small class="target-note">已设目标 5 人合计 · 1,860,000.00 / 2,256,000.00 元</small>
+            </div>
+          </dl>
+        </section>
+
+        <section class="cockpit-panel">
+          <div class="panel-heading">
+            <div><h2>销售趋势</h2><p class="panel-sub">近 6 个月 · 经营销售额（元）· 已扣退货、排除作废</p></div>
+            <div class="chart-switch" aria-label="趋势指标"><button aria-pressed="true">销售额</button><button aria-pressed="false">成交客户</button></div>
+          </div>
+          <div class="cockpit-chart">
+            <svg width="100%" height="260" viewBox="0 0 1096 250" preserveAspectRatio="xMidYMid meet" fill="none" xmlns="http://www.w3.org/2000/svg"><line x1="62" y1="210" x2="1078" y2="210" stroke="#e4e4e7" stroke-width="1"/><line x1="62" y1="119" x2="1078" y2="119" stroke="#f1f1f3" stroke-width="1" stroke-dasharray="4 4"/><line x1="62" y1="28" x2="1078" y2="28" stroke="#f1f1f3" stroke-width="1" stroke-dasharray="4 4"/><text x="52" y="214" text-anchor="end" font-size="11" fill="#a1a1aa">0</text><text x="52" y="123" text-anchor="end" font-size="11" fill="#a1a1aa">100万</text><text x="52" y="32" text-anchor="end" font-size="11" fill="#a1a1aa">200万</text><rect x="119" y="75" width="56" height="135" rx="4" fill="#93c5fd"/><rect x="288" y="63" width="56" height="147" rx="4" fill="#93c5fd"/><rect x="457" y="65" width="56" height="145" rx="4" fill="#93c5fd"/><rect x="627" y="46" width="56" height="164" rx="4" fill="#93c5fd"/><rect x="796" y="48" width="56" height="162" rx="4" fill="#93c5fd"/><rect x="965" y="28" width="56" height="182" rx="4" fill="#dbeafe"/><line x1="965" y1="45" x2="982" y2="28" stroke="#2563eb" stroke-width="2" opacity="0.55"/><line x1="965" y1="69" x2="1006" y2="28" stroke="#2563eb" stroke-width="2" opacity="0.55"/><line x1="965" y1="93" x2="1021" y2="37" stroke="#2563eb" stroke-width="2" opacity="0.55"/><line x1="965" y1="117" x2="1021" y2="61" stroke="#2563eb" stroke-width="2" opacity="0.55"/><line x1="965" y1="141" x2="1021" y2="85" stroke="#2563eb" stroke-width="2" opacity="0.55"/><line x1="965" y1="165" x2="1021" y2="109" stroke="#2563eb" stroke-width="2" opacity="0.55"/><line x1="965" y1="189" x2="1021" y2="133" stroke="#2563eb" stroke-width="2" opacity="0.55"/><line x1="968" y1="210" x2="1021" y2="157" stroke="#2563eb" stroke-width="2" opacity="0.55"/><line x1="992" y1="210" x2="1021" y2="181" stroke="#2563eb" stroke-width="2" opacity="0.55"/><rect x="965" y="28" width="56" height="182" rx="4" stroke="#2563eb" stroke-width="1.6"/><text x="147" y="65" text-anchor="middle" font-size="12" fill="#52525b">184.2万</text><text x="316" y="53" text-anchor="middle" font-size="12" fill="#52525b">201.5万</text><text x="485" y="55" text-anchor="middle" font-size="12" fill="#52525b">197.9万</text><text x="655" y="36" text-anchor="middle" font-size="12" fill="#52525b">224.1万</text><text x="824" y="38" text-anchor="middle" font-size="12" fill="#52525b">221.3万</text><text x="993" y="16" text-anchor="middle" font-size="13" font-weight="600" fill="#1d4ed8">248.6万</text><text x="147" y="232" text-anchor="middle" font-size="12" fill="#71717a">3月</text><text x="316" y="232" text-anchor="middle" font-size="12" fill="#71717a">4月</text><text x="485" y="232" text-anchor="middle" font-size="12" fill="#71717a">5月</text><text x="655" y="232" text-anchor="middle" font-size="12" fill="#71717a">6月</text><text x="824" y="232" text-anchor="middle" font-size="12" fill="#71717a">7月</text><text x="993" y="232" text-anchor="middle" font-size="12" font-weight="600" fill="#18181b">8月</text></svg>
+          </div>
+          <p class="panel-note">已核实销售口径，退货扣减、作废排除。本月为未完月，以描边柱标识；此前为完整月。</p>
+          <details><summary>查看每月精确数值</summary>
+            <div class="table-scroll"><table><thead><tr><th>月份</th><th>金额（元）</th></tr></thead><tbody>
+              <tr><td>2026-03</td><td class="number-cell">1,842,000.00</td></tr>
+              <tr><td>2026-04</td><td class="number-cell">2,015,000.00</td></tr>
+              <tr><td>2026-05</td><td class="number-cell">1,979,000.00</td></tr>
+              <tr><td>2026-06</td><td class="number-cell">2,241,000.00</td></tr>
+              <tr><td>2026-07</td><td class="number-cell">2,213,000.00</td></tr>
+              <tr><td>2026-08</td><td class="number-cell">2,486,320.00</td></tr>
+            </tbody></table></div>
+          </details>
+        </section>
+
+        <div class="cockpit-grid">
+          <section class="cockpit-panel" aria-label="客户贡献">
+            <div class="panel-heading">
+              <div><h2>客户贡献 Top 5</h2><p class="panel-sub">本月经营销售额 · 已扣退货、排除作废</p></div>
+              <button class="text-button">客户分析 →</button>
+            </div>
+            <ul class="contrib-list">
+              <li class="contrib-item">
+                <div class="contrib-head"><button class="text-button customer-link contrib-name">山东能源集团后勤服务中心<span class="level-tag">A 级</span></button><span class="contrib-amount">386,000.00<small>元</small></span></div>
+                <span class="contrib-bar"><i style="width:100%"></i></span>
+                <div class="contrib-meta"><span>王磊</span><span>24 单</span><span class="contrib-share">占本月 15.5%</span></div>
+              </li>
+              <li class="contrib-item">
+                <div class="contrib-head"><button class="text-button customer-link contrib-name">济南重工机械有限公司<span class="level-tag">A 级</span></button><span class="contrib-amount">274,000.00<small>元</small></span></div>
+                <span class="contrib-bar"><i style="width:71%"></i></span>
+                <div class="contrib-meta"><span>陈涛</span><span>17 单</span><span class="contrib-share">占本月 11.0%</span></div>
+              </li>
+              <li class="contrib-item">
+                <div class="contrib-head"><button class="text-button customer-link contrib-name">齐鲁银行槐荫支行<span class="level-tag">B 级</span></button><span class="contrib-amount">218,000.00<small>元</small></span></div>
+                <span class="contrib-bar"><i style="width:56.5%"></i></span>
+                <div class="contrib-meta"><span>李静</span><span>13 单</span><span class="contrib-share">占本月 8.8%</span></div>
+              </li>
+              <li class="contrib-item">
+                <div class="contrib-head"><button class="text-button customer-link contrib-name">山东黄金集团工会<span class="level-tag">B 级</span></button><span class="contrib-amount">162,000.00<small>元</small></span></div>
+                <span class="contrib-bar"><i style="width:42%"></i></span>
+                <div class="contrib-meta"><span>李静</span><span>9 单</span><span class="contrib-share">占本月 6.5%</span></div>
+              </li>
+              <li class="contrib-item">
+                <div class="contrib-head"><button class="text-button customer-link contrib-name">浪潮电子信息产业股份<span class="level-tag">C 级</span></button><span class="contrib-amount">129,000.00<small>元</small></span></div>
+                <span class="contrib-bar"><i style="width:33.4%"></i></span>
+                <div class="contrib-meta"><span>张伟</span><span>7 单</span><span class="contrib-share">占本月 5.2%</span></div>
+              </li>
+            </ul>
+            <div class="contrib-total"><span>Top 5 合计 · 占本月 47.0%</span><strong>1,169,000.00 元</strong></div>
+          </section>
+
+          <section class="cockpit-panel" aria-label="团队目标明细">
+            <div class="panel-heading">
+              <div><h2>团队目标明细</h2><p class="panel-sub">5 人已设目标 · 合计 1,860,000.00 / 2,256,000.00 元</p></div>
+              <button class="text-button">团队执行 →</button>
+            </div>
+            <ul class="team-list">
+              <li class="team-item"><span class="team-avatar">王</span><div class="team-body"><strong>王磊</strong><span class="target-track"><i style="width:86.2%"></i></span></div><div class="team-figures"><strong>86.2%</strong><small>431,000.00 / 500,000.00 元</small></div></li>
+              <li class="team-item"><span class="team-avatar">李</span><div class="team-body"><strong>李静</strong><span class="target-track"><i style="width:94.8%"></i></span></div><div class="team-figures"><strong>94.8%</strong><small>379,000.00 / 400,000.00 元</small></div></li>
+              <li class="team-item"><span class="team-avatar">张</span><div class="team-body"><strong>张伟</strong><span class="target-track"><i style="width:71.5%"></i></span></div><div class="team-figures"><strong class="team-rate-behind">71.5%</strong><small>286,000.00 / 400,000.00 元</small></div></li>
+              <li class="team-item"><span class="team-avatar">刘</span><div class="team-body"><strong>刘敏</strong><span class="target-track"><i style="width:63.2%"></i></span></div><div class="team-figures"><strong class="team-rate-behind">63.2%</strong><small>288,000.00 / 456,000.00 元</small></div></li>
+              <li class="team-item"><span class="team-avatar">陈</span><div class="team-body"><strong>陈涛</strong><span class="target-track"><i style="width:95.2%"></i></span></div><div class="team-figures"><strong>95.2%</strong><small>476,000.00 / 500,000.00 元</small></div></li>
+            </ul>
+            <p class="panel-note">进度条与完成率按个人月目标计算；销售口径未核实或未设目标时不显示完成率。完成率低于 75% 以琥珀色标注，仅为阅读提示。</p>
+          </section>
+        </div>
+
+        <div class="cockpit-grid">
+          <section class="cockpit-panel" aria-label="需要关注">
+            <div class="panel-heading"><div><h2>需要关注</h2><p class="panel-sub">共 7 项 · 按紧急度排序</p></div></div>
+            <ul class="attn-list">
+              <li class="attn-item"><div class="attn-main"><button class="text-button customer-link">山东黄金集团工会</button><span class="attn-kind">60 天未联系</span></div><span class="attn-days">60 天</span></li>
+              <li class="attn-item"><div class="attn-main"><button class="text-button customer-link">刘敏</button><span class="attn-kind">45 天未跟进</span></div><span class="attn-days">45 天</span></li>
+              <li class="attn-item"><div class="attn-main"><button class="text-button customer-link">山东能源集团后勤服务中心</button><span class="attn-kind">30 天无成交</span></div><span class="attn-days">30 天</span></li>
+              <li class="attn-item"><div class="attn-main"><button class="text-button customer-link">济南重工机械有限公司</button><span class="attn-kind">商机 21 天未推进</span></div><span class="attn-days">21 天</span></li>
+            </ul>
+            <div class="panel-actions">
+              <button class="text-button">查看全部 7 项 →</button>
+              <button class="text-button">进入待办与跟进 →</button>
+            </div>
+          </section>
+
+          <section class="cockpit-panel finance-panel" aria-label="财务视图">
+            <div class="panel-heading"><div><h2>财务视图</h2><p class="panel-sub">2026-08 · 财务报表口径</p></div></div>
+            <div class="finance-alert"><div>
+              <strong>报表未就绪，暂不展示财务指标</strong>
+              <p>财务报表期间口径待确认，确认前不展示营业收入、毛利与毛利率，避免与经营销售额混名。</p>
+              <p>确认后会按财务报表口径展示，不用估算值代替。</p>
+            </div></div>
+          </section>
+        </div>
+      </section>
+    </main>
+    <footer>好客齐鲁经营管理平台 · v0.5.0</footer>
+  </div>
+</div>
+
+</body>
+</html>

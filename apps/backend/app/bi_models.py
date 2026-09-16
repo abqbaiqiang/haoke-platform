@@ -12,12 +12,14 @@ from app.models import Base, utcnow
 
 class SalesTarget(Base):
     __tablename__ = 'sales_target'
-    __table_args__ = (UniqueConstraint('user_id', 'period_month'),
+    __table_args__ = (UniqueConstraint('user_id', 'period_month', 'target_type', name='uq_target_user_period_type'),
                      CheckConstraint('sales_amount_target >= 0', name='ck_target_amount'),
+                     CheckConstraint("target_type IN ('monthly', 'quarterly')", name='ck_target_type'),
                      CheckConstraint('EXTRACT(DAY FROM period_month) = 1', name='ck_target_month'))
     id: Mapped[uuid.UUID] = mapped_column(UUID, primary_key=True, default=uuid.uuid4)
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('sys_user.id'))
     period_month: Mapped[date] = mapped_column(Date)
+    target_type: Mapped[str] = mapped_column(String(16), default='monthly', server_default='monthly')
     sales_amount_target: Mapped[Decimal] = mapped_column(Numeric(18, 2))
     remark: Mapped[str | None] = mapped_column(String(255))
     created_by: Mapped[uuid.UUID] = mapped_column(ForeignKey('sys_user.id'))

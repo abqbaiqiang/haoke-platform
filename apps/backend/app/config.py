@@ -11,6 +11,8 @@ class Settings(BaseSettings):
     app_env: Literal["development", "test", "production"] = "development"
     app_timezone: Literal["Asia/Shanghai"] = "Asia/Shanghai"
     app_base_url: str = "http://localhost:8080"
+    app_allowed_origins: str = ""
+    allowed_origin_set: set[str] = set()
     database_url: SecretStr
     app_secret_key: SecretStr
     initial_admin_username: str = "admin"
@@ -31,6 +33,7 @@ class Settings(BaseSettings):
         if not parsed.hostname or parsed.scheme not in {"http", "https"} or parsed.path not in {"", "/"}:
             raise ValueError("APP_BASE_URL must be an HTTP(S) origin")
         self.app_base_url = self.app_base_url.rstrip("/")
+        self.allowed_origin_set = {self.app_base_url} | {o.strip().rstrip("/") for o in self.app_allowed_origins.split(",") if o.strip()}
         if self.app_env == "production" and parsed.scheme != "https":
             raise ValueError("Production requires HTTPS APP_BASE_URL")
         if not self.database_url.get_secret_value().startswith("postgresql+psycopg://"):

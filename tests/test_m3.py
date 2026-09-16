@@ -69,6 +69,35 @@ def review(client, source, **kwargs):
         'acknowledge_export_scope': True, **kwargs})
 
 
+def test_sales_workspace_monthly_trend_uses_verified_months_and_self_scope(client, sample, sign_in):
+    source = sample[0]
+    url = f'/api/sales/monthly-trend?source_id={source.id}&month=2026-09-01'
+    sign_in('S1')
+    # 导入即认可：未保存核实结论时，已存在的月份直接按已核实口径出数。
+    data = client.get(url)
+    assert data.status_code == 200
+    data = data.json()
+    assert len(data['points']) == 6
+    assert [p['date'] for p in data['points']] == [f'2026-{m:02d}-01' for m in range(4,10)]
+    assert data['points'][-1]['value'] == '0.30'
+    assert data['points'][-2]['value'] == '0.10'
+    sign_in('Owner')
+    assert client.get(url).status_code == 403
+    # 显式核实结论覆盖默认口径：有效状态不含数据中的状态时月份回到缺失。
+    assert review(client, source, valid_statuses=['未使用状态'], coverage_from='2026-01-01',
+                  coverage_to='2026-09-09').status_code == 200
+    sign_in('S1')
+    values = [p['value'] for p in client.get(url).json()['points']]
+    # 4-7 月无订单，为 0.00；8-9 月有 'valid' 单据但不在核实状态口径内，金额缺失。
+    assert values[:4] == ['0.00'] * 4 and values[4] is None and values[5] is None
+    # 恢复正常核实结论后，各销售只见自己的月份金额（self scope）。
+    sign_in('Owner')
+    assert review(client, source).status_code == 200
+    sign_in('S2')
+    assert client.get(url).json()['points'][-1]['value'] == '100.00'
+    assert client.get(url.replace('2026-09-01','2026-09-02')).status_code == 422
+
+
 @pytest.mark.unit
 def test_decimal_calendar_and_target_boundaries():
     uid = uuid4()
@@ -108,16 +137,25 @@ def test_configuration_validation():
 
 
 @pytest.mark.integration
-def test_source_reconciliation_does_not_claim_unverified_sales(client, sign_in, sample, accounts):
+def test_sales_basis_import_implies_verified_and_review_overrides(client, sign_in, sample, accounts):
     src, _, _, _ = sample
     sign_in('S1')
-    raw = client.get('/api/bi/sales', params={'source_id':str(src.id), 'month':MONTH}).json()
-    assert raw['basis'] == '源销售核对' and not raw['verified']
-    assert raw['metrics'][0]['value'] == '0.30'
-    assert {m['code'] for m in raw['metrics']} == {'DQ_SALES_RECON'}
+    # 导入即认可：已核实口径直接出数；源单据视图仍可查看原始金额。
+    raw = client.get('/api/bi/sales', params={'source_id':str(src.id), 'month':MONTH, 'basis':'source'}).json()
+    assert raw['basis'] == '源销售核对'
+    assert raw['metrics'][0]['code'] == 'DQ_SALES_RECON' and raw['metrics'][0]['value'] == '0.30'
+    official = client.get('/api/bi/sales', params={'source_id':str(src.id), 'month':MONTH, 'basis':'verified'}).json()
+    assert official['basis'] == '已确认经营销售' and official['verified'] is True
+    assert metrics(official)['EXEC_SALES_AMT'] == '0.30'
+    work = client.get(f"/api/bi/workbench/{accounts['S1'].id}", params={'month':MONTH}).json()
+    assert metrics(work)['EXEC_SALES_AMT'] == '0.30'
+    # 显式核实结论覆盖默认口径：状态口径不含现有单据时回到未核实，不虚报业绩。
+    sign_in('Owner')
+    assert review(client, src, valid_statuses=['未使用状态'], coverage_from='2026-01-01',
+                  coverage_to='2026-09-09').status_code == 200
+    sign_in('S1')
     official = client.get('/api/bi/sales', params={'source_id':str(src.id), 'month':MONTH, 'basis':'verified'}).json()
     assert metrics(official)['EXEC_SALES_AMT'] is None
-    assert official['total_change'] is None
     work = client.get(f"/api/bi/workbench/{accounts['S1'].id}", params={'month':MONTH}).json()
     assert metrics(work)['EXEC_SALES_AMT'] is None
 
@@ -378,7 +416,7 @@ def test_m3_migration_preserves_configuration_on_downgrade(database_engine, monk
         with pytest.raises(RuntimeError, match='restore a verified backup'):
             command.downgrade(config, '0004_m2')
         with engine.connect() as conn:
-            assert conn.scalar(text('SELECT version_num FROM alembic_version')) == '0005_m3'
+            assert conn.scalar(text('SELECT version_num FROM alembic_version')) == '0008_v11'
             assert conn.scalar(text('SELECT count(*) FROM bi_setting')) == 1
     finally:
         engine.dispose()

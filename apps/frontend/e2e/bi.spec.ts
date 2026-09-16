@@ -1,12 +1,26 @@
-import { test, expect, Page } from "@playwright/test";
+import { test, expect, Page, request as pwRequest } from "@playwright/test";
+
+// 销售工作台的退出入口折叠在侧边栏账户菜单 details 中。
+async function openAccountMenu(page: Page, role: string) {
+  if (role === "sales") await page.locator("details.sales-account summary").click();
+  await expect(page.getByRole("button", { name: "退出登录", exact: true })).toBeVisible();
+}
+
+// 显示名可被管理端修改，用例一律按 username 定位人员，再取当前显示名。
+async function findStaff(page: Page, username: string, headers?: Record<string, string>) {
+  const list = await (await page.request.get("/api/staff", { headers })).json();
+  const staff = list.find((u: { username: string }) => u.username === username);
+  expect(staff, `staff ${username} should exist`).toBeTruthy();
+  return staff as { id: string; display_name: string };
+}
 
 async function login(page: Page, role: string) {
   await page.goto("/");
   await page.getByLabel("账号", { exact: true }).fill(`demo_${role}`);
   await page.getByLabel("密码", { exact: true }).fill(process.env.DEMO_PASSWORD!);
   await page.getByRole("button", { name: "登录", exact: true }).click();
-  await expect(page.getByRole("button", { name: "退出登录", exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "销售工作台", exact: true }).click();
+  await openAccountMenu(page, role);
+  if (role !== "sales") await page.getByRole("navigation", { name: "主导航" }).getByRole("link", { name: "销售工作台", exact: true }).click();
 }
 const origin = () => ({ Origin: process.env.E2E_BASE_URL || "http://localhost:3000" });
 
@@ -15,9 +29,12 @@ async function sample(page: Page) {
   const source = await page.request.post("/api/data/sources", { headers: origin(), data: { source_code: code, source_name: code, entity_name: "人工BI测试公司" } });
   expect(source.status()).toBe(201);
   const { id } = await source.json();
-  const people = await (await page.request.get("/api/bi/people")).json();
-  const staff = people.find((p: {name: string}) => p.name === "demo_sales");
-  expect((await page.request.put(`/api/data/sources/${id}/staff`, { headers: origin(), data: { staff: { "测试业务员": staff.id } } })).ok()).toBeTruthy();
+  // demo_sales 的显示名可能被改过；用独立会话按登录名解析其账号 id。
+  const tmp = await pwRequest.newContext({ baseURL: process.env.E2E_BASE_URL || "http://localhost:3000" });
+  expect((await tmp.post("/api/auth/login", { headers: { Origin: process.env.E2E_BASE_URL || "http://localhost:3000" }, data: { username: "demo_sales", password: process.env.DEMO_PASSWORD! } })).ok()).toBeTruthy();
+  const staffId = (await (await tmp.get("/api/auth/me")).json()).user.id as string;
+  await tmp.dispose();
+  expect((await page.request.put(`/api/data/sources/${id}/staff`, { headers: origin(), data: { staff: { "测试业务员": staffId } } })).ok()).toBeTruthy();
   for (const [kind, csv] of [
     ["customer", "客户编码,客户名称\n001,BI测试客户\n"],
     ["product", "商品编码,商品名称\nP001,BI测试商品\n"],
@@ -33,9 +50,10 @@ async function sample(page: Page) {
 
 test("M3 target save, workbench, team and CRM navigation", async ({ page }) => {
   await login(page, "owner");
-  await page.getByLabel("查看人员").selectOption({ label: "demo_sales" });
+  const salesStaff = await findStaff(page, "demo_sales");
+  await page.getByLabel("查看人员").selectOption(salesStaff.id);
   await page.getByLabel("统计月份").fill("2026-08");
-  const form = page.getByRole("form", { name: "设置月销售目标" });
+  const form = page.getByRole("form", { name: "设置销售目标" });
   await form.getByLabel("月目标金额（元）").fill("123.45");
   await form.getByLabel("调整说明").fill("人工浏览器测试");
   await form.getByRole("button", { name: "保存月目标" }).click();
@@ -45,10 +63,10 @@ test("M3 target save, workbench, team and CRM navigation", async ({ page }) => {
   await card.getByText("口径说明", { exact: true }).click();
   await expect(card).toContainText("sales_target.sales_amount_target");
   await expect(page.getByText("统计截至", { exact: false }).first()).toBeVisible();
-  await page.getByRole("button", { name: "团队执行", exact: true }).click();
-  const salesRow = page.getByRole("row").filter({ has: page.getByRole("button", { name: "demo_sales", exact: true }) });
+  await page.getByRole("navigation", { name: "主导航" }).getByRole("link", { name: "打开团队执行", exact: true }).click();
+  const salesRow = page.getByRole("row").filter({ has: page.getByRole("button", { name: salesStaff.display_name, exact: true }) });
   await expect(salesRow.getByRole("cell").nth(1)).toHaveText("123.45");
-  await page.getByRole("button", { name: "demo_sales", exact: true }).click();
+  await page.getByRole("button", { name: salesStaff.display_name, exact: true }).click();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBeTruthy();
   await page.screenshot({ path: `../../.tools/m3-workbench-${test.info().project.name}.png`, fullPage: true });
   await page.getByRole("button", { name: "进入客户与待办", exact: true }).click();
@@ -63,10 +81,10 @@ test("M3 imported sales chart, drilldown and explicit source review", async ({ p
   const src = await sample(page);
   await page.getByRole("button", { name: "退出登录" }).click();
   await login(page, "owner");
-  await page.getByRole("button", { name: "销售分析", exact: true }).click();
+  await page.getByRole("link", { name: "打开销售分析", exact: true }).click();
   await page.getByLabel("分析数据源").selectOption(src.id);
   await page.getByLabel("统计月份").fill("2026-08");
-  await expect(page.getByRole("heading", { name: "源销售核对 · 2026-08" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "已确认经营销售 · 2026-08" })).toBeVisible();
   await expect(page.locator(".bi-chart svg")).toBeVisible();
   await page.getByRole("button", { name: "查看源订单", exact: true }).click();
   const modal = page.getByRole("dialog");
@@ -76,7 +94,7 @@ test("M3 imported sales chart, drilldown and explicit source review", async ({ p
   await page.keyboard.press("Escape");
   await expect(modal).toHaveCount(0);
   await page.getByLabel("数据口径").selectOption("verified");
-  await expect(page.getByText("本口径暂无可用记录。", { exact: true })).toBeVisible();
+  await expect(page.getByRole("cell", { name: "BI测试客户", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "退出登录" }).click();
   await login(page, "admin");
   await page.getByLabel("分析数据源").selectOption(src.id);
@@ -95,7 +113,7 @@ test("M3 imported sales chart, drilldown and explicit source review", async ({ p
   await expect(page.getByRole("status").filter({ hasText: "设置已保存" })).toBeVisible();
   await page.getByRole("button", { name: "退出登录" }).click();
   await login(page, "owner");
-  await page.getByRole("button", { name: "销售分析", exact: true }).click();
+  await page.getByRole("link", { name: "打开销售分析", exact: true }).click();
   await page.getByLabel("分析数据源").selectOption(src.id);
   await page.getByLabel("统计月份").fill("2026-08");
   await page.getByLabel("数据口径").selectOption("verified");
@@ -124,9 +142,12 @@ test("M3 admin calendar persists and sales request retries", async ({ page }) =>
   await expect(page.getByRole("alert").filter({ hasText: "测试暂时不可用" })).toBeVisible();
   failing = false;
   await page.getByRole("button", { name: "重试", exact: true }).click();
-  await expect(page.locator(".bi-metrics")).toBeVisible();
+  // 工作台已重构为"今日行动页"（2026-09-16）：只保留行动与任务内容，业绩 KPI 移至我的业绩页。
+  await expect(page.locator(".wb-root")).toBeVisible();
+  await expect(page.locator(".wb-overview")).toBeVisible();
+  await expect(page.locator(".sales-kpis")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "保存月目标" })).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "团队执行" })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "团队执行" })).toHaveCount(0);
   const settings = await page.request.get("/api/bi/settings");
   expect(settings.status()).toBe(403);
 });

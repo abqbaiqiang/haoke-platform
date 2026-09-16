@@ -48,8 +48,21 @@ def people(db: DB, actor: Actor):
 
 @router.get('/customers', response_model=dto.CustomerPage)
 def customers(db: DB, actor: Actor, q: str = Query('', max_length=100), pool: bool = False,
-              tag_id: UUID | None = None, offset: int = Query(0, ge=0), limit: int = Query(30, ge=1, le=100)):
-    return svc.list_customers(db,actor,q,pool,tag_id,offset,limit)
+              tag_id: UUID | None = None, offset: int = Query(0, ge=0), limit: int = Query(30, ge=1, le=100),
+              level: str | None = Query(None, max_length=8),
+              ownership: Literal['unassigned', 'owned', 'public_pool'] | None = None,
+              claim: Literal['claimed', 'unclaimed'] | None = None):
+    return svc.list_customers(db,actor,q,pool,tag_id,offset,limit,level,ownership,claim)
+
+
+@router.post('/customers/batch-assign', response_model=dto.BatchAssignResult)
+def batch_assign(payload: dto.BatchAssign, db: DB, actor: Actor):
+    return svc.batch_assign(db, actor, payload)
+
+
+@router.post('/customers/batch-claim', response_model=dto.BatchClaimResult)
+def batch_claim(payload: dto.BatchClaim, db: DB, actor: Actor):
+    return svc.batch_claim(db, actor, payload)
 
 
 @router.get('/binding-candidates', response_model=list[dto.CustomerView])
@@ -68,7 +81,7 @@ def binding_candidates(db: DB, actor: Actor, q: str = Query(min_length=1,max_len
 def followups(db: DB, actor: Actor, offset: int = Query(0,ge=0)):
     svc.role(actor,{'owner','admin','manager','sales'})
     return db.scalars(select(Followup).join(Customer,Customer.id == Followup.customer_id)
-        .where(Customer.is_active,svc.scope(db,actor,Customer.owner_user_id))
+        .where(Customer.is_active,svc.customer_scope(db,actor,Customer.owner_user_id))
         .order_by(Followup.occurred_at.desc(),Followup.id).offset(offset).limit(100)).all()
 
 
@@ -77,7 +90,7 @@ def opportunities(db: DB, actor: Actor, offset: int = Query(0,ge=0), owner_user_
                   status: Literal['open','won','lost','cancelled'] | None = None):
     svc.role(actor,{'owner','admin','manager','sales'})
     query = select(Opportunity).join(Customer,Customer.id == Opportunity.customer_id).where(
-        Customer.is_active,svc.scope(db,actor,Customer.owner_user_id),svc.scope(db,actor,Opportunity.owner_user_id))
+        Customer.is_active,svc.customer_scope(db,actor,Customer.owner_user_id),svc.scope(db,actor,Opportunity.owner_user_id))
     if owner_user_id:
         query = query.where(Opportunity.owner_user_id == owner_user_id)
     if status:
@@ -89,6 +102,16 @@ def opportunities(db: DB, actor: Actor, offset: int = Query(0,ge=0), owner_user_
 @router.post('/customers', response_model=dto.CustomerCreated, status_code=201)
 def create_customer(payload: dto.CustomerCreate, db: DB, actor: Actor):
     return svc.create_customer(db,actor,payload)
+
+
+@router.post('/customers/pool', response_model=dto.CustomerCreated, status_code=201)
+def create_pool_customer(payload: dto.CustomerCreate, db: DB, actor: Actor):
+    return svc.create_pool_customer(db,actor,payload)
+
+
+@router.post('/customers/pool-import', response_model=dto.PoolImportResult, status_code=201)
+def pool_import(payload: dto.PoolImport, db: DB, actor: Actor):
+    return svc.pool_import(db,actor,payload)
 
 
 @router.get('/customers/{cid}', response_model=dto.CustomerDetail)
@@ -143,17 +166,24 @@ def followup_void(cid: UUID, fid: UUID, payload: dto.VoidInput, db: DB, actor: A
 
 @router.get('/tags', response_model=list[dto.TagView])
 def tags(db: DB, actor: Actor):
+    svc.ensure_default_tags(db, actor)
     return db.scalars(select(Tag).order_by(Tag.tag_name)).all()
 
 
 def save_tag(db,actor,payload,tid=None):
-    allowed = {'admin', 'owner'} | ({'sales','manager'} if not tid and svc.settings(db).sales_create_tags else set())
-    svc.role(actor,allowed)
-    if not tid and actor.role_code not in {'admin', 'owner'} and not payload.is_active:
-        raise HTTPException(403,'仅老板或管理员可停用标签')
-    obj = db.get(Tag,tid) if tid else Tag(created_by=actor.id)
-    if not obj:
-        raise HTTPException(404,'标签不存在')
+    # Tags are self-service: anyone may create (gated by sales_create_tags), and a tag's
+    # creator keeps rename/deactivate rights on their own tags; owner/admin manage all.
+    if tid is None:
+        allowed = {'admin', 'owner'} | ({'sales','manager'} if svc.settings(db).sales_create_tags else set())
+        svc.role(actor,allowed)
+        obj = Tag(created_by=actor.id)
+    else:
+        svc.role(actor,{'admin','owner','sales','manager'})
+        obj = db.get(Tag,tid)
+        if not obj:
+            raise HTTPException(404,'标签不存在')
+        if actor.role_code not in {'admin','owner'} and obj.created_by != actor.id:
+            raise HTTPException(403,'只能修改或停用自己创建的标签')
     before = svc.snapshot(obj) if tid else None
     for k,v in payload.model_dump().items():
         setattr(obj,k,v)

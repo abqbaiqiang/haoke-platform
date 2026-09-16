@@ -14,7 +14,7 @@ from sqlalchemy.dialects.postgresql import insert
 from app import bi_schemas as dto, services
 from app.bi_calculations import ZERO, metric, money, month_end, month_start, ratio, shift_month, target_metrics, work_dates
 from app.bi_models import BISetting, SalesReview, SalesTarget
-from app.crm_models import Followup, Opportunity, Task
+from app.crm_models import CustomerClaim, Followup, Opportunity, Task
 from app.data_models import Customer, DataSource, FinancialMetric, FinancialPeriod, Product, SalesOrder, SalesOrderLine
 from app.models import ActivityLog, User, utcnow
 from app.permissions import can_read_owned
@@ -88,29 +88,35 @@ def person(db, actor, uid, admin_read=False):
     return target
 
 
-def get_target(db, actor, uid, period):
+def get_target(db, actor, uid, period, target_type='monthly'):
     person(db, actor, uid, admin_read=True)
-    obj = db.scalar(select(SalesTarget).where(SalesTarget.user_id == uid, SalesTarget.period_month == month(period)))
+    obj = db.scalar(select(SalesTarget).where(SalesTarget.user_id == uid, SalesTarget.period_month == month(period),
+                                              SalesTarget.target_type == target_type))
     return dto.TargetView(user_id=uid, month=period, amount=money(obj.sales_amount_target) if obj else None,
-                          remark=obj.remark if obj else None)
+                          remark=obj.remark if obj else None, target_type=target_type)
 
 
-def save_target(db, actor, uid, period, payload):
+def save_target(db, actor, uid, period, payload, target_type='monthly'):
+    # 目标由管理者（老板/经理）统一在后台设置，销售端只读。
     require(actor, {'owner', 'manager'})
     target = person(db, actor, uid)
-    month(period)
+    period = month(period)
+    if target_type == 'quarterly' and period.month not in (1, 4, 7, 10):
+        raise HTTPException(422, '季度目标必须设置在季度首月（1/4/7/10 月）')
     # Serialize absent-row upserts and their audit snapshots with a stable existing row lock.
     db.execute(select(User.id).where(User.id == target.id).with_for_update())
-    obj = db.scalar(select(SalesTarget).where(SalesTarget.user_id == uid, SalesTarget.period_month == period))
+    obj = db.scalar(select(SalesTarget).where(SalesTarget.user_id == uid, SalesTarget.period_month == period,
+                                              SalesTarget.target_type == target_type))
     before = {'amount': money(obj.sales_amount_target), 'remark': obj.remark} if obj else None
     if obj is None:
-        obj = SalesTarget(user_id=uid, period_month=period, created_by=actor.id)
+        obj = SalesTarget(user_id=uid, period_month=period, target_type=target_type, created_by=actor.id)
         db.add(obj)
     obj.sales_amount_target, obj.remark = payload.amount, payload.remark
     db.flush()
-    audit(db, actor, 'sales_target_update', obj.id, before, {'amount': money(payload.amount), 'remark': payload.remark})
+    audit(db, actor, 'sales_target_update', obj.id, before,
+          {'type': target_type, 'amount': money(payload.amount), 'remark': payload.remark})
     db.commit()
-    return get_target(db, actor, uid, period)
+    return get_target(db, actor, uid, period, target_type)
 
 
 def sources(db, actor):
@@ -174,7 +180,16 @@ def save_review(db, actor, sid, payload):
 def review_ready(db, src, start, end, rows, personal=False):
     review = db.get(SalesReview, src.id)
     if review is None:
-        return False, None, '有效销售、退货/作废及导出覆盖待确认'
+        # Owner decision (2026-09-15): an import implies acceptance — no manual attestation
+        # gate. Statuses actually present in the data count as valid; excluded/return list
+        # defaults still apply. A saved review, once present, governs instead.
+        present = {r.source_status for r in rows} or {'unverified'}
+        cfg = dto.ReviewInput(coverage_from=min((r.order_date for r in rows), default=start),
+            coverage_to=max((r.order_date for r in rows), default=end),
+            valid_statuses=sorted(present - {'void', 'cancelled', 'return'}) or ['unverified'],
+            staff_mapping_complete=True, full_history=True,
+            reason='导入即认可：未保存人工核实，默认全部单据按有效销售计入', acknowledge_export_scope=True)
+        return True, cfg, None
     cfg = dto.ReviewInput.model_validate(review.value)
     if review.facts_updated_at != latest_fact(db, src):
         return False, cfg, '销售事实已更新，需重新核对数据覆盖'
@@ -385,19 +400,40 @@ def workbench(db, actor, uid, period):
     config = settings(db)
     days = work_dates(period, uid, config)
     elapsed = [d for d in days if d <= today]
-    target = db.scalar(select(SalesTarget).where(SalesTarget.user_id == uid, SalesTarget.period_month == period))
+    target = db.scalar(select(SalesTarget).where(SalesTarget.user_id == uid, SalesTarget.period_month == period,
+                                                 SalesTarget.target_type == 'monthly'))
     source_rows = list(db.scalars(select(DataSource).where(DataSource.is_enabled,
         DataSource.source_code.in_(select(SalesOrder.source_system).distinct()))))
     actual = ZERO
     sales_ready = bool(source_rows) and through >= period
+    deal_customers: set = set()
+    warnings_unmapped: list[str] = []
+    q_start = date(period.year, (period.month - 1) // 3 * 3 + 1, 1)
+    q_end = month_end(shift_month(q_start, 2))
+    q_through = min(today, q_end)
+    quarter_actual, quarter_ready = ZERO, bool(source_rows) and q_through >= q_start
     for src in source_rows:
         scoped = load_orders(db, actor, src, uid)
+        unmapped = db.scalar(select(func.count()).select_from(SalesOrder).where(
+            SalesOrder.source_system == src.source_code, SalesOrder.sales_user_id.is_(None),
+            period <= SalesOrder.order_date, SalesOrder.order_date <= month_end(period)))
+        if unmapped:
+            warnings_unmapped.append(f'数据源「{src.source_name}」{period:%Y-%m} 有 {unmapped} 笔订单未关联业务员：'
+                '请在“数据中心 → 数据源与人员映射”保存映射，并重新导入原文件后才会归属到个人业绩。')
         ready, cfg, _ = review_ready(db, src, period, through, scoped, True)
         sales_ready &= ready
         if ready:
             actual += sum((order_value(o, cfg, True) for o in scoped if period <= o.order_date <= through), ZERO)
+            deal_customers.update(o.customer_id for o in scoped if period <= o.order_date <= through)
+        q_ready_src, q_cfg, _ = review_ready(db, src, q_start, q_through, scoped, True)
+        quarter_ready &= q_ready_src
+        if q_ready_src:
+            quarter_actual += sum((order_value(o, q_cfg, True) for o in scoped if q_start <= o.order_date <= q_through), ZERO)
     # Restrict customer-linked process facts even after transfer; never leak another owner's customer.
-    visible_customers = select(Customer.id).where(Customer.is_active, scope(db, actor, Customer.owner_user_id))
+    # Claims grant visibility like ownership (CRM 口径), so adopted pool customers count too.
+    claimed = select(CustomerClaim.customer_id).where(CustomerClaim.user_id == uid)
+    visible_customers = select(Customer.id).where(Customer.is_active,
+        or_(scope(db, actor, Customer.owner_user_id), Customer.id.in_(claimed)))
     follows = list(db.scalars(select(Followup).where(Followup.owner_user_id == uid, Followup.is_active,
         Followup.customer_id.in_(visible_customers), Followup.occurred_at >= start_time, Followup.occurred_at <= end_time)))
     tasks = list(db.scalars(select(Task).where(Task.assignee_user_id == uid,
@@ -421,6 +457,13 @@ def workbench(db, actor, uid, period):
     done_due = [t for t in due if t.status == 'done' and t.completed_at and t.completed_at.astimezone(TZ) <= end_time]
     period_tasks = [t for t in tasks if period <= t.due_at.astimezone(TZ).date() <= month_end(period)]
     completed = [t for t in tasks if t.status == 'done' and t.completed_at and start_time <= t.completed_at.astimezone(TZ) <= end_time]
+    new_customers = db.scalar(select(func.count()).select_from(Customer).where(
+        Customer.is_active, Customer.id.in_(visible_customers), Customer.created_at >= start_time, Customer.created_at <= end_time))
+    last_follow_sub = select(Followup.customer_id, func.max(Followup.occurred_at).label('last')).where(
+        Followup.customer_id.in_(visible_customers), Followup.is_active).group_by(Followup.customer_id).subquery()
+    stale_customers = db.scalar(select(func.count()).select_from(Customer).join(
+        last_follow_sub, last_follow_sub.c.customer_id == Customer.id).where(
+        Customer.is_active, last_follow_sub.c.last < utcnow() - timedelta(days=7)))
     metrics += [metric('CRM_LOGIN_DAY', '登录工作日', len(login_days), '天'),
         metric('CRM_EFFECTIVE_DAY', '有效活跃工作日', len(active_days), '天'),
         metric('CRM_ACTIVE_RATE', '有效活跃率', ratio(len(active_days)*100, len(elapsed)), '%', '尚无应工作日'),
@@ -430,11 +473,25 @@ def workbench(db, actor, uid, period):
         metric('CRM_TASK_DONE', '期间完成任务数', len(completed), '个'),
         metric('CRM_TASK_RATE', '已到期任务完成率', ratio(len(done_due)*100, len(due)) if config.cancelled_tasks else None, '%',
                '取消任务口径未设置或尚无到期任务'),
+        metric('CRM_NEW_CUSTOMERS', '本月新增客户', new_customers, '个', reason='暂无新建客户'),
+        metric('CRM_EFFECTIVE_FOLLOWUPS', '本月有效沟通', sum(1 for f in follows if f.is_effective), '次'),
+        metric('CRM_QUOTED_CUSTOMERS', '本月报价客户', len({f.customer_id for f in follows if f.quotation_sent}), '个'),
+        metric('CRM_DEAL_CUSTOMERS', '本月成交客户', len(deal_customers) if sales_ready else None, '个', reason='销售口径待核实'),
+        metric('CRM_STALE_CUSTOMERS', '7天未跟进客户', stale_customers, '个', reason='暂无跟进记录客户'),
         metric('OPP_OPEN_AMT', '当前开放商机金额', sum((o.estimated_amount or ZERO for o in opps), ZERO) if all(o.estimated_amount is not None for o in opps) else None,
                reason='部分商机金额未填写'),
         metric('OPP_WEIGHTED_AMT', '当前加权商机金额', None if missing else weighted_known, reason='部分商机金额/概率未填写')]
+    q_target = db.scalar(select(SalesTarget).where(SalesTarget.user_id == uid, SalesTarget.period_month == q_start,
+                                                   SalesTarget.target_type == 'quarterly'))
+    q_completion = ratio(quarter_actual, q_target.sales_amount_target) if q_target and quarter_ready else None
+    q_progress = ratio((q_through - q_start).days + 1, (q_end - q_start).days + 1)
+    metrics += [metric('TGT_QUARTER_AMT', '季度销售目标', q_target.sales_amount_target if q_target else None, reason='季度目标未设置'),
+        metric('TGT_QUARTER_COMPLETION', '季度目标完成率', q_completion * 100 if q_completion is not None else None, '%',
+               '季度目标未设置或销售待核实'),
+        metric('TGT_QUARTER_PROGRESS', '季度时间进度', q_progress * 100 if q_progress is not None else None, '%')]
     warnings = ['任务按当前截止时间与状态统计；延期后归入新到期日，历史完成时间保留。当前商机储备不代表历史月末快照。',
                 '工作日默认周一至周五，节假日/休假由管理员维护；历史停用和入离职日期请用人员日历例外表达。']
+    warnings += warnings_unmapped
     if not sales_ready:
         warnings.insert(0, '实际业绩待销售口径、期间覆盖及人员映射核实；目标与 CRM 功能可继续使用。')
     today_tasks = sum(t.status == 'todo' and t.due_at.astimezone(TZ).date() == today for t in tasks)
@@ -499,7 +556,184 @@ def attention(db, actor, sid, offset=0):
         if not config.followup_days:
             warnings.append('A/B/C 跟进超期阈值尚未配置')
     result.sort(key=lambda r: (-(r.days or 0), r.name, r.kind))
-    return dto.AttentionPage(rows=result[offset:offset+30], total=len(result), warnings=warnings)
+    counts: dict[str, int] = {}
+    for r in result:
+        counts[r.kind] = counts.get(r.kind, 0) + 1
+    return dto.AttentionPage(rows=result[offset:offset+30], total=len(result), warnings=warnings, counts=counts)
+
+
+RFM_SEGMENTS = [
+    ('重要价值客户', 'R高F高M高', '重点维护，防止被竞争对手挖走'),
+    ('重要保持客户', 'R低F高M高', '高频高额但久未成交，优先唤回'),
+    ('重要发展客户', 'R高F低M高', '金额贡献高但频次低，推动复购'),
+    ('重要挽留客户', 'R低F低M高', '高额但久未成交，安排重点挽回'),
+    ('一般价值客户', 'R高F高M低', '活跃常客，尝试提升客单价'),
+    ('一般保持客户', 'R低F高M低', '常态维护，观察需求变化'),
+    ('一般发展客户', 'R高F低M低', '近期新成交，培育二次购买'),
+    ('一般挽留客户', 'R低F低M低', '低频低额且沉睡，低成本批量维护'),
+]
+CONVERT_BUCKETS = [('3天内成交', 3), ('4-7天成交', 7), ('8-15天成交', 15), ('16-30天成交', 30), ('31-180天成交', 180), ('180天以上成交', None)]
+
+
+def _rfm_layer(r_high: bool, f_high: bool, m_high: bool) -> str:
+    key = f"{'R高' if r_high else 'R低'}{'F高' if f_high else 'F低'}{'M高' if m_high else 'M低'}"
+    return next(name for name, combo, _ in RFM_SEGMENTS if combo == key)
+
+
+def _source_customer_stats(db, actor, src):
+    """Per-customer normal-sale history of one source; descriptive even before scope review, then labelled."""
+    rows = load_orders(db, actor, src)
+    today = utcnow().astimezone(TZ).date()
+    earliest = min((r.order_date for r in rows if r.order_date <= today), default=today)
+    ready, cfg, reason = review_ready(db, src, earliest, today, rows, actor.role_code != 'owner')
+    verified = bool(ready and cfg and cfg.full_history)
+    warnings = []
+    if not verified:
+        warnings.append(reason or '销售核对口径未确认：分层与金额基于已导入订单，未按有效/退货/作废状态调整')
+    stats: dict[UUID, dict] = {}
+    visible = []
+    for o in rows:
+        if o.order_date > today or not included(o, cfg, verified):
+            continue
+        visible.append(o)
+        s = stats.setdefault(o.customer_id, {'orders': 0, 'amount': ZERO, 'last': None})
+        s['amount'] += order_value(o, cfg, verified)
+        if normal_sale(o, cfg, verified):
+            s['orders'] += 1
+            s['last'] = o.order_date if s['last'] is None else max(s['last'], o.order_date)
+    return stats, verified, warnings, today, visible, cfg
+
+
+def _rfm_stats(stats, config, today):
+    total = sum((s['amount'] for s in stats.values()), ZERO)
+    customers = sum(s['orders'] > 0 for s in stats.values())
+    average = total / customers if customers else ZERO
+    enriched = {}
+    for cid, s in stats.items():
+        if s['last'] is None:
+            continue  # Return-only history contributes money, not an invented normal sale.
+        days = (today - s['last']).days
+        enriched[cid] = {**s, 'days': days,
+                         'layer': _rfm_layer(days <= config.rfm_recent_days, s['orders'] >= config.rfm_freq_orders,
+                                             s['amount'] >= average)}
+    return enriched, total
+
+
+def customer_analytics(db, actor, sid):
+    src = source(db, actor, sid)
+    config = settings(db)
+    stats, verified, warnings, today, visible, cfg = _source_customer_stats(db, actor, src)
+    enriched, total = _rfm_stats(stats, config, today)
+    customers = len(enriched)
+    names = {c.id: c.customer_name for c in db.scalars(select(Customer).where(Customer.id.in_(stats)))}
+    segments = []
+    for name, _, hint in RFM_SEGMENTS:
+        members = [s for s in enriched.values() if s['layer'] == name]
+        amount = sum((s['amount'] for s in members), ZERO)
+        segments.append(dto.SegmentRow(layer=name, hint=hint, count=len(members), amount=money(amount),
+            share=str((amount/total*100).quantize(Decimal('0.1'))) if total else None))
+    trend = []
+    for i in range(5, -1, -1):
+        m = month_start(shift_month(today, -i))
+        end = min(today, month_end(m))
+        month_rows = [o for o in visible if m <= o.order_date <= end]
+        month_customers: dict[UUID, int] = {}
+        for o in month_rows:
+            if normal_sale(o, cfg, verified):
+                month_customers[o.customer_id] = month_customers.get(o.customer_id, 0) + 1
+        amount_m = sum((order_value(o, cfg, verified) for o in month_rows), ZERO)
+        repeat = sum(v >= 2 for v in month_customers.values())  # CUS_PERIOD_REPEAT: fixed dictionary formula.
+        orders_m = sum(month_customers.values())
+        trend.append(dto.CustomerTrendMonth(month=m, amount=money(amount_m), orders=orders_m,
+            customers=len(month_customers), repeat_rate=money(ratio(repeat*100, len(month_customers))) if month_customers else None,
+            aov=money(ratio(amount_m, orders_m)) if orders_m else None))
+    cycles = _conversion_cycles(db, actor, src, visible, cfg, verified)
+    conversion_counted, conversion_average, buckets = _conversion_stats(cycles)
+    current = trend[-1]
+    metrics = [metric('SALE_CUSTOMER_COUNT', '本月成交客户数', current.customers, '个'),
+        metric('CUS_PERIOD_REPEAT', '本月复购客户率', Decimal(current.repeat_rate) if current.repeat_rate else None, '%', '无成交客户'),
+        metric('SALE_AOV', '本月平均客单价', Decimal(current.aov) if current.aov else None, reason='无有效订单'),
+        metric('CUS_CONVERT_CYCLE', '平均成交转化周期', conversion_average, '天', '暂无可统计的潜客转化样本'),
+        metric('CUS_RFM_LAYER', '重要价值+重要保持客户数', sum(1 for s in enriched.values() if s['layer'] in {'重要价值客户', '重要保持客户'}), '个')]
+    ranked = sorted(enriched.items(), key=lambda kv: (-kv[1]['amount'], str(kv[0])))
+    top = [dto.CustomerTopRow(customer_id=cid, name=names.get(cid, '未知客户'), layer=s['layer'],
+        last_order_date=s['last'], days_since=s['days'], orders=s['orders'], amount=money(s['amount']),
+        aov=money(ratio(s['amount'], s['orders']))) for cid, s in ranked[:20]]
+    return dto.CustomerAnalytics(through=today, basis='已确认销售历史' if verified else '源销售核对（未确认口径）',
+        verified=verified, warnings=warnings, metrics=metrics, segments=segments, trend=trend,
+        conversion_counted=conversion_counted, conversion_average_days=money(conversion_average),
+        conversion_buckets=buckets, top=top, total=customers)
+
+
+def _conversion_cycles(db, actor, src, orders, cfg, verified):
+    """CUS_CONVERT_CYCLE: retain inactive prospect aliases, authorize the current canonical owner."""
+    if not verified:
+        return {}  # First real sale requires reviewed statuses and complete history.
+    targets = select(Customer.id).where(Customer.is_active, Customer.source_system == src.source_code,
+                                        scope(db, actor, Customer.owner_user_id))
+    prospects = db.scalars(select(Customer).where(Customer.source_system == 'crm',
+        Customer.bound_customer_id.in_(targets))).all()
+    first_order: dict[UUID, date] = {}
+    for order in orders:  # Already source/date/sales-owner scoped.
+        if normal_sale(order, cfg, True):
+            first_order[order.customer_id] = min(first_order.get(order.customer_id, order.order_date), order.order_date)
+    cycles = {}
+    for p in prospects:
+        first = first_order.get(p.bound_customer_id)
+        if not first or p.created_at is None:
+            continue
+        cycle = (first - p.created_at.astimezone(TZ).date()).days
+        if cycle < 0:
+            continue
+        cycles[p.bound_customer_id] = cycle
+    return cycles
+
+
+def _conversion_stats(cycles):
+    days = list(cycles.values())
+    buckets_map = {label: 0 for label, _ in CONVERT_BUCKETS}
+    for cycle in days:
+        for label, ceiling in CONVERT_BUCKETS:
+            if ceiling is None or cycle <= ceiling:
+                buckets_map[label] += 1
+                break
+    average = Decimal(sum(days)) / len(days) if days else None
+    return len(days), average, [dto.ConvertBucket(label=label, count=buckets_map[label]) for label, _ in CONVERT_BUCKETS]
+
+
+def customer_profile(db, actor, customer_id):
+    require(actor, {'owner', 'manager', 'sales', 'finance'})
+    customer = db.get(Customer, customer_id)
+    if not customer or not customer.is_active:
+        raise HTTPException(404, '客户不存在')
+    if actor.role_code not in {'owner', 'admin'}:
+        if not can_read_owned(services.principal_for(db, actor), customer.owner_user_id):
+            raise HTTPException(404, '客户不存在或无权访问')
+    warnings = []
+    target_id = customer.bound_customer_id or customer.id
+    history_customer = db.get(Customer, target_id)
+    if history_customer is None:
+        raise HTTPException(404, '客户不存在')
+    source = db.scalar(select(DataSource).where(DataSource.source_code == history_customer.source_system,
+                                                DataSource.is_enabled))
+    config = settings(db)
+    convert_days = None
+    s = None
+    if source is not None:
+        stats, verified, warn, today, visible, cfg = _source_customer_stats(db, actor, source)
+        convert_days = _conversion_cycles(db, actor, source, visible, cfg, verified).get(target_id)
+        warnings.extend(warn)
+        enriched, _ = _rfm_stats(stats, config, today)
+        s = enriched.get(target_id)
+    else:
+        warnings.append('客户无关联销售数据源，暂无经营画像')
+    if s is None:
+        return dto.CustomerProfile(customer_id=customer.id, name=customer.customer_name,
+            warnings=warnings + ['该客户暂无源销售记录，分层与复购待首次成交后可用'])
+    return dto.CustomerProfile(customer_id=customer.id, name=customer.customer_name, layer=s['layer'],
+        days_since=s['days'], last_order_date=s['last'], orders=s['orders'], amount=money(s['amount']),
+        aov=money(ratio(s['amount'], s['orders'])), is_repeat=s['orders'] >= 2,
+        convert_days=convert_days, warnings=warnings)
 
 
 def _finance_metrics(db, src_id, months):
@@ -587,11 +821,14 @@ def overview(db, actor, source_id):
 
     # Six-month trend uses the same basis as the headline figure.
     trend = []
+    customer_trend = []
     for i in range(5, -1, -1):
         m = shift_month(period, -i)
         end = min(today, month_end(m))
         amount = sum((order_value(r, cfg, verified) for r in rows if m <= r.order_date <= end), ZERO)
         trend.append(dto.Point(date=m, value=str(amount)))
+        customer_trend.append(dto.Point(date=m, value=str(len({r.customer_id for r in rows
+            if m <= r.order_date <= end and normal_sale(r, cfg, verified)}))))
 
     # Owner dashboard extras. Everything below reuses the verified-basis orders already loaded.
     customer_structure: list[dto.StructureSlice] = []
@@ -599,11 +836,23 @@ def overview(db, actor, source_id):
     person_ranking: list[dto.PersonRankRow] = []
     attention_items: list[dto.AttentionItem] = []
     attention_total = 0
+    customer_contributions = []
     if actor.role_code == 'owner':
         sale_orders = [r for r in current if normal_sale(r, cfg, verified)]
         customer_amounts = defaultdict(lambda: ZERO)
-        for r in sale_orders:
+        for r in current:
+            if not included(r, cfg, verified):
+                continue
             customer_amounts[r.customer_id] += order_value(r, cfg, verified)
+        customer_counts = defaultdict(int)
+        for r in sale_orders:
+            customer_counts[r.customer_id] += 1
+        for c, owner_name in db.execute(select(Customer, User.display_name)
+                .outerjoin(User, User.id == Customer.owner_user_id).where(Customer.id.in_(customer_amounts))):
+            customer_contributions.append(dto.CustomerContribution(customer_id=c.id, name=c.customer_name,
+                owner_name=owner_name, level=c.customer_level, amount=money(customer_amounts[c.id]),
+                orders=customer_counts[c.id]))
+        customer_contributions.sort(key=lambda row: (-Decimal(row.amount), str(row.customer_id)))
         if customer_amounts and total:
             levels = defaultdict(lambda: [ZERO, 0])
             for c in db.scalars(select(Customer).where(Customer.id.in_(customer_amounts))):
@@ -632,12 +881,13 @@ def overview(db, actor, source_id):
                     share=str((rest/total*100).quantize(Decimal('0.1')))))
         rank_people = db.scalars(select(User).where(User.is_active, User.role_code.in_(['sales', 'manager']))).all()
         amounts_by_user = defaultdict(lambda: ZERO)
-        for r in sale_orders:
+        for r in current:
             if r.sales_user_id:
                 amounts_by_user[r.sales_user_id] += order_value(r, cfg, verified)
         for p in rank_people:
             amount = amounts_by_user.get(p.id, ZERO)
-            target = db.scalar(select(SalesTarget).where(SalesTarget.user_id == p.id, SalesTarget.period_month == period))
+            target = db.scalar(select(SalesTarget).where(SalesTarget.user_id == p.id, SalesTarget.period_month == period,
+                                                         SalesTarget.target_type == 'monthly'))
             target_amount = target.sales_amount_target if target else None
             person_ranking.append(dto.PersonRankRow(user_id=p.id, name=p.display_name, amount=money(amount),
                 target=money(target_amount),
@@ -645,11 +895,12 @@ def overview(db, actor, source_id):
         person_ranking.sort(key=lambda row: Decimal(row.amount), reverse=True)
         page = attention(db, actor, src.id, 0)
         attention_total = page.total
-        attention_items = [dto.AttentionItem(name=r.name, kind=r.kind, days=r.days) for r in page.rows[:4]]
+        attention_items = [dto.AttentionItem(customer_id=r.id, name=r.name, kind=r.kind, days=r.days) for r in page.rows[:4]]
 
     return dto.Overview(month=period, through=today, verified=verified, warnings=warnings,
                         finance_warnings=finance_warnings, sales_metrics=sales_metrics,
-                        finance_metrics=finance_metrics, trend=trend,
+                        finance_metrics=finance_metrics, trend=trend, customer_trend=customer_trend,
+                        customer_contributions=customer_contributions[:5],
                         customer_structure=customer_structure, product_structure=product_structure,
                         person_ranking=person_ranking, attention_items=attention_items,
                         attention_total=attention_total,

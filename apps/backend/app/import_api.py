@@ -149,6 +149,16 @@ def staff_config(source_id: uuid.UUID, payload: SourceConfig, db: DB, actor: Act
     return {'status': 'ok', 'message': '用于新预检；不追溯修改已导入历史归属'}
 
 
+@router.delete('/sources/{source_id}/data')
+def purge_source_data(source_id: uuid.UUID, db: DB, actor: Actor, confirm: str = Query(min_length=1, max_length=100)):
+    if actor.role_code not in {'admin', 'owner'}:
+        raise HTTPException(403, '仅老板或管理员可清空导入数据')
+    src = svc.source(db, source_id, True)
+    if confirm.strip() != src.source_name:
+        raise HTTPException(422, '确认文字与数据源名称不一致，未执行任何删除')
+    return svc.purge_source_data(db, src, actor)
+
+
 @router.post('/imports', response_model=BatchView, status_code=201)
 async def upload(request: Request, db: DB, actor: Actor, source_id: uuid.UUID, kind: Kind,
                  filename: str = Query(max_length=255), options: str = Query(default='{}', max_length=10000)):
@@ -194,6 +204,14 @@ def financial_preview(batch_id: uuid.UUID, db: DB, actor: Actor):
 @router.post('/imports/{batch_id}/confirm', response_model=BatchView)
 def confirm(batch_id: uuid.UUID, payload: Confirmation, db: DB, actor: Actor):
     return svc.confirm(db, actor, batch_id, payload.acknowledge_warnings, payload.replace_version)
+
+
+@router.delete('/imports/{batch_id}')
+def discard_batch(batch_id: uuid.UUID, db: DB, actor: Actor):
+    if actor.role_code not in {'admin', 'owner'}:
+        raise HTTPException(403, '仅老板或管理员可删除导入批次')
+    batch = svc.batch_access(db, actor, batch_id)
+    return svc.delete_batch(db, batch, actor)
 
 
 @router.get('/imports/{batch_id}/file')

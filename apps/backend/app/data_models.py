@@ -86,6 +86,7 @@ class Customer(Base):
     ownership_status: Mapped[str] = mapped_column(String(24), default='unassigned', server_default='unassigned')
     customer_type: Mapped[str | None] = mapped_column(String(32))
     customer_level: Mapped[str | None] = mapped_column(String(16))
+    customer_status: Mapped[str | None] = mapped_column(String(24))
     lifecycle_status: Mapped[str] = mapped_column(String(24), default='prospect', server_default='prospect')
     remark: Mapped[str | None] = mapped_column(Text)
     public_pool_entered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

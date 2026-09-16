@@ -48,7 +48,7 @@ def error_response(request: Request, status: int, message: str):
 @app.middleware("http")
 async def request_boundary(request: Request, call_next):
     request.state.request_id = str(uuid.uuid4())
-    if request.method not in {"GET", "HEAD", "OPTIONS"} and request.headers.get("origin") != settings.app_base_url:
+    if request.method not in {"GET", "HEAD", "OPTIONS"} and request.headers.get("origin") not in settings.allowed_origin_set:
         response = error_response(request, 403, "请求来源未获授权")
     else:
         try:
@@ -94,7 +94,7 @@ Current = Annotated[tuple, Depends(current)]
 def health(db: DB):
     try:
         db.execute(text("SELECT 1"))
-        if db.execute(text("SELECT version_num FROM alembic_version")).scalar_one() != "0005_m3":
+        if db.execute(text("SELECT version_num FROM alembic_version")).scalar_one() != "0008_v11":
             raise HTTPException(503, "数据库版本未就绪")
     except SQLAlchemyError:
         raise HTTPException(503, "数据库未就绪") from None
@@ -183,3 +183,7 @@ app.include_router(bi_router)
 from app.user_api import router as user_router  # noqa: E402
 
 app.include_router(user_router)
+
+from app.sales_api import router as sales_router  # noqa: E402
+
+app.include_router(sales_router)

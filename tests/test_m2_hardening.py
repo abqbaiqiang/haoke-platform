@@ -9,7 +9,7 @@ from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
 from app import crm_service as svc
-from app.crm_models import Assignment, Contact, Followup, Task
+from app.crm_models import Assignment, Contact, CustomerClaim, Followup, Task
 from app.crm_models import Opportunity
 from app.data_models import Customer, SalesOrder
 from app.models import ActivityLog, Base, User, utcnow
@@ -117,7 +117,7 @@ def test_customer_history_and_list_pagination(db, client, accounts, sign_in):
     assert len(client.get('/api/crm/followups?offset=100').json()) == 5
 
 
-def test_concurrent_pool_claim_has_one_winner(database_engine):
+def test_concurrent_pool_claim_all_claimants_recorded(database_engine):
     # Separate committed schema: genuine concurrent transactions, no production rows.
     schema = 'm2claim_' + uuid4().hex
     with database_engine.begin() as c:
@@ -142,9 +142,13 @@ def test_concurrent_pool_claim_has_one_winner(database_engine):
                 except HTTPException as exc:
                     return exc.status_code
         with ThreadPoolExecutor(max_workers=2) as pool:
-            assert sorted(pool.map(claim, ids)) == [200,409]
+            # Multi-claim: both salespeople may claim the same pool customer.
+            assert sorted(pool.map(claim, ids)) == [200,200]
         with Session(isolated) as db:
+            assert db.scalar(select(func.count()).select_from(CustomerClaim)) == 2
             assert db.scalar(select(func.count()).select_from(Assignment)) == 1
+            row = db.get(Customer, cid)
+            assert row.owner_user_id == ids[0] and row.ownership_status == 'public_pool'
     finally:
         with database_engine.begin() as c:
             c.execute(text(f'DROP SCHEMA "{schema}" CASCADE'))

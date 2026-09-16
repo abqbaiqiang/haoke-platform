@@ -7,10 +7,11 @@ from decimal import Decimal
 from pathlib import Path
 
 from fastapi import HTTPException
-from sqlalchemy import select, update
+from sqlalchemy import delete, select, update
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
+from app.crm_models import Assignment, Contact, CustomerClaim, CustomerTag, Followup, Opportunity, Task
 from app.data_models import (Customer, DataSource, FieldMapping, FinancialMetric, FinancialPeriod,
                              ImportBatch, Product, RawImportRow, SalesOrder, SalesOrderLine)
 from app.import_parser import ParseError, Parsed, VERSION, parse, read_book
@@ -239,21 +240,31 @@ def apply_master(db, batch, src, counts):
             db.add(obj)
             counts['inserted'] += 1
         else:
-            if digest_record(obj.source_fields) == digest_record(r) and (not customer or obj.crm_managed or obj.owner_user_id == mapped_staff(batch, r.get('salesperson', ''))):
+            # A deactivated master (purge kept it for CRM references) must not be treated as
+            # unchanged: the reactivation below is the only path that revives it.
+            if digest_record(obj.source_fields) == digest_record(r) and obj.is_active and (not customer or obj.crm_managed or obj.owner_user_id == mapped_staff(batch, r.get('salesperson', ''))):
                 counts['unchanged'] += 1
                 continue
             previous = db.get(ImportBatch, obj.last_import_batch_id)
-            if previous.started_at > batch.started_at:
+            if previous is not None and previous.started_at > batch.started_at:
                 raise HTTPException(409, '主档已有更新批次，请重新预检')
             counts['updated'] += 1
         if customer:
             obj.customer_name = r['name']
             obj.normalized_name = ''.join(r['name'].split())
+            if not obj.is_active:
+                # 导入即认可：重新导入恢复被清空/停用的主档，否则清空后重导会漏数据。
+                obj.is_active = True
             if not obj.crm_managed:
+                # Imported customers land in the public pool; staff may claim them.
+                # An optional salesperson mapping still records the primary owner.
                 obj.owner_user_id = mapped_staff(batch, r.get('salesperson', ''))
-                obj.ownership_status = 'owned' if obj.owner_user_id else 'unassigned'
+                obj.ownership_status = 'public_pool'
+                obj.public_pool_entered_at = obj.public_pool_entered_at or utcnow()
         else:
             obj.product_name = r['name']
+            if not obj.is_active:
+                obj.is_active = True
         obj.source_fields = r
         obj.last_import_batch_id = batch.id
 
@@ -270,11 +281,21 @@ def apply_sales(db, batch, src, counts):
             counts['unchanged'] += 1
             continue
         if obj:
-            if obj.source_updated_at and (stamp is None or stamp <= obj.source_updated_at):
-                raise HTTPException(409, '存在旧版本或同时间冲突订单，未覆盖当前事实；请重新导出核对')
-            # No source timestamp: a second changed snapshot requires explicit review, not silent ordering.
-            if not stamp and not obj.source_updated_at:
-                raise HTTPException(409, '变更订单缺少源修改时间，无法安全确定版本顺序')
+            previous = db.get(ImportBatch, obj.last_import_batch_id) if obj.last_import_batch_id else None
+            prior_record = next((x for x in (previous.normalized_data or {}).get('records', [])
+                                 if x.get('order_no') == r['order_no']), None) if previous else None
+            if prior_record is not None and digest_record(prior_record) == digest_record(r):
+                # Same source record: only the staff mapping changed. Re-attribute the order
+                # without a version bump; a timestamp conflict must not block re-imports.
+                obj.sales_user_id = mapped_staff(batch, r.get('salesperson', ''))
+                obj.content_hash, obj.last_import_batch_id = content_hash, batch.id
+                counts['updated'] += 1
+                continue
+            if obj.source_updated_at and stamp and stamp < obj.source_updated_at:
+                # Only a strictly older snapshot is rejected (out-of-order export protection).
+                # Equal timestamps or missing timestamps: the newest upload wins — the boss
+                # decided imports imply acceptance and overlaps should self-dedupe (2026-09-15).
+                raise HTTPException(409, '文件中存在更早版本的订单（源修改时间早于已导入版本），未覆盖当前事实；请按时间顺序重新导出')
             obj.version += 1
             db.execute(update(SalesOrderLine).where(SalesOrderLine.sales_order_id == obj.id).values(is_active=False))
             counts['updated'] += 1
@@ -321,3 +342,54 @@ def apply_finance(db, batch, src, counts, replace_version):
                                metric_name=r['metric_name'], import_batch_id=batch.id, **values))
     setattr(period, attr, batch.id)
     counts['updated' if active_id else 'inserted'] += len(batch.normalized_data['records'])
+
+
+def delete_batch(db: Session, batch, actor):
+    """Discard a pending/failed precheck batch and its stored file; imported data is untouched."""
+    if batch.status not in {'pending', 'failed'}:
+        raise HTTPException(409, '已导入的批次不能单独删除；如需清除其已导入数据，请使用“清空导入数据”')
+    db.execute(delete(RawImportRow).where(RawImportRow.import_batch_id == batch.id))
+    root = Path(get_settings().upload_root).resolve()
+    path = (root / batch.storage_path).resolve() if batch.storage_path else None
+    db.delete(batch)
+    audit(db, actor, 'import_batch_discard', batch.id, {'filename': batch.original_filename})
+    db.commit()
+    if path and path.is_file() and str(path).startswith(str(root)):
+        path.unlink(missing_ok=True)
+    return {'status': 'ok', 'message': '批次已删除，原始文件一并移除；已导入的数据不受影响'}
+
+
+def purge_source_data(db: Session, src, actor):
+    """Owner-initiated clean slate for one source's imported sales data.
+
+    Sales orders and lines are removed; customer/product masters without CRM activity are
+    removed too, while masters that CRM records still reference are deactivated so no
+    history is orphaned. Import batches, original files and this audit entry are the trace.
+    """
+    # Serialize against imports and reviews, which lock the same source row before changing facts.
+    db.execute(select(DataSource.id).where(DataSource.id == src.id).with_for_update())
+    order_ids = select(SalesOrder.id).where(SalesOrder.source_system == src.source_code)
+    lines = db.execute(delete(SalesOrderLine).where(SalesOrderLine.sales_order_id.in_(order_ids))).rowcount
+    orders = db.execute(delete(SalesOrder).where(SalesOrder.source_system == src.source_code)).rowcount
+    customer_ids = select(Customer.id).where(Customer.source_system == src.source_code)
+    referenced = set()
+    for column in [Contact.customer_id, CustomerTag.customer_id, CustomerClaim.customer_id,
+                   Followup.customer_id, Task.customer_id, Opportunity.customer_id, Assignment.customer_id]:
+        referenced |= set(db.scalars(select(column).where(column.in_(customer_ids))))
+    deactivated = 0
+    if referenced:
+        deactivated = db.execute(update(Customer)
+            .where(Customer.source_system == src.source_code, Customer.id.in_(referenced), Customer.is_active)
+            .values(is_active=False)).rowcount
+    if referenced:
+        removed_customers = db.execute(delete(Customer)
+            .where(Customer.source_system == src.source_code, Customer.id.not_in(referenced))).rowcount
+    else:
+        removed_customers = db.execute(delete(Customer)
+            .where(Customer.source_system == src.source_code)).rowcount
+    removed_products = db.execute(delete(Product).where(Product.source_system == src.source_code)).rowcount
+    counts = {'orders': orders, 'order_lines': lines, 'customers_removed': removed_customers,
+              'customers_deactivated': deactivated, 'products_removed': removed_products}
+    audit(db, actor, 'import_data_purge', src.id, counts)
+    db.commit()
+    return counts

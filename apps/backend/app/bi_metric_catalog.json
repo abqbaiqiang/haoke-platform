@@ -75,6 +75,14 @@
     "definition": "期内订单数≥2客户数 / 期内成交客户数",
     "source": "精斗云销售"
   },
+  "CUS_RFM_LAYER": {
+    "definition": "R高=距最近成交≤rfm_recent_days；F高=有效订单数≥rfm_freq_orders；M高=累计源销售金额≥全体成交客户人均金额。组合命名：R高F高M高=重要价值、R低F高M高=重要保持、R高F低M高=重要发展、R低F低M高=重要挽留、R高F高M低=一般价值、R低F高M低=一般保持、R高F低M低=一般发展、R低F低M低=一般挽留",
+    "source": "精斗云销售历史 + 系统参数"
+  },
+  "CUS_CONVERT_CYCLE": {
+    "definition": "首笔有效销售订单日期 - 潜客创建日期；仅统计 source_system=crm 且已绑定正式客户并有源销售记录的潜客",
+    "source": "CRM潜客 + 精斗云销售历史"
+  },
   "CUS_TOP5_SHARE": {
     "definition": "Top5客户销售额 / 总销售额",
     "source": "精斗云销售"
@@ -114,6 +122,26 @@
   "CRM_TASK_RATE": {
     "definition": "已完成到期任务 / 到期任务数",
     "source": "CRM任务"
+  },
+  "CRM_NEW_CUSTOMERS": {
+    "definition": "COUNT(customer) WHERE created_at 在本月 且 权限范围内可见",
+    "source": "CRM客户"
+  },
+  "CRM_EFFECTIVE_FOLLOWUPS": {
+    "definition": "COUNT(valid followup WHERE is_effective = true)",
+    "source": "CRM跟进"
+  },
+  "CRM_QUOTED_CUSTOMERS": {
+    "definition": "COUNT(DISTINCT customer_id of valid followup WHERE quotation_sent)",
+    "source": "CRM跟进"
+  },
+  "CRM_DEAL_CUSTOMERS": {
+    "definition": "COUNT(DISTINCT sales_order.customer_id)，仅销售口径已核实时给出",
+    "source": "精斗云销售单"
+  },
+  "CRM_STALE_CUSTOMERS": {
+    "definition": "COUNT(customer) 最近一次有效跟进早于 7 天（无跟进记录的客户不计入）",
+    "source": "CRM跟进"
   },
   "OPP_OPEN_AMT": {
     "definition": "Σestimated_amount where status=open",

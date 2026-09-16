@@ -5,12 +5,15 @@ async function login(page:Page, role:string) {
   await page.getByLabel("账号",{exact:true}).fill(`demo_${role}`);
   await page.getByLabel("密码",{exact:true}).fill(process.env.DEMO_PASSWORD!);
   await page.getByRole("button",{name:"登录",exact:true}).click();
+  if (role==="sales") await page.locator("details.sales-account summary").click();
   await expect(page.getByRole("button",{name:"退出登录",exact:true})).toBeVisible();
-  await page.getByRole("button",{name:"客户与待办",exact:true}).click();
+  await page.getByRole("navigation", {name:"主导航"}).getByRole("link",{name:"客户管理",exact:true}).click();
   await expect(page.getByRole("heading",{name:"客户与待办",exact:true})).toBeVisible();
 }
 
-test("M2 sales prospect, contact, followup, next-day task and opportunity",async({page},info)=>{
+// FIXME(2026-09-15 验收同步)：新增潜客已按产品决策关闭、销售端迁移到销售工作台（sales.tsx），
+// 本用例的潜客创建/CRM 工作台路径不复存在；待按“导入→公海→认养”与销售工作台重写。
+test.fixme("M2 sales prospect, contact, followup, next-day task and opportunity",async({page},info)=>{
   const errors:string[]=[];page.on("pageerror",e=>errors.push(e.message));
   await login(page,"sales");
   await page.getByRole("button",{name:"新增潜客",exact:true}).click();
@@ -61,6 +64,7 @@ test("M2 sales prospect, contact, followup, next-day task and opportunity",async
   await page.getByRole("button",{name:"已完成",exact:true}).click();
   await expect(page.getByText(taskTitle,{exact:true})).toBeVisible();
   await page.getByRole("button",{name:"退出登录"}).click();
+  await expect(page.getByRole("heading",{name:"欢迎登录"})).toBeVisible();
   await login(page,"sales2");
   await page.getByLabel("搜索客户",{exact:true}).fill(name);
   await page.getByRole("button",{name:"搜索",exact:true}).click();
@@ -68,22 +72,26 @@ test("M2 sales prospect, contact, followup, next-day task and opportunity",async
   expect(errors).toEqual([]);
 });
 
-test("M2 admin assigns imported customer, manager sees team, pool claim",async({page})=>{
+// FIXME(2026-09-15 验收同步)：新增潜客已按产品决策关闭、销售端迁移到销售工作台（sales.tsx），
+// 本用例的潜客创建/CRM 工作台路径不复存在；待按“导入→公海→认养”与销售工作台重写。
+test.fixme("M2 admin assigns imported customer, manager sees team, pool claim",async({page})=>{
   await login(page,"admin");
   const people=await page.request.get('/api/crm/people');
   const sales=(await people.json()).find((x:{username:string})=>x.username==='demo_sales');
   // Seed a prospect through the authorized sales API; no real sample database is used.
   await page.getByRole("button",{name:"退出登录"}).click();
+  await expect(page.getByRole("heading",{name:"欢迎登录"})).toBeVisible();
   await login(page,"sales");
   const base=new URL(page.url()).origin;
   const r=await page.request.post('/api/crm/customers',{headers:{Origin:base},data:{customer_name:`公海流程 ${Date.now()}`}});
   expect(r.status()).toBe(201);
   const customer=(await r.json()).customer;
   await page.getByRole("button",{name:"退出登录"}).click();
+  await expect(page.getByRole("heading",{name:"欢迎登录"})).toBeVisible();
   await login(page,"manager");
   await page.getByLabel("搜索客户",{exact:true}).fill(customer.customer_name);
   await page.getByRole("button",{name:"搜索",exact:true}).click();
-  await page.getByRole("button",{name:"查看客户",exact:true}).click();
+  await page.getByRole("row").filter({has:page.getByText(customer.customer_name,{exact:true})}).getByRole("button",{name:"查看客户",exact:true}).click();
   await page.getByRole("button",{name:"分配／转交／公海",exact:true}).click();
   const form=page.getByRole("form",{name:"客户归属调整"});
   await form.getByLabel("新负责人").selectOption("");
@@ -91,11 +99,13 @@ test("M2 admin assigns imported customer, manager sees team, pool claim",async({
   await form.getByRole("button",{name:"确认调整归属"}).click();
   await expect(page.getByText("归属已调整，历史记录保留")).toBeVisible();
   await page.getByRole("button",{name:"退出登录"}).click();
+  await expect(page.getByRole("heading",{name:"欢迎登录"})).toBeVisible();
   await login(page,"sales");
   await page.getByRole("button",{name:"客户公海",exact:true}).click();
-  await page.getByRole("button",{name:"领取客户",exact:true}).click();
+  await page.getByRole("row").filter({has:page.getByText(customer.customer_name,{exact:true})}).getByRole("button",{name:"认养客户",exact:true}).click();
   await expect(page.getByRole("heading",{name:customer.customer_name,exact:true})).toBeVisible();
   const d=await page.request.get(`/api/crm/customers/${customer.id}`);
   expect((await d.json()).customer.owner_user_id).toBe(sales.id);
+  expect((await d.json()).customer.claims.some((x:{user_id:string})=>x.user_id===sales.id)).toBe(true);
   await expect(page.getByText(/调整客户归属.*交由公海重新跟进/)).toBeVisible();
 });

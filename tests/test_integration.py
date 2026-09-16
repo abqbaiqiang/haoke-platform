@@ -125,11 +125,11 @@ def test_no_secrets_in_logs(client, sign_in, caplog):
 
 def test_health_and_schema(db, client):
     assert client.get("/health").status_code == 200
-    assert db.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "0005_m3"
+    assert db.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "0008_v11"
     tables = set(inspect(db.bind).get_table_names())
     assert {"sys_user", "sys_permission_scope", "sys_session", "activity_log", "sys_login_throttle"} <= tables
     assert {"customer", "sales_order", "import_batch"} <= tables
-    assert {"crm_task", "crm_followup", "crm_opportunity", "customer_assignment_history"} <= tables
+    assert {"crm_task", "crm_followup", "crm_opportunity", "customer_assignment_history", "customer_claim"} <= tables
 
 
 def test_bootstrap_idempotent_and_unique_username(db, accounts):

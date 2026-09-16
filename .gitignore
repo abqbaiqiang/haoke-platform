@@ -42,3 +42,10 @@ private_fixtures/
 *供应商导出*.xls*
 *利润表*.xls*
 *资产负债表*.xls*
+
+# 本机工具/会话目录
+.agents/
+.codex/
+.impeccable/
+.workbuddy/
+.tmp/

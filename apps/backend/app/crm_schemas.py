@@ -25,8 +25,15 @@ class CustomerPatch(DTO):
     customer_name: Name | None = None
     customer_type: Annotated[str, Field(max_length=32)] | None = None
     customer_level: Literal['A', 'B', 'C', 'D'] | None = None
+    customer_status: Literal['potential', 'contacted', 'demand', 'quoted', 'won', 'dormant'] | None = None
     lifecycle_status: Literal['prospect', 'active', 'dormant', 'lost'] | None = None
     remark: Note | None = None
+
+
+class ClaimView(DTO):
+    user_id: UUID
+    display_name: str
+    claimed_at: datetime
 
 
 class CustomerView(DTO):
@@ -38,16 +45,37 @@ class CustomerView(DTO):
     ownership_status: str
     customer_type: str | None
     customer_level: str | None
+    customer_status: str | None
     lifecycle_status: str
     remark: str | None
     bound_customer_id: UUID | None
     bound_at: datetime | None
     is_active: bool
+    claims: list[ClaimView] = []
 
 
 class Transfer(DTO):
     owner_user_id: UUID | None
     reason: Annotated[str, Field(min_length=1, max_length=500)]
+
+
+class BatchAssign(DTO):
+    customer_ids: Annotated[list[UUID], Field(min_length=1, max_length=1000)]
+    owner_user_id: UUID
+    reason: Annotated[str, Field(min_length=1, max_length=500)]
+
+
+class BatchAssignResult(DTO):
+    assigned_count: int
+
+
+class BatchClaim(DTO):
+    customer_ids: Annotated[list[UUID], Field(min_length=1, max_length=1000)]
+
+
+class BatchClaimResult(DTO):
+    claimed_count: int
+    skipped: list[str] = []
 
 
 class Bind(DTO):
@@ -83,6 +111,7 @@ class TagInput(DTO):
 
 class TagView(TagInput):
     id: UUID
+    created_by: UUID | None = None
 
 
 class TagsInput(DTO):
@@ -94,6 +123,7 @@ class FollowupInput(DTO):
     occurred_at: AwareDatetime | None = None
     interaction_method: Literal['phone', 'wechat', 'visit', 'meeting', 'quote', 'other']
     contact_result: Literal['no_answer', 'good', 'normal', 'no_need', 'waiting', 'rejected', 'won', 'other']
+    is_effective: bool | None = None
     summary: Note | None = None
     material_sent: bool = False
     material_note: Annotated[str, Field(max_length=255)] | None = None
@@ -161,7 +191,8 @@ class OpportunityView(OpportunityInput):
 
 
 class Settings(DTO):
-    sales_create_tags: bool = False
+    sales_create_tags: bool = True
+    allow_prospect_create: bool = False
     followup_edit_hours: int = Field(default=24, ge=0, le=720)
     public_pool_claim_enabled: bool = True
 
@@ -195,6 +226,21 @@ class CustomerPage(DTO):
 class CustomerCreated(DTO):
     customer: CustomerView
     duplicate_warning: bool
+
+
+class PoolItem(DTO):
+    customer_name: Name
+    mobile: Annotated[str, Field(max_length=32)] | None = None
+    remark: Note | None = None
+
+
+class PoolImport(DTO):
+    items: Annotated[list[PoolItem], Field(min_length=1, max_length=500)]
+
+
+class PoolImportResult(DTO):
+    created_count: int
+    duplicate_names: list[str] = []
 
 
 class CustomerDetail(DTO):
