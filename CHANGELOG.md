@@ -1,5 +1,12 @@
 # Changelog
 
+## C1 护栏 4/4：storage_init 最小单测 - 2026-09-16
+
+- **审计 P1-15**：新增 `tests/test_unit.py::test_storage_init_prepares_configured_directories`——以 tmp 目录 + monkeypatch 打桩（`os.chown` 在 Windows 不存在，统一打桩以跨平台运行）执行 `storage_init.py`，断言：仅创建配置的目录（UPLOAD_ROOT 下 raw/attachments、BACKUP_ROOT），每个目录逐一 `chown 10001:10001`、`chmod 0700`。代码行为未改动。
+- **验证**：ruff 0 错误；pytest 全量 264 通过；E2E 38 通过。C1 护栏四项全部完成。
+
+# Changelog
+
 ## C1 护栏 3/4：E2E 入口 APP_ENV 环境检查 - 2026-09-16
 
 - **审计 P2-28**：`scripts/run_e2e.py` 启动时校验 `APP_ENV=development`，非 development（含未设置）直接拒绝退出——此前该脚本会无条件对 `DATABASE_URL` 执行 `DELETE FROM sys_login_throttle` 并改写业务数据，存在对生产库误跑的风险。已验证：staging 下拒绝退出（exit 1），development 下 E2E 全量通过。

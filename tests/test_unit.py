@@ -77,3 +77,25 @@ def test_configuration_fails_closed(override):
     with pytest.raises(ValidationError) as error:
         Settings(_env_file=None, **values)
     assert "input_value" not in str(error.value)
+
+
+def test_storage_init_prepares_configured_directories(tmp_path, monkeypatch):
+    """审计 P1-15：storage_init 仅准备配置的目录，并逐一 chown 10001:10001 / chmod 0700。"""
+    import os
+    import runpy
+    from pathlib import Path
+
+    chown_calls, chmod_calls = [], []
+    # os.chown 在 Windows 上不存在，统一打桩以便跨平台验证调用序列。
+    monkeypatch.setattr(os, 'chown', lambda path, uid, gid: chown_calls.append((path, uid, gid)), raising=False)
+    monkeypatch.setattr(Path, 'chmod', lambda self, mode: chmod_calls.append((self, mode)))
+    upload, backup = tmp_path / 'upload', tmp_path / 'backup'
+    monkeypatch.setenv('UPLOAD_ROOT', str(upload))
+    monkeypatch.setenv('BACKUP_ROOT', str(backup))
+    script = Path(__file__).resolve().parents[1] / 'apps/backend/app/storage_init.py'
+    runpy.run_path(str(script))
+    assert (upload / 'raw').is_dir() and (upload / 'attachments').is_dir() and backup.is_dir()
+    expected = [upload, upload / 'raw', upload / 'attachments', backup]
+    assert [path for path, _, _ in chown_calls] == expected
+    assert {uid for _, uid, _ in chown_calls} == {10001} and {gid for _, _, gid in chown_calls} == {10001}
+    assert [path for path, _ in chmod_calls] == expected and {mode for _, mode in chmod_calls} == {0o700}
