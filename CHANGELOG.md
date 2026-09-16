@@ -1,5 +1,12 @@
 # Changelog
 
+## C1 护栏 2/4：全角括号重名回归测试 - 2026-09-16
+
+- **审计 P1-05 护栏**：新增 `tests/test_crm_pool_entry.py::test_full_width_parenthesis_duplicate_flag`——同一客户名分别以全角 `（）` 与半角 `()` 建档，双向断言 `duplicate_warning` 命中（全角先建→半角告警；半角先建→全角告警），防止 `crm_service.normalize_name` 的括号归一化被未来改动破坏。代码行为未改动。
+- **验证**：ruff 0 错误；pytest 全量 263 通过；E2E 38 通过。
+
+# Changelog
+
 ## C1 护栏 1/4：指标码目录双向断言 - 2026-09-16
 
 - **双向断言护栏**：`tests/test_m3.py::test_metric_descriptions_match_dictionary` 升级——静态扫描 `bi_calculations.py`/`bi_service.py` 中全部 `metric()`/`m()` 调用 emit 的指标码，断言其 ⊆ `bi_metric_catalog.json`；目录条目与 `docs/04_V1指标字典.md` 的公式/来源逐字段一致（原有方向保留）。今后新增指标若未登记目录/字典，测试即失败。

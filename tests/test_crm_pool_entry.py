@@ -28,6 +28,17 @@ def test_pool_entry_permissions(db, client, accounts, sign_in):
     assert client.get('/api/crm/customers?pool=true').json()['total'] >= 1
 
 
+def test_full_width_parenthesis_duplicate_flag(db, client, accounts, sign_in):
+    """审计 P1-05 护栏：客户名仅有全角/半角括号差异时，重名检测必须命中（normalize_name 归一化）。"""
+    sign_in('Owner')
+    # 全角先建档，半角重复必须告警。
+    assert client.post('/api/crm/customers/pool', json={'customer_name': '括号重名客户（济南）'}).json()['duplicate_warning'] is False
+    assert client.post('/api/crm/customers/pool', json={'customer_name': '括号重名客户(济南)'}).json()['duplicate_warning'] is True
+    # 反向：半角先建档，全角重复同样必须告警。
+    assert client.post('/api/crm/customers/pool', json={'customer_name': '括号重名客户乙(青岛)'}).json()['duplicate_warning'] is False
+    assert client.post('/api/crm/customers/pool', json={'customer_name': '括号重名客户乙（青岛）'}).json()['duplicate_warning'] is True
+
+
 def test_pool_bulk_entry_dedup_and_claim(db, client, accounts, sign_in):
     sign_in('Owner')
     body = {'items': [
