@@ -1,5 +1,17 @@
 # Project Task Status
 
+## 2026-09-17 Product margin report (Route A, per owner decision)
+
+- [x] Sales import now parses the 最近一次采购价 column (100% filled in real exports; 参考成本/预估毛利 columns are empty in current exports) into the reserved actual_cost_amount column (line cost = price × quantity; no migration)
+- [x] New GET /api/bi/product-margins: per-product sales/cost/profit/margin with totals, margin-rate sort, pager, cost_coverage; visible to owner (all), manager (team), sales (own) via existing two-level scope; metrics SALE_COST_AMOUNT / SALE_GROSS_PROFIT / SALE_GROSS_MARGIN added to docs/04 dictionary + catalog (guard green)
+- [x] Zero/empty purchase price treated as "cost not maintained" (excluded from cost/profit; shows —) to avoid fake 100% margins
+- [x] Backfilled via sanctioned re-import of stored files: 2332/2332 active lines now carry cost (the 2026-09-12 older export correctly rejected by out-of-order protection). Real-data check: Sept sales 410,249.40 − cost 321,051.95 = profit 89,197.45 (21.74%)
+- [x] Regression: ruff clean, pytest 267 (3 new tests: parser optional column ×2, integration cost/report/scope/422), tsc/build/bundle green, E2E 38 passed / 10 skipped
+- [ ] Boss to maintain 最近一次采购价 in Jingdouyun product master for new products (6 unmatched product codes lm1202–1207 were new products; product-master re-import fills them)
+- [ ] Route B (purchase-order import → supplier/payables/inventory analysis) not started; gross margin is reference-cost caliber, not FIFO/outbound cost — noted in dictionary
+
+# Project Task Status
+
 ## 2026-09-17 Business acceptance decisions applied (docs/30, owner decisions via chat)
 
 - [x] Owner decisions recorded in docs/30: ① no returns to consider (imports are deals only); ② 12 unmapped orders → 李延伟 (mapping 安佰强→李延伟 saved on test_src; 4 orders take effect on re-import, 8 empty-salesperson orders of 420 元 cannot auto-map); ③ customer assignment plan A executed; ④ data review deferred until the delete-and-reupload capability exists (review locks imports); ⑤ finance: 1–7 月 uploads coming, blanks stay blank, uploaded data is treated as verified
