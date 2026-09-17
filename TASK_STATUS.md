@@ -1,5 +1,15 @@
 # Project Task Status
 
+## 2026-09-17 Dev DB test-data cleanup (owner-authorized)
+
+- [x] Removed 955 test-pattern data sources (e2e_/bi_/cockpit_/sw_/assign_) and all dependents in one transaction: 8018 customers, 1985 import batches, 26174 raw rows, 358 orders + 590 lines, 358 products, 7598 assignment histories, 123 claims, 114 followups, 234 tasks, 109 financial periods + 9265 metrics, 112 sales reviews, 1985 field mappings
+- [x] Real business data preserved and verified: test_src with 514 customers (pool + 404 claims), 1771 orders (sum 4,205,296.19), 12 import batches; demo accounts/settings/targets untouched
+- [x] Offline snapshot backup before cleanup: app-data/backups/pre-e2e-cleanup-postgres-20260917-141346 (2682 files + sha256 manifest); VACUUM ANALYZE after
+- [x] New scripts: dev_db_cleanup.py (dry-run default, dev-only guard) and dev_backend.py (single-instance backend launcher)
+- [x] /api/bi/team latency 7.66s → 2.27s; full E2E 38 passed / 10 skipped on the cleaned DB
+- [ ] Remaining: /api/bi/team per-person×per-source compute pattern still needs batching/SQL aggregation (2.27s is pure CPU for 10 demo users) — separate task
+- [ ] Note: repeated E2E runs will re-accumulate test sources; rerun scripts/dev_db_cleanup.py (dry-run first) when the suite slows again
+
 ## 2026-09-17 C4-3 sales.tsx/crm.tsx split and long-line formatting (docs/29 task book complete, awaiting owner acceptance)
 
 - [x] sales.tsx (228→65 lines): split into app/sales/ — ui (Icon/Empty/Panel/Pager/Modal/yoySpan/money), perf-chart, quick-follow, sales-dialog, recent-table, four screens (workbench/customers/tasks/performance), shared types, four data modals; main file keeps routing and state orchestration only

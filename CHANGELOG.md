@@ -1,5 +1,13 @@
 # Changelog
 
+## 开发库测试数据清理 - 2026-09-17（老板授权）
+
+- **背景**：历次 E2E/看版用例每跑一次就在开发库留下一个数据源及其全部从属数据，累积 955 个测试数据源（e2e_/bi_/cockpit_/sw_/assign_ 前缀）、8018 个测试客户、1985 个导入批次、26174 行原始记录；`/api/bi/team` 因按"人×数据源"逐个计算，耗时从 <5s 劣化到 7.6s，拖垮 E2E 断言。
+- **清理**（经老板授权，离线快照备份后执行）：删除 955 个测试数据源及全部从属数据（客户 8018、销售订单 358+行 590、商品 358、导入批次 1985、原始行 26174、字段映射 1985、认养 123、分配历史 7598、跟进 114、待办 234、财务期 109+指标 9265、销售核实 112），单事务执行；`app-data/uploads` 中测试批次的原始文件按 storage_path 同步删除（超出 uploads 目录的路径跳过）。
+- **业务数据完好**：真实精斗云导入（test_src）全部保留——514 个客户（含公海与 404 条认养记录）、1771 笔订单（金额合计 4,205,296.19）、12 个导入批次；demo 账号、CRM 参数、销售目标未动。
+- **新增脚本**：`scripts/dev_db_cleanup.py`（默认 dry-run，`--yes` 执行，仅限 development+本机库，删除前打印逐表计数）与 `scripts/dev_backend.py`（单实例开发后端启动器，替代孤儿进程易积累的 `dev.py` 复用检查路径）。
+- **验证**：清理后 `/api/bi/team` 7.66s → 2.27s（剩余耗时为纯计算，N+1 模式仍待专项优化）；全量 E2E 38 通过/10 跳过；备份位于 `app-data/backups/pre-e2e-cleanup-postgres-20260917-141346`（2682 文件 + sha256 清单）。
+
 ## C4-3 sales.tsx / crm.tsx 拆分与超长行格式化 - 2026-09-17（docs/29 执行任务书收官）
 
 - **sales.tsx（228 行 → 65 行）**：拆出 `app/sales/` 9 个模块——`ui.tsx`（Icon/Empty/Panel/Pager/Modal/yoySpan + 销售端 money）、`perf-chart.tsx`（ECharts 业绩趋势）、`quick-follow.tsx`、`sales-dialog.tsx`（四类跟进/待办弹窗）、`recent-table.tsx`（工作台面板与跟进弹窗共用）、四屏 `workbench/customers/tasks/performance-screen.tsx`、`types.ts`（Screen/Route/DialogState/Performance 等共享类型）、`modals.tsx`（交易明细/我的跟进/全部成交客户/商品排行四个数据弹窗）。主文件只留路由（readRoute/href/go）与状态编排。
