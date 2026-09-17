@@ -93,6 +93,9 @@ async def request_boundary(request: Request, call_next):
 
 @app.exception_handler(StarletteHTTPException)
 async def http_error(request: Request, exc: StarletteHTTPException):
+    # 字典 detail 用于携带结构化信息（如跨客户产品推荐冲突的 conflicts 列表）。
+    if isinstance(exc.detail, dict):
+        return JSONResponse(status_code=exc.status_code, content={"error": exc.detail})
     return error_response(request, exc.status_code, str(exc.detail))
 
 

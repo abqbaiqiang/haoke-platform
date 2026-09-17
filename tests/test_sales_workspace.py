@@ -330,5 +330,5 @@ def test_opportunity_products_roundtrip_and_recent_list(db, client, accounts, si
     assert [p['name'] for p in row['products']] == ['坐姿椅']
     # 不带产品的历史调用不受影响
     r = client.post(f'/api/crm/customers/{mine.id}/opportunities',
-                    json={'opportunity_name': '无产品商机', 'owner_user_id': str(accounts['S1'].id), 'stage': 'contact'})
+                    json={'opportunity_name': '无产品商机', 'owner_user_id': str(accounts['S1'].id), 'stage': 'contact', 'next_promotion': '本周内发送方案'})
     assert r.status_code == 201 and r.json()['products'] == []

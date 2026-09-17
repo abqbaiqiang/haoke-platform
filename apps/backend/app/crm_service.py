@@ -10,7 +10,8 @@ from sqlalchemy.exc import IntegrityError
 
 from app import crm_schemas as dto, services
 from app.config import get_settings
-from app.crm_models import Assignment, Contact, CRMSetting, CustomerClaim, CustomerTag, Followup, Opportunity, OpportunityProduct, Tag, Task
+from app.crm_models import Assignment, Contact, CRMSetting, CustomerClaim, CustomerTag, Followup, Opportunity, \
+    OpportunityProduct, Project, Tag, Task
 from app.data_models import Customer, Product, SalesOrder, SalesOrderLine
 from app.models import ActivityLog, User, utcnow
 from app.permissions import can_read_owned
@@ -538,12 +539,49 @@ def attach_products(db, rows):
         r.products = grouped.get(r.id, [])
 
 
-def opportunity_view(db, obj):
+def opportunity_view(db, obj, config=None):
     result = dto.OpportunityView.model_validate(obj)
     # OPP_WEIGHTED_AMT: only open opportunities contribute. No sales facts are changed.
     result.weighted_amount = weighted(obj.estimated_amount,obj.probability) if obj.status == 'open' else None
+    if obj.project_id:
+        project = db.get(Project, obj.project_id)
+        result.project_name = project.project_name if project else None
     attach_products(db, [result])
+    attach_stagnation(db, [result], [obj], config)
     return result
+
+
+def attach_stagnation(db, views, objs, config=None):
+    """停滞判定：开放项目既无“下一步推进”又无关联待办，超过 N 天未更新即标黄/标红（阈值入 CRM 设置）。"""
+    config = config or settings(db)
+    open_pairs = [(v, o) for v, o in zip(views, objs) if o.status == 'open' and not (o.next_promotion or '').strip()]
+    if not open_pairs:
+        return
+    counts = dict(db.execute(select(Task.opportunity_id, func.count()).where(
+        Task.opportunity_id.in_([o.id for _, o in open_pairs]), Task.status == 'todo')
+        .group_by(Task.opportunity_id)).all())
+    now = utcnow()
+    for v, o in open_pairs:
+        days = max(0, (now - o.updated_at).days)
+        v.stagnant_days = days
+        if not counts.get(o.id):
+            level = 'risk' if days >= config.stagnant_risk_days else 'warn' if days >= config.stagnant_warn_days else None
+            v.stagnant_level = level
+
+
+def cross_customer_conflicts(db, project_id, customer_id, product_ids):
+    """同项目下跨客户重复推荐同一产品：提醒岔开（不拦截）。月度取推荐创建月份。"""
+    links = db.execute(
+        select(OpportunityProduct.product_id, Product.product_name, Customer.customer_name, OpportunityProduct.created_at, Project.project_name)
+        .join(Opportunity, Opportunity.id == OpportunityProduct.opportunity_id)
+        .join(Project, Project.id == Opportunity.project_id)
+        .join(Product, Product.id == OpportunityProduct.product_id)
+        .join(Customer, Customer.id == Opportunity.customer_id)
+        .where(Opportunity.project_id == project_id, Opportunity.customer_id != customer_id,
+               OpportunityProduct.product_id.in_(set(product_ids)))).all()
+    return [dto.CrossCustomerConflict(product_id=pid, product_name=pname, project_name=project,
+                                      customer_name=cname, month=created.astimezone(TZ).strftime('%Y-%m'))
+            for pid, pname, cname, created, project in links]
 
 
 def save_opportunity(db, actor, cid, payload, oid=None):
@@ -559,11 +597,33 @@ def save_opportunity(db, actor, cid, payload, oid=None):
         raise HTTPException(409, '已关闭商机不能重新流转，请建立新商机')
     data = payload.model_dump()
     product_ids = data.pop('product_ids', [])
+    data.pop('confirm_cross_customer')
+    project_name = data.pop('project_name', None)
+    data.pop('project_id')
+    # 项目主档解析：优先挂到联想选中的已有项目；输入新名称则建主档（同项目多客户的入口）。
+    if payload.project_id:
+        project = db.get(Project, payload.project_id)
+        if not project or not project.is_active:
+            raise HTTPException(422, '所属项目不存在或已停用')
+    elif project_name:
+        project = Project(project_name=project_name, project_type=None, owner_user_id=payload.owner_user_id)
+        db.add(project)
+        db.flush()
+    else:
+        project = None
     for k,v in data.items():
         setattr(obj,k,v)
+    obj.project_id = project.id if project else payload.project_id
     obj.status = payload.stage if payload.stage in {'won','lost'} else 'open'
     if obj.status in {'won', 'lost'} and obj.closed_at is None:
         obj.closed_at = utcnow()
+    if obj.project_id and set(product_ids):
+        conflicts = cross_customer_conflicts(db, obj.project_id, cid, product_ids)
+        if conflicts and not payload.confirm_cross_customer:
+            names = [f"【{c.product_name}】已推荐给客户【{c.customer_name}】（{c.month}）" for c in conflicts]
+            raise HTTPException(409, {'code': 'cross_customer_product_conflict',
+                                      'message': f"同一项目下{'；'.join(names)}，建议本次岔开选品。仍要继续吗？",
+                                      'conflicts': [c.model_dump(mode='json') for c in conflicts]})
     db.add(obj)
     db.flush()
     existing = set(db.scalars(select(OpportunityProduct.product_id).where(OpportunityProduct.opportunity_id == obj.id)))
@@ -576,11 +636,50 @@ def save_opportunity(db, actor, cid, payload, oid=None):
         link = db.get(OpportunityProduct, (obj.id, pid))
         if link:
             db.delete(link)
+    # 没有下一步不能算健康项目：next_promotion 或关联待办至少其一（后端校验）。
+    if obj.status == 'open' and not (obj.next_promotion or '').strip():
+        has_task = db.scalar(select(func.count()).select_from(Task).where(Task.opportunity_id == obj.id, Task.status == 'todo'))
+        if not has_task:
+            raise HTTPException(422, '没有下一步不能算健康项目：请填写“下一步推进”，或为该项目创建一个待办后再保存')
     after = snapshot(obj)
     after['product_ids'] = sorted(set(product_ids))
     event(db, actor, 'opportunity_update' if oid else 'opportunity_create', cid, obj.id, before, after)
     db.commit()
     return opportunity_view(db, obj)
+
+
+def project_suggest(db, actor, q):
+    """项目名称联想（GET /api/crm/projects/suggest）：按名称前缀查主档，附客户数与产品摘要。"""
+    role(actor, ALL_WORK_ROLES)
+    rows = db.scalars(select(Project).where(Project.is_active, Project.project_name.istartswith(q, autoescape=True))
+                      .order_by(Project.updated_at.desc(), Project.id).limit(10)).all()
+    result = []
+    for p in rows:
+        customer_count = db.scalar(select(func.count(func.distinct(Opportunity.customer_id))).where(Opportunity.project_id == p.id)) or 0
+        product_names = db.execute(select(Product.product_name).join(OpportunityProduct, OpportunityProduct.product_id == Product.id)
+                                   .where(OpportunityProduct.opportunity_id.in_(select(Opportunity.id).where(Opportunity.project_id == p.id)))
+                                   .distinct().order_by(Product.product_name).limit(5)).scalars().all()
+        result.append(dto.ProjectSuggest(id=p.id, project_name=p.project_name, project_type=p.project_type,
+                                         customer_count=customer_count, product_summary='、'.join(product_names)))
+    return result
+
+
+def opportunity_summary(db, actor):
+    """项目列表顶部 5 指标：项目数/有效项目金额/加权金额/本月预计成交/停滞数（均为开放推荐记录口径）。"""
+    role(actor, ALL_WORK_ROLES)
+    objs = db.scalars(select(Opportunity).join(Customer, Customer.id == Opportunity.customer_id).where(
+        Customer.is_active, Opportunity.status == 'open', scope(db, actor, Opportunity.owner_user_id))).all()
+    views = [dto.OpportunityView.model_validate(o) for o in objs]
+    attach_stagnation(db, views, objs)
+    today = utcnow().astimezone(TZ).date()
+    next_month = (today.replace(day=28) + timedelta(days=7)).replace(day=1)
+    open_amount = sum((o.estimated_amount for o in objs if o.estimated_amount is not None), Decimal('0'))
+    weighted_total = sum((Decimal(weighted(o.estimated_amount, o.probability)) for o in objs
+                          if weighted(o.estimated_amount, o.probability) is not None), Decimal('0'))
+    return dto.OpportunitySummary(
+        open_count=len(objs), open_amount=format(open_amount, '.2f'), weighted_amount=format(weighted_total, '.2f'),
+        expected_this_month=sum(1 for o in objs if o.expected_close_date and today.replace(day=1) <= o.expected_close_date < next_month),
+        stagnant_count=sum(1 for v in views if v.stagnant_level))
 
 
 def detail(db, actor, cid, history_offset=0):

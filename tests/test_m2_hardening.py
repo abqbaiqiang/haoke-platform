@@ -23,7 +23,7 @@ def test_closed_timestamp_and_void_are_audited_idempotently(db, client, accounts
     sign_in('S1')
     p = follow_payload(next_action='明日联系', next_followup_at=(utcnow()+timedelta(days=1)).isoformat())
     f = client.post(f'/api/crm/customers/{c.id}/followups', json=p).json()
-    opp = {'opportunity_name':'礼品项目', 'owner_user_id':str(accounts['S1'].id)}
+    opp = {'opportunity_name':'礼品项目', 'owner_user_id':str(accounts['S1'].id), 'next_promotion':'本周内推进'}
     o = client.post(f'/api/crm/customers/{c.id}/opportunities', json=opp).json()
     assert o['closed_at'] is None
     opp['stage'] = 'won'

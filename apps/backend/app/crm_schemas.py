@@ -183,6 +183,8 @@ class OpportunityInput(DTO):
     # 阶段枚举（docs/31 第 2.A 节）：接触客户→推荐产品→选品→招投标→大单议价→交付→成交/流失；保留“大单议价”字眼。
     stage: Literal['contact', 'recommend', 'selection', 'bidding', 'negotiation', 'delivery', 'won', 'lost'] = 'contact'
     project_id: UUID | None = None
+    # 新建项目主档用：project_id 与 project_name 二选一；名称自由填写、无唯一约束。
+    project_name: Name | None = None
     estimated_amount: Amount | None = None
     probability: Probability | None = None
     expected_close_date: date | None = None
@@ -198,6 +200,8 @@ class OpportunityInput(DTO):
     current_blocker: Annotated[str, Field(max_length=255)] | None = None
     next_promotion: Annotated[str, Field(max_length=500)] | None = None
     product_ids: Annotated[list[UUID], Field(max_length=50)] = []
+    # 跨客户产品推荐冲突（同项目）仅为提醒不拦截；首次返回 409 + conflicts，确认后置 true 重发。
+    confirm_cross_customer: bool = False
 
 
 class OpportunityView(OpportunityInput):
@@ -207,6 +211,41 @@ class OpportunityView(OpportunityInput):
     weighted_amount: str | None = None
     closed_at: datetime | None
     products: list[ProductRef] = []
+    project_name: str | None = None
+    # 停滞：开放项目既无下一步推进又无关联待办，超过阈值天数标黄（warn）/标红（risk）。
+    stagnant_days: int | None = None
+    stagnant_level: Literal['warn', 'risk'] | None = None
+
+
+class ProjectSuggest(DTO):
+    """项目名称联想项：显示项目名 + 已关联客户数 + 推荐过的产品摘要。"""
+    id: UUID
+    project_name: str
+    project_type: str | None = None
+    customer_count: int = 0
+    product_summary: str = ""
+
+
+class CrossCustomerConflict(DTO):
+    product_id: UUID
+    product_name: str
+    project_name: str
+    customer_name: str
+    month: str
+
+
+class OpportunitySummary(DTO):
+    """项目列表顶部 5 指标（docs/31 第 1 期；口径均为开放推荐记录，不计入实际销售额）。"""
+    open_count: int
+    open_amount: str
+    weighted_amount: str
+    expected_this_month: int
+    stagnant_count: int
+
+
+# 各阶段默认成交概率（存储 0-1；界面按百分比换算展示，老板 2026-09-17 拍板的初始建议值，CRM 设置可调）。
+STAGE_PROBABILITY_DEFAULTS = {'contact': 0.10, 'recommend': 0.25, 'selection': 0.40, 'bidding': 0.55,
+                              'negotiation': 0.70, 'delivery': 0.90, 'won': 1.0, 'lost': 0.0}
 
 
 class Settings(DTO):
@@ -214,6 +253,10 @@ class Settings(DTO):
     allow_prospect_create: bool = False
     followup_edit_hours: int = Field(default=24, ge=0, le=720)
     public_pool_claim_enabled: bool = True
+    stage_probability: dict[str, float] = Field(default_factory=lambda: dict(STAGE_PROBABILITY_DEFAULTS))
+    # 停滞阈值：无下一步且超 N 天未更新 → 标黄 / 标红。
+    stagnant_warn_days: int = Field(default=7, ge=1, le=365)
+    stagnant_risk_days: int = Field(default=14, ge=1, le=365)
 
 
 class Person(DTO):

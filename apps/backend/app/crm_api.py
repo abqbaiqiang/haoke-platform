@@ -78,6 +78,16 @@ def followups(db: DB, actor: Actor, offset: int = Query(0,ge=0)):
         .order_by(Followup.occurred_at.desc(),Followup.id).offset(offset).limit(100)).all()
 
 
+@router.get('/projects/suggest', response_model=list[dto.ProjectSuggest])
+def project_suggest(db: DB, actor: Actor, q: str = Query('', max_length=100)):
+    return svc.project_suggest(db, actor, q)
+
+
+@router.get('/opportunities/summary', response_model=dto.OpportunitySummary)
+def opportunities_summary(db: DB, actor: Actor):
+    return svc.opportunity_summary(db, actor)
+
+
 @router.get('/opportunities', response_model=list[dto.OpportunityView])
 def opportunities(db: DB, actor: Actor, offset: int = Query(0,ge=0), owner_user_id: UUID | None = None,
                   status: Literal['open','won','lost','cancelled'] | None = None):

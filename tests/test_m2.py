@@ -101,7 +101,7 @@ def test_complete_sales_chain_and_audit(db,client,accounts,sign_in):
     assert client.patch(f'/api/crm/tasks/{tid}',json={'status':'done'}).json()['completed_at']==stamp
     assert db.scalar(select(func.count()).select_from(ActivityLog).where(ActivityLog.activity_type=='task_complete'))==1
     assert client.delete(f'/api/crm/customers/{cid}/followups/{f.json()["id"]}').status_code==405
-    opp = {'opportunity_name':'福利采购','owner_user_id':str(accounts['S1'].id),'estimated_amount':'100.10','probability':'0.5000'}
+    opp = {'opportunity_name':'福利采购','owner_user_id':str(accounts['S1'].id),'estimated_amount':'100.10','probability':'0.5000','next_promotion':'本周发送方案'}
     o = client.post(f'/api/crm/customers/{cid}/opportunities',json=opp)
     assert o.status_code == 201 and o.json()['weighted_amount']=='50.05', o.text
     opp.update(stage='lost',lost_reason='预算取消')
@@ -296,7 +296,7 @@ def test_role_matrix_all_process_resources(db,client,accounts,sign_in,name,read,
     sign_in('S1')
     f=client.post(f'/api/crm/customers/{obj.id}/followups',json=follow_payload())
     t=client.post('/api/crm/tasks',json={'title':'今天联系','assignee_user_id':str(accounts['S1'].id),'customer_id':str(obj.id),'due_at':utcnow().isoformat()})
-    o=client.post(f'/api/crm/customers/{obj.id}/opportunities',json={'opportunity_name':'项目','owner_user_id':str(accounts['S1'].id)})
+    o=client.post(f'/api/crm/customers/{obj.id}/opportunities',json={'opportunity_name':'项目','owner_user_id':str(accounts['S1'].id),'next_promotion':'本周推进'})
     assert (f.status_code,t.status_code,o.status_code)==(201,201,201)
     sign_in(name)
     for endpoint in ['followups','tasks','opportunities']:
@@ -307,7 +307,7 @@ def test_role_matrix_all_process_resources(db,client,accounts,sign_in,name,read,
     assert (client.post(f'/api/crm/customers/{obj.id}/followups',json=follow_payload()).status_code==201)==follow_write
     assert (client.post(f'/api/crm/customers/{obj.id}/contacts',json={'name':'联系人'}).status_code==201)==contact_write
     assert (client.patch(f'/api/crm/tasks/{t.json()["id"]}',json={'status':'done'}).status_code==200)==task_write
-    assert (client.put(f'/api/crm/customers/{obj.id}/opportunities/{o.json()["id"]}',json={'opportunity_name':'更新','owner_user_id':str(accounts['S1'].id)}).status_code==200)==opp_write
+    assert (client.put(f'/api/crm/customers/{obj.id}/opportunities/{o.json()["id"]}',json={'opportunity_name':'更新','owner_user_id':str(accounts['S1'].id),'next_promotion':'下周推进'}).status_code==200)==opp_write
 
 
 def test_task_assignment_denies_customer_without_access_and_date_boundaries(db,client,accounts,sign_in):
