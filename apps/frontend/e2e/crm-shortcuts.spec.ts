@@ -23,7 +23,7 @@ test.fixme('workbench preserves CRM view and person, open status and quick follo
   const title=`快捷待办 ${suffix}`;
   const task=await page.request.post('/api/crm/tasks',{headers,data:{title,customer_id:cid,assignee_user_id:uid,due_at:new Date().toISOString()}});
   expect(task.status()).toBe(201);
-  for(const stage of ['initial','won']){
+  for(const stage of ['contact','won']){
     const r=await page.request.post(`/api/crm/customers/${cid}/opportunities`,{headers,data:{opportunity_name:`快捷商机 ${stage} ${suffix}`,owner_user_id:uid,stage}});
     expect(r.status()).toBe(201);
   }
@@ -53,7 +53,7 @@ test.fixme('workbench preserves CRM view and person, open status and quick follo
     if(view) await expect(page.getByRole('button',{name:view,exact:true})).toHaveAttribute('aria-pressed','true');
     else {
       await expect(page.getByLabel('仅显示开放商机')).toBeChecked();
-      await expect(page.getByText(`快捷商机 initial ${suffix}`,{exact:true})).toBeVisible();
+      await expect(page.getByText(`快捷商机 contact ${suffix}`,{exact:true})).toBeVisible();
       await expect(page.getByText(`快捷商机 won ${suffix}`,{exact:true})).toHaveCount(0);
       await page.getByLabel('仅显示开放商机').uncheck();
       await expect(page.getByText(`快捷商机 won ${suffix}`,{exact:true})).toBeVisible();

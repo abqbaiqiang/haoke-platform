@@ -180,10 +180,19 @@ class ProductRef(DTO):
 class OpportunityInput(DTO):
     opportunity_name: Name
     owner_user_id: UUID
-    stage: Literal['initial', 'demand', 'quoted', 'negotiating', 'won', 'lost'] = 'initial'
+    # 阶段枚举（docs/31 第 2.A 节）：接触客户→推荐产品→选品→招投标→大单议价→交付→成交/流失；保留“大单议价”字眼。
+    stage: Literal['contact', 'recommend', 'selection', 'bidding', 'negotiation', 'delivery', 'won', 'lost'] = 'contact'
+    project_id: UUID | None = None
     estimated_amount: Amount | None = None
     probability: Probability | None = None
     expected_close_date: date | None = None
+    planned_contact_date: date | None = None
+    planned_recommend_date: date | None = None
+    planned_selection_date: date | None = None
+    planned_bidding_date: date | None = None
+    planned_negotiation_date: date | None = None
+    planned_delivery_date: date | None = None
+    delivery_ratio: Annotated[Decimal, Field(ge=0, le=100, max_digits=5, decimal_places=2)] | None = None
     need_summary: Note | None = None
     lost_reason: Annotated[str, Field(max_length=255)] | None = None
     current_blocker: Annotated[str, Field(max_length=255)] | None = None

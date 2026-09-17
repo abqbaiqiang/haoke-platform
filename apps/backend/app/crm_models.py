@@ -88,7 +88,22 @@ class Followup(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
 
 
+class Project(Base):
+    """项目主档：一个项目（如“2026 保险开门红”）可对应多家客户的推荐跟进。名称自由填写，无唯一约束。"""
+    __tablename__ = 'crm_project'
+    id: Mapped[uuid.UUID] = mapped_column(UUID, primary_key=True, default=uuid.uuid4)
+    project_name: Mapped[str] = mapped_column(String(255), index=True)
+    project_type: Mapped[str | None] = mapped_column(String(32))
+    owner_user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('sys_user.id'), index=True)
+    status: Mapped[str] = mapped_column(String(20), default='active')
+    remark: Mapped[str | None] = mapped_column(Text)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+
+
 class Opportunity(Base):
+    """项目 × 客户的推荐跟进记录（业务名叫“项目”，表名保留）。"""
     __tablename__ = 'crm_opportunity'
     __table_args__ = (CheckConstraint('probability >= 0 AND probability <= 1', name='ck_crm_probability'),
                       CheckConstraint('estimated_amount >= 0', name='ck_crm_amount'))
@@ -96,11 +111,19 @@ class Opportunity(Base):
     customer_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('customer.id'), index=True)
     owner_user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('sys_user.id'), index=True)
     opportunity_name: Mapped[str] = mapped_column(String(255))
-    stage: Mapped[str] = mapped_column(String(24), default='initial')
+    project_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey('crm_project.id'), index=True)
+    stage: Mapped[str] = mapped_column(String(24), default='contact')
     status: Mapped[str] = mapped_column(String(20), default='open')
     estimated_amount: Mapped[Decimal | None] = mapped_column(Numeric(18, 2))
     probability: Mapped[Decimal | None] = mapped_column(Numeric(5, 4))
     expected_close_date: Mapped[date | None] = mapped_column(Date)
+    planned_contact_date: Mapped[date | None] = mapped_column(Date)
+    planned_recommend_date: Mapped[date | None] = mapped_column(Date)
+    planned_selection_date: Mapped[date | None] = mapped_column(Date)
+    planned_bidding_date: Mapped[date | None] = mapped_column(Date)
+    planned_negotiation_date: Mapped[date | None] = mapped_column(Date)
+    planned_delivery_date: Mapped[date | None] = mapped_column(Date)
+    delivery_ratio: Mapped[Decimal | None] = mapped_column(Numeric(5, 2))
     need_summary: Mapped[str | None] = mapped_column(Text)
     lost_reason: Mapped[str | None] = mapped_column(String(255))
     current_blocker: Mapped[str | None] = mapped_column(String(255))

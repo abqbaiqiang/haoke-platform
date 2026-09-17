@@ -107,7 +107,7 @@ def test_complete_sales_chain_and_audit(db,client,accounts,sign_in):
     opp.update(stage='lost',lost_reason='预算取消')
     closed = client.put(f'/api/crm/customers/{cid}/opportunities/{o.json()["id"]}',json=opp)
     assert closed.json()['status']=='lost'
-    opp['stage']='initial'
+    opp['stage']='contact'
     assert client.put(f'/api/crm/customers/{cid}/opportunities/{o.json()["id"]}',json=opp).status_code==409
     events = client.get(f'/api/crm/customers/{cid}').json()['events']
     assert {'followup_create','followup_update','task_complete','opportunity_create','opportunity_update'} <= {x['activity_type'] for x in events}

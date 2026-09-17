@@ -190,9 +190,9 @@ def test_workbench_crm_filters_only_narrow_authorized_scope(db, client, accounts
         c = make_customer(db, accounts[staff].id, staff+'客户')
         db.add(Task(customer_id=c.id,assignee_user_id=accounts[staff].id,title=staff+'待办',due_at=utcnow(),
                     source_type='manual',created_by=accounts[staff].id,task_type='followup'))
-        for stage in ['initial','won']:
+        for stage in ['contact','won']:
             db.add(Opportunity(customer_id=c.id,owner_user_id=accounts[staff].id,opportunity_name=staff+stage,
-                               stage=stage,status='open' if stage=='initial' else 'won'))
+                               stage=stage,status='open' if stage=='contact' else 'won'))
     db.commit()
     sign_in(actor)
     for path, key in [('tasks','assignee_user_id'),('opportunities','owner_user_id')]:

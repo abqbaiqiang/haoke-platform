@@ -301,7 +301,7 @@ def test_opportunity_products_roundtrip_and_recent_list(db, client, accounts, si
     db.add_all([p1, p2, p3])
     db.commit()
     sign_in('S1')
-    body = {'opportunity_name': '春节礼盒', 'owner_user_id': str(accounts['S1'].id), 'stage': 'quoted',
+    body = {'opportunity_name': '春节礼盒', 'owner_user_id': str(accounts['S1'].id), 'stage': 'recommend',
             'estimated_amount': '5000.00', 'product_ids': [str(p1.id), str(p2.id)],
             'current_blocker': '等待客户确认预算', 'next_promotion': '9月17日发送3套8万元食品方案'}
     r = client.post(f'/api/crm/customers/{mine.id}/opportunities', json=body)
@@ -326,9 +326,9 @@ def test_opportunity_products_roundtrip_and_recent_list(db, client, accounts, si
     data = client.get('/api/sales/opportunities?days=30&limit=10').json()
     assert data['total'] == 1
     row = data['rows'][0]
-    assert row['customer_name'] == 'S1客户' and row['stage'] == 'quoted'
+    assert row['customer_name'] == 'S1客户' and row['stage'] == 'recommend'
     assert [p['name'] for p in row['products']] == ['坐姿椅']
     # 不带产品的历史调用不受影响
     r = client.post(f'/api/crm/customers/{mine.id}/opportunities',
-                    json={'opportunity_name': '无产品商机', 'owner_user_id': str(accounts['S1'].id), 'stage': 'initial'})
+                    json={'opportunity_name': '无产品商机', 'owner_user_id': str(accounts['S1'].id), 'stage': 'contact'})
     assert r.status_code == 201 and r.json()['products'] == []
