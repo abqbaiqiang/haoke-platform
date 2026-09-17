@@ -1,5 +1,18 @@
 # Project Task Status
 
+## 2026-09-17 Admin console refactor Phase 0+1 (docs/31, awaiting owner acceptance)
+
+- [x] Phase 0 design baseline (commit 72f5ed1): globals.css design tokens (spacing 4-24, status colors success/warning/risk, type scale 24/16/14/12, KPI 28, table row 44, control 40; existing tokens untouched) + shared classes (page-head/filter-bar/kpi-card/panel-card/table-dense/status-tag/empty-hint); docs/31 Appendix B token mapping (keep existing palette, adopt rules only); no business/E2E changes
+- [x] Phase 1-1 nav convergence (b325974): sidebar 4 groups 经营中心/客户经营/管理后台/系统; 日历与分析设置 merged into 目标与日历; bi.tsx duplicate "分析导航" top tabs removed (进入客户与待办 moved to page head), dead .bi-tabs CSS cleaned; bi.spec/cockpit.spec entries updated
+- [x] Phase 1-3a data model (8061e0f): Alembic 0011 crm_project master (free-form name, no unique constraint) + crm_opportunity project_id/6 milestone dates/delivery_ratio; stage enum contact→recommend→selection→bidding→negotiation→delivery→won/lost; migration wipes legacy opportunity/product rows (owner-approved; JSON backup of 4 rows taken pre-migration); local dev DB upgraded, roundtrip/model-compare green
+- [x] Phase 1-3b backend services (321e0ef): GET /api/crm/projects/suggest (prefix + customer count + product summary); cross-customer product conflict 409 + structured conflicts, confirm to proceed (warn-only); stagnation (open + no next step + no linked todo, ≥7d warn/≥14d risk, thresholds in CRM settings); next-step-required validation; GET /api/crm/opportunities/summary 5 metrics; CRM settings stage_probability (stored 0-1) + stagnation thresholds; tests/test_project.py
+- [x] Phase 1-3c/d/e frontend (2ebcf87): site-wide 商机→项目 wording (metric codes unchanged); percentage probability UI with per-stage auto-fill from settings; project name suggest component (pick existing = multi-customer project entry); conflict confirm dialog coexisting with same-customer reminder; project list 5 KPI cards + stagnation tags + milestone timeline + delivery ratio; promote editor preserves project/milestone fields; docs/03/04 dictionary synced
+- [x] Phase 1-4 cockpit (5a12d52): 项目管道 panel (5 metrics + stage funnel, empty state with why-empty + next step; stagnation thresholds aligned with CRM settings, fixed 500 from using BI settings); 需要关注 enhanced (target gap / dormant-lost customers / stagnant projects / overdue tasks, each with object+reason+suggested action+entry routing)
+- [x] Regression per commit: ruff clean, pytest 267→273 passed (7 new project tests), tsc/next build/bundle green, E2E 38 passed / 10 skipped (local stack backend restarted after each backend change); bi.spec double-table strict-mode conflict fixed (pre-existing flaky assertion)
+- [ ] Pending owner: screenshot acceptance of Phase 0 baseline and Phase 1 pages; per docs/31 the kanban (stage columns) view is deferred to Phase 2 by plan
+- [ ] Note: /api/bi/team per-person×per-source compute and Docker acceptance remain pre-existing separate items
+
+
 ## 2026-09-17 Product margin report (Route A, per owner decision)
 
 - [x] Sales import now parses the 最近一次采购价 column (100% filled in real exports; 参考成本/预估毛利 columns are empty in current exports) into the reserved actual_cost_amount column (line cost = price × quantity; no migration)
