@@ -1,29 +1,20 @@
 "use client";
 
-import { Fragment, useEffect, useRef, useState } from "react";
-import { currentMonth, longDate, stamp } from "./lib/format";
+import { useEffect, useRef, useState } from "react";
+import { currentMonth, longDate } from "./lib/format";
 import { api, useData } from "./lib/api";
 
 import type { AttentionPage, CustomerRow as Customer, FollowupRow as Follow, OrderRow as Order, Page, TaskPage, TaskRow as Task, User } from "./lib/types";
-import { Empty, Icon, Modal, Panel, Pager, yoySpan, money } from "./sales/ui";
-import { PerfChart } from "./sales/perf-chart";
+import { Empty, Icon, Modal, Pager, yoySpan, money } from "./sales/ui";
 import { QuickFollow } from "./sales/quick-follow";
-import type { Data, DialogState, OppRow, Route, Screen, TrendPoint, Work } from "./sales/types";
+import type { Analysis, Data, DialogState, OrderDetail, OppRow, PerfPreset, Performance, Route, Screen, Source, Work } from "./sales/types";
+import { PerformanceScreen } from "./sales/performance-screen";
 import { RecentTable } from "./sales/recent-table";
 import { WorkbenchScreen } from "./sales/workbench-screen";
 import { TasksScreen } from "./sales/tasks-screen";
 import { CustomersScreen } from "./sales/customers-screen";
 import { SalesDialog } from "./sales/sales-dialog";
 
-type OrderDetail = {order_no:string;customer:string;amount:string;lines:{line_no:number;quantity:string;amount:string}[]};
-type PerfPreset = "this"|"last"|"quarter"|"year";
-type TopCustomer={id:string;name:string;amount:string|null;last_year:string|null;yoy:string|null};
-type ProductRow={name:string;amount:string|null;yoy:string|null;customers:number|null};
-type FunnelStage={stage:string;current:number|null;prev:number|null};
-type RiskCount={kind:string;count:number};
-type Performance={through:string|null;verified:boolean;warnings:string[];month_amount:string|null;target_amount:string|null;completion:string|null;last_year_amount:string|null;yoy:string|null;remaining:string|null;workdays_remaining:number|null;daily_required:string|null;risks:RiskCount[];trend:TrendPoint[];key_metrics:Record<string,string|null>;top_customers:TopCustomer[];structure:Record<string,string|number|null>;products:ProductRow[];funnel:FunnelStage[]};
-type Source = {id:string;name:string};
-type Analysis = {basis:string; through:string; warnings:string[]; trend:{date:string;value:string}[]; rows:{id:string;name:string;current:string}[];total_rows:number};
 const titles:Record<Screen,string> = {workbench:"工作台",customers:"客户",tasks:"待办",performance:"我的业绩"};
 function perfRange(preset:PerfPreset,month:string):{from:string;to:string;label:string} {const [y,m]=month.split("-").map(Number);const pad=(n:number)=>String(n).padStart(2,"0");const ym=(yy:number,mm:number)=>`${yy}-${pad(mm)}-01`;if(preset==="last"){const yy=m===1?y-1:y,mm=m===1?12:m-1;return {from:ym(yy,mm),to:ym(yy,mm),label:"上月"};}if(preset==="quarter")return {from:ym(y,Math.floor((m-1)/3)*3+1),to:ym(y,m),label:"本季度"};if(preset==="year")return {from:ym(y,1),to:ym(y,m),label:"今年"};return {from:ym(y,m),to:ym(y,m),label:"本月"};}
 function readRoute():Route {const [path,query=""]=window.location.hash.slice(1).split("?");const p=new URLSearchParams(query);if(path==="sales"){const s=p.get("view") as Screen;return {screen:s in titles?s:"workbench",pool:p.get("pool")==="1",customerId:p.get("customer")||undefined,q:p.get("q")||undefined,taskView:p.get("tasks")||undefined};}if(path==="crm"){try{const e=JSON.parse(p.get("crm")||"{}");return {screen:e.tab==="tasks"?"tasks":"customers",pool:e.tab==="pool",customerId:e.customerId,taskView:e.taskView};}catch{return {screen:"customers"};}}if(path==="bi"&&p.get("tab")&&p.get("tab")!=="workbench")return {screen:"performance"};return {screen:"workbench"};}
@@ -68,69 +59,6 @@ export default function SalesWorkspace({user,onSignOut}:{user:User;onSignOut:()=
  {screen==="workbench"&&<WorkbenchScreen work={work} focusToday={focusToday} focusOverdue={focusOverdue} attention={attention} oppRecent={oppRecent} recent={recent} go={go} record={record} busy={busy} onQuickSaved={m=>{setNotice(m);setRevision(n=>n+1);}} onShowRecent={()=>{setShowRecent(true);setRecentOffset(0);}}/>}
  {screen==="customers"&&<CustomersScreen route={route} customers={customers} user={user} revision={revision} offset={offset} onOffsetChange={setOffset} pageSize={pageSize} onPageSizeChange={setPageSize} claimFilter={claimFilter} onClaimFilterChange={setClaimFilter} poolIds={poolIds} onPoolIdsChange={setPoolIds} levelFilter={levelFilter} onLevelFilterChange={setLevelFilter} tagFilter={tagFilter} onTagFilterChange={setTagFilter} searchInput={searchInput} setSearchInput={setSearchInput} onSearchInput={v=>{setSearchInput(v);clearTimeout(searchTimer.current);searchTimer.current=window.setTimeout(()=>liveSearch(v.trim()),400);}} liveSearch={liveSearch} tagList={tagList} busy={busy} run={run} record={record} go={go}/>}
  {screen==="tasks"&&<TasksScreen taskData={taskData} taskOffset={taskOffset} onOffsetChange={setTaskOffset} taskView={taskView} onViewChange={key=>{setTaskView(key);setTaskOffset(0);window.history.replaceState(null,"",href({...route,taskView:key}));}} go={go} record={record} completeTask={completeTask} onDefer={t=>setDialog({kind:"defer",task:t})} run={run} busy={busy}/>}
- {screen==="performance"&&(()=>{const p=perf.data,st=p?.structure;const oldRatio=st?.old_ratio!=null?Number(st.old_ratio):null,newRatio=st?.new_ratio!=null?Number(st.new_ratio):null;
-  return <div className="perf-root">
-   <div className="perf-toolbar">
-    <div className="perf-presets" role="group" aria-label="统计期间">{([["this","本月"],["last","上月"],["quarter","本季度"],["year","今年"]] as [PerfPreset,string][]).map(([k,label])=><button key={k} aria-pressed={perfPreset===k} onClick={()=>setPerfPreset(k)}>{label}</button>)}</div>
-    <label>统计月份<input type="month" max={currentMonth()} value={perfPreset==="this"?month:perfRangeValue.from.slice(0,7)} disabled={perfPreset!=="this"} onChange={e=>{setMonth(e.target.value||currentMonth());setPerfPreset("this");}}/></label>
-    {(sources.data?.length||0)>1&&<label>交易来源<select value={currentSource} onChange={e=>setSource(e.target.value)}>{sources.data?.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select></label>}
-   </div>
-   {!sources.loading&&!sources.data?.length&&<Panel title="交易数据"><Empty>暂无可见交易来源。CRM 客户与跟进仍可使用，请联系老板核实销售人员映射。</Empty></Panel>}
-   <div className="perf-hero-row">
-    <section className="sales-panel perf-hero">
-     {p?<div className="perf-hero-main">
-      <div className="perf-hero-primary">
-       <span className="perf-hero-label">{perfRangeValue.label}销售额</span>
-       <strong className="perf-hero-amount">{money(p.month_amount)}</strong>
-       <div className="perf-hero-target"><span>目标 {money(p.target_amount)}</span><div className="sales-progress" role="img" aria-label={p.completion!=null?`目标完成率 ${p.completion}%`:"目标完成率暂不可用"}><i style={{width:`${p.completion!=null?Math.max(0,Math.min(100,Number(p.completion))):0}%`}}/></div><span>完成率 {p.completion!=null?`${p.completion}%`:"—"}</span></div>
-      </div>
-      <div className="perf-hero-yoy"><span>同比（较去年同期）</span><strong className={`perf-yoy-value${p.yoy==null?"":Number(p.yoy)>=0?" up":" down"}`}>{p.yoy==null?"—":`${Number(p.yoy)>=0?"+":""}${p.yoy}%`}</strong><span>去年同期 {money(p.last_year_amount)}</span></div>
-      <div className="perf-hero-aux">
-       <div><span>距目标还差</span><strong>{money(p.remaining)}</strong></div>
-       <div><span>剩余工作日</span><strong>{p.workdays_remaining!=null?`${p.workdays_remaining} 天`:"—"}</strong></div>
-       <div><span>日均需完成</span><strong>{money(p.daily_required)}</strong></div>
-      </div>
-     </div>:<Empty>{perf.loading?"正在加载业绩…":"暂无业绩数据。"}</Empty>}
-     <details className="sales-definition"><summary>业绩口径与数据状态</summary>{p&&<><p>截至 {p.through??"—"}{p.verified?" · 数据已核实":" · 数据待核实"}。</p>{p.warnings.map(w=><p key={w}>{w}</p>)}{p.last_year_amount===null&&<p>导入历史不足去年同期，同比暂不可比。</p>}</>}</details>
-    </section>
-    <section className="sales-panel perf-risk">
-     <div className="wb-panel-head"><h2>需要重点关注</h2><button onClick={()=>go({screen:"customers"})}>查看全部 →</button></div>
-     {p?.risks.length?<ul className="perf-risk-list">{p.risks.map(r=><li key={r.kind}><button onClick={()=>go({screen:"customers"})}><span>{r.kind}</span><strong>{r.count} 家</strong></button></li>)}</ul>:<Empty>{perf.loading?"正在加载…":"暂无客户风险提醒。"}</Empty>}
-    </section>
-   </div>
-   <div className="perf-mid">
-    <section className="sales-panel perf-trend">
-     <div className="wb-panel-head"><h2>销售趋势</h2><div className="perf-trend-toggle">{([6,12] as const).map(n=><button key={n} aria-pressed={perfMonths===n} onClick={()=>setPerfMonths(n)}>{n===6?"近 6 个月":"近 12 个月"}</button>)}</div></div>
-     {p?<PerfChart points={p.trend}/>:<Empty>{perf.loading?"正在加载趋势…":"暂无趋势数据。"}</Empty>}
-     <p className="sales-note">当前月截至 {p?.through??"—"}，未结束月份不与完整历史月直接比较。</p>
-    </section>
-    <section className="sales-panel perf-key">
-     <div className="wb-panel-head"><h2>{perfRangeValue.label}关键数据</h2></div>
-     <ul className="perf-key-list">{[["成交客户数","deal_customers"],["新客户数","new_customers"],["跟进客户数","followup_customers"],["有效沟通","effective"],["报价客户数","quoted_customers"],["老客户复购","repeat_customers"]].map(([label,k])=><li key={k}><span>{label}</span><strong>{p?.key_metrics[k]??"—"}</strong></li>)}</ul>
-    </section>
-    <section className="sales-panel perf-top">
-     <div className="wb-panel-head"><h2>TOP 5 客户</h2><button onClick={()=>{setAllCustomerOffset(0);setShowAllCustomers(true);}}>查看全部 →</button></div>
-     {p?.top_customers.length?<div className="sales-table-scroll"><table className="sales-table"><thead><tr><th>#</th><th>客户名称</th><th>{perfRangeValue.label}销售额</th><th>去年同期</th><th>同比</th></tr></thead><tbody>{p.top_customers.map((t,i)=><tr key={t.id}><td>{i+1}</td><td><button className="sales-customer-link" onClick={()=>go({screen:"customers",customerId:t.id})}>{t.name}</button></td><td>{money(t.amount)}</td><td>{money(t.last_year)}</td><td>{yoySpan(t.yoy)}</td></tr>)}</tbody></table></div>:<Empty>{perf.loading?"正在加载客户…":"暂无成交客户。"}</Empty>}
-    </section>
-   </div>
-   <div className="perf-bottom">
-    <section className="sales-panel perf-structure">
-     <h2>客户结构</h2>
-     {st?<><div className="perf-structure-bar" role="img" aria-label={oldRatio!=null||newRatio!=null?`老客户销售额占比 ${st.old_ratio??"—"}%，新客户销售额占比 ${st.new_ratio??"—"}%`:"客户结构暂无数据"}>{oldRatio==null&&newRatio==null?<i style={{width:"100%",background:"#d8dee7"}}/>:<>{oldRatio!=null&&<i style={{width:`${oldRatio}%`,background:"#0b62d8"}}><span>{st.old_ratio}%</span></i>}{newRatio!=null&&<i style={{width:`${newRatio}%`,background:"#2fa46a"}}><span>{st.new_ratio}%</span></i>}{(oldRatio==null||newRatio==null)&&<i style={{width:`${100-(oldRatio??0)-(newRatio??0)}%`,background:"#d8dee7"}}/>}</>}</div>
-      <div className="perf-structure-legend"><span><i style={{background:"#0b62d8"}} aria-hidden/>老客户销售额</span><span><i style={{background:"#2fa46a"}} aria-hidden/>新客户销售额</span></div>
-      <div className="perf-structure-stats"><div><span>新增客户</span><strong>{st.new_customers??"—"}</strong></div><div><span>新客户成交</span><strong>{st.new_deals??"—"}</strong></div><div><span>老客户复购</span><strong>{st.repeat_customers??"—"}</strong></div><div><span>TOP5客户贡献</span><strong>{st.top5_share!=null?`${st.top5_share}%`:"—"}</strong></div></div></>:<Empty>{perf.loading?"正在加载客户结构…":"暂无客户结构数据。"}</Empty>}
-    </section>
-    <section className="sales-panel perf-products">
-     <div className="wb-panel-head"><h2>商品销售 TOP 5</h2><button onClick={()=>setShowAllProducts(true)}>查看全部 →</button></div>
-     {p?.products.length?<table className="sales-table"><thead><tr><th>#</th><th>商品</th><th>{perfRangeValue.label}销售额</th><th>同比</th><th>成交客户数</th></tr></thead><tbody>{p.products.map((pr,i)=><tr key={pr.name}><td>{i+1}</td><td>{pr.name}</td><td>{money(pr.amount)}</td><td>{yoySpan(pr.yoy)}</td><td>{pr.customers??"—"}</td></tr>)}</tbody></table>:<Empty>{perf.loading?"正在加载商品…":"暂无商品销售数据。"}</Empty>}
-    </section>
-    <section className="sales-panel perf-funnel">
-     <div className="wb-panel-head"><h2>{perfRangeValue.label}销售动作转化</h2></div>
-     {p?.funnel.length?<div className="perf-funnel-flow">{p.funnel.map((f,i)=><Fragment key={f.stage}>{i>0&&<span className="perf-funnel-arrow" aria-hidden>→</span>}<div className="perf-funnel-stage"><span>{f.stage}</span><strong>{f.current??"—"}</strong>{f.prev!=null&&f.prev>0&&f.current!=null?<small>较上月 {f.current>=f.prev?"+":""}{f.current-f.prev}</small>:null}</div></Fragment>)}</div>:<Empty>{perf.loading?"正在加载转化数据…":"暂无转化数据。"}</Empty>}
-     <p className="sales-note">有需求＝本月沟通结果为“沟通顺利”的去重客户数。</p>
-    </section>
-   </div>
-   <details className="sales-definition perf-orders"><summary>精斗云交易记录（原始单据）</summary><p className="sales-note">原始单据金额与状态，不等于核实后的业绩；跟进记录在工作台单独查看。</p>{orders.loading?<Empty>正在加载交易记录…</Empty>:orders.data?.rows.length?<div className="sales-table-scroll"><table className="sales-table"><thead><tr><th>日期</th><th>单号</th><th>原始金额</th><th>来源状态</th><th>操作</th></tr></thead><tbody>{orders.data.rows.map(o=><tr key={o.id}><td>{o.date}</td><td>{o.number}</td><td>{money(o.amount)}</td><td>{o.status}</td><td><button className="sales-customer-link" onClick={()=>setOrderId(o.id)}>查看明细</button></td></tr>)}</tbody></table></div>:<Empty>该期间暂无可见交易记录。</Empty>}<Pager offset={orderOffset} total={orders.data?.total||0} size={30} onChange={setOrderOffset}/></details>
-  </div>;})()}
+ {screen==="performance"&&<PerformanceScreen perf={perf} sources={sources} currentSource={currentSource} onSourceChange={setSource} perfPreset={perfPreset} onPresetChange={setPerfPreset} perfMonths={perfMonths} onMonthsChange={setPerfMonths} month={month} onMonthChange={v=>{setMonth(v||currentMonth());setPerfPreset("this");}} perfRangeValue={perfRangeValue} orders={orders} orderOffset={orderOffset} onOrderOffsetChange={setOrderOffset} onOrderDetail={setOrderId} allCustomerOffset={allCustomerOffset} onAllCustomerOffsetChange={setAllCustomerOffset} onShowAllCustomers={()=>{setAllCustomerOffset(0);setShowAllCustomers(true);}} onShowAllProducts={()=>setShowAllProducts(true)} go={go}/>}
  </main></div>{orderId&&<Modal title="交易明细" close={()=>setOrderId("")}><div className="sales-order-detail">{orderDetail.loading&&<Empty>正在加载明细…</Empty>}{orderDetail.error&&<p role="alert">{orderDetail.error}</p>}{orderDetail.data&&<><h3>{orderDetail.data.order_no}</h3><p>{orderDetail.data.customer} · 原始金额 {money(orderDetail.data.amount)}</p><table className="sales-table"><thead><tr><th>行号</th><th>数量</th><th>原始金额</th></tr></thead><tbody>{orderDetail.data.lines.map(l=><tr key={l.line_no}><td>{l.line_no}</td><td>{l.quantity}</td><td>{money(l.amount)}</td></tr>)}</tbody></table></>}</div></Modal>}{dialog&&<SalesDialog state={dialog} user={user} close={()=>setDialog(null)} saved={(message)=>{setDialog(null);setNotice(message);setRevision(n=>n+1);}} switchToFollow={(t)=>setDialog({kind:"follow",task:t})}/>}{showRecent&&<Modal title="我的跟进记录" close={()=>setShowRecent(false)}>{recent.error&&<p role="alert">{recent.error}</p>}<RecentTable recent={recent} go={go}/><Pager offset={recentOffset} total={recent.data?.total||0} onChange={setRecentOffset}/></Modal>}{showAllCustomers&&<Modal title="全部成交客户" close={()=>setShowAllCustomers(false)}><p className="sales-note">按已核实销售单口径统计，与 TOP 5 客户同一数据来源。</p>{allCustomers.error&&<p role="alert">{allCustomers.error}</p>}{allCustomers.loading?<Empty>正在加载客户…</Empty>:allCustomers.data?.rows.length?<div className="sales-table-scroll"><table className="sales-table"><thead><tr><th>#</th><th>客户名称</th><th>{perfRangeValue.label}销售额</th></tr></thead><tbody>{allCustomers.data.rows.map((r,i)=><tr key={r.id}><td>{allCustomerOffset+i+1}</td><td><button className="sales-customer-link" onClick={()=>{setShowAllCustomers(false);go({screen:"customers",customerId:r.id});}}>{r.name}</button></td><td>{money(r.current)}</td></tr>)}</tbody></table></div>:<Empty>暂无已核实成交数据。不会用示例数字补齐。</Empty>}<Pager offset={allCustomerOffset} total={allCustomers.data?.total_rows||0} onChange={setAllCustomerOffset}/></Modal>}{showAllProducts&&<Modal title="商品销售排行" close={()=>setShowAllProducts(false)}><p className="sales-note">业绩接口仅返回前 5，此处仅展示前 5，不做数据补齐。</p>{perf.data?.products.length?<table className="sales-table"><thead><tr><th>#</th><th>商品</th><th>{perfRangeValue.label}销售额</th><th>同比</th><th>成交客户数</th></tr></thead><tbody>{perf.data.products.map((pr,i)=><tr key={pr.name}><td>{i+1}</td><td>{pr.name}</td><td>{money(pr.amount)}</td><td>{yoySpan(pr.yoy)}</td><td>{pr.customers??"—"}</td></tr>)}</tbody></table>:<Empty>暂无商品销售数据。</Empty>}</Modal>}</div>;
 }
