@@ -84,7 +84,7 @@ export default function CustomerAnalyticsPanel({ role, source, openCustomer }: {
         </section>
       </div>
       <section className="card"><h2>客户分层（RFM）</h2>
-        <p className="muted">R=近期有成交为高、F=成交频繁为高、M=金额贡献不低于客户人均为高；具体阈值由老板在“日历与分析设置”中调整。</p>
+        <p className="muted">R=近期有成交为高、F=成交频繁为高、M=金额贡献不低于客户人均为高；具体阈值由老板在“目标与日历”中调整。</p>
         <div className="bi-table-wrap"><table>
           <thead><tr><th>分层</th><th>客户数</th><th>源销售金额</th><th>金额占比</th><th>经营建议</th></tr></thead>
           <tbody>{data.segments.map(s => <tr key={s.layer}>

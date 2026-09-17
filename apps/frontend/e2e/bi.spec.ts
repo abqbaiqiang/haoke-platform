@@ -20,7 +20,6 @@ async function login(page: Page, role: string) {
   await page.getByLabel("密码", { exact: true }).fill(process.env.DEMO_PASSWORD!);
   await page.getByRole("button", { name: "登录", exact: true }).click();
   await openAccountMenu(page, role);
-  if (role !== "sales") await page.getByRole("navigation", { name: "主导航" }).getByRole("link", { name: "销售工作台", exact: true }).click();
 }
 const origin = () => ({ Origin: process.env.E2E_BASE_URL || "http://localhost:3000" });
 
@@ -53,6 +52,9 @@ test("M3 target save, workbench, team and CRM navigation", async ({ page }) => {
   test.setTimeout(90000);
   await login(page, "owner");
   const salesStaff = await findStaff(page, "demo_sales");
+  // 个人工作台不再有左侧一级入口（导航 4 组收敛）：经“团队执行”点人员名进入。
+  await page.getByRole("navigation", { name: "主导航" }).getByRole("link", { name: "打开团队执行", exact: true }).click();
+  await page.getByRole("button", { name: salesStaff.display_name, exact: true }).click();
   await page.getByLabel("查看人员").selectOption(salesStaff.id);
   await page.getByLabel("统计月份").fill("2026-08");
   const form = page.getByRole("form", { name: "设置销售目标" });
@@ -99,6 +101,7 @@ test("M3 imported sales chart, drilldown and explicit source review", async ({ p
   await expect(page.getByRole("cell", { name: "BI测试客户", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "退出登录" }).click();
   await login(page, "admin");
+  await page.getByRole("navigation", { name: "主导航" }).getByRole("link", { name: "打开目标与日历", exact: true }).click();
   await page.getByLabel("分析数据源").selectOption(src.id);
   const review = page.getByRole("form", { name: "销售数据核实" });
   await review.getByLabel("完整覆盖起日").fill("2026-08-01");
@@ -130,6 +133,7 @@ test("M3 imported sales chart, drilldown and explicit source review", async ({ p
 
 test("M3 admin calendar persists and sales request retries", async ({ page }) => {
   await login(page, "admin");
+  await page.getByRole("navigation", { name: "主导航" }).getByRole("link", { name: "打开目标与日历", exact: true }).click();
   await page.getByLabel("例外日期").fill("2026-09-12");
   await page.getByLabel("该日安排").selectOption("work");
   await page.getByRole("button", { name: "加入日历例外" }).click();

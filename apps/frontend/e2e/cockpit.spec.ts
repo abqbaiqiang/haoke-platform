@@ -62,7 +62,7 @@ test("Cockpit real imports, chart switch, customer drilldown and responsive layo
     expect(toolbar!.y + toolbar!.height).toBeLessThanOrEqual(body!.y);
   }
   await page.screenshot({ path: `../../.tools/qa/analytics-fixed-${info.project.name}.png`, fullPage: true });
-  await page.getByRole("navigation", { name: "分析导航" }).getByRole("button", { name: "销售分析", exact: true }).click();
+  await page.getByRole("navigation", { name: "主导航" }).getByRole("link", { name: "打开销售分析", exact: true }).click();
   await expect(page).toHaveURL(/#bi\?tab=sales$/);
   await page.reload();
   await expect(page.getByLabel("分析维度")).toBeVisible();
@@ -74,7 +74,7 @@ test("Cockpit real imports, chart switch, customer drilldown and responsive layo
 test("Owner can maintain RFM parameters and CRM settings through real navigation", async ({ page }) => {
   await login(page);
   const nav = page.getByRole("navigation", { name: "主导航" });
-  await nav.getByRole("link", { name: "打开日历与分析设置", exact: true }).click();
+  await nav.getByRole("link", { name: "打开目标与日历", exact: true }).click();
   const form = page.getByRole("form", { name: "工作日历与指标参数" });
   await form.getByLabel("RFM 近期成交阈值（天）").fill("75");
   await form.getByLabel("RFM 高频成交阈值（单）").fill("4");

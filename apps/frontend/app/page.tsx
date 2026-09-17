@@ -158,14 +158,14 @@ export default function Home() {
     const params = new URLSearchParams();
     if (tab) params.set("tab", tab);
     if (entry) params.set("crm", JSON.stringify(entry));
-    return <a href={`#${next}${params.size ? "?" + params : ""}`} aria-label={["销售分析","客户分析","团队执行","日历与分析设置","CRM 设置"].includes(label) ? "打开" + label : undefined} aria-current={active ? "page" : undefined} onClick={e => { e.preventDefault(); navigate(next, tab, entry); }}><NavIcon label={label} />{label}</a>;
+    return <a href={`#${next}${params.size ? "?" + params : ""}`} aria-label={["销售分析","客户分析","团队执行","目标与日历","CRM 设置"].includes(label) ? "打开" + label : undefined} aria-current={active ? "page" : undefined} onClick={e => { e.preventDefault(); navigate(next, tab, entry); }}><NavIcon label={label} />{label}</a>;
   }
   return <div className={`workspace dash-root${menuOpen ? " navigation-open" : ""}`}><aside>
     <div className="brand"><div className="brand-mark small">齐</div><div><strong>好客齐鲁</strong><small>经营管理平台</small></div><button className="mobile-menu" aria-label="展开主导航" aria-expanded={menuOpen} onClick={() => setMenuOpen(v => !v)}>菜单</button></div>
-    <nav aria-label="主导航"><p className="nav-label">工作台</p>{nav("销售工作台", "bi")}
-      <p className="nav-label">客户管理</p>{nav("客户管理", "crm")}{nav("客户公海", "crm", "", {tab:"pool"})}{nav("商机管理", "crm", "", {tab:"opportunities"})}{nav("待办与跟进", "crm", "", {tab:"tasks"})}
-      <p className="nav-label">业绩管理</p>{nav("经营总览", "home")}{nav("销售分析", "bi", "sales")}{nav("客户分析", "bi", "customers")}{["owner","manager"].includes(user.role_code) && nav("团队执行", "bi", "team")}
-      <p className="nav-label">管理与设置</p>{["owner","admin","finance"].includes(user.role_code) && nav("数据中心", "data")}{user.role_code === "owner" && nav("人员管理", "staff")}{["owner","admin"].includes(user.role_code) && nav("日历与分析设置", "bi", "settings")}{["owner","admin"].includes(user.role_code) && nav("CRM 设置", "crm", "", {tab:"settings"})}{nav("我的账号", "account")}{["owner","admin"].includes(user.role_code) && nav("系统状态", "system")}
+    <nav aria-label="主导航"><p className="nav-label">经营中心</p>{nav("驾驶舱", "home")}{nav("销售分析", "bi", "sales")}{nav("客户分析", "bi", "customers")}{["owner","manager"].includes(user.role_code) && nav("团队执行", "bi", "team")}
+      <p className="nav-label">客户经营</p>{nav("客户管理", "crm")}{nav("客户公海", "crm", "", {tab:"pool"})}{nav("项目管理", "crm", "", {tab:"opportunities"})}{nav("待办与跟进", "crm", "", {tab:"tasks"})}
+      <p className="nav-label">管理后台</p>{["owner","admin","finance"].includes(user.role_code) && nav("数据中心", "data")}{user.role_code === "owner" && nav("人员管理", "staff")}{["owner","admin"].includes(user.role_code) && nav("目标与日历", "bi", "settings")}{["owner","admin"].includes(user.role_code) && nav("CRM 设置", "crm", "", {tab:"settings"})}
+      <p className="nav-label">系统</p>{nav("我的账号", "account")}{["owner","admin"].includes(user.role_code) && nav("系统状态", "system")}
     </nav><div className="sidebar-bottom">{roles[user.role_code]}工作空间</div></aside>
     <div className="content"><header><span>{roles[user.role_code]}工作空间</span><div><span>{user.display_name}</span><button onClick={signOut} disabled={busy}>退出登录</button></div></header><main className="dashboard">{error && <p role="alert" className="error">{error}</p>}
       {view === "home" && (user.role_code === "admin"
@@ -186,23 +186,22 @@ function SystemStatus() {
 }
 
 const navIconPaths: Record<string, string[]> = {
-  "销售工作台": ["M4 4h6v6H4z", "M14 4h6v6h-6z", "M4 14h6v6H4z", "M14 14h6v6h-6z"],
+  "驾驶舱": ["M21.2 15.9A10 10 0 1 1 8 2.8", "M22 12A10 10 0 0 0 12 2v10z"],
   "客户管理": ["M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2", "M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"],
   "客户公海": ["M12 2s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"],
-  "商机管理": ["M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z", "M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10z", "M12 11a1 1 0 1 0 0 2 1 1 0 0 0 0-2z"],
+  "项目管理": ["M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z", "M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10z", "M12 11a1 1 0 1 0 0 2 1 1 0 0 0 0-2z"],
   "待办与跟进": ["M9 11.5l2 2 4.5-4.5", "M5 4h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z"],
-  "经营总览": ["M21.2 15.9A10 10 0 1 1 8 2.8", "M22 12A10 10 0 0 0 12 2v10z"],
   "销售分析": ["M18 20V10", "M12 20V4", "M6 20v-6"],
   "客户分析": ["M15 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2", "M8.5 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z", "M20 21v-2a4 4 0 0 0-3-3.9", "M15.5 3.1a4 4 0 0 1 0 7.8"],
   "团队执行": ["M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2", "M10 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z", "M21 21v-2a4 4 0 0 0-3-3.9"],
   "数据中心": ["M12 3c4.4 0 8 1.3 8 3s-3.6 3-8 3-8-1.3-8-3 3.6-3 8-3z", "M4 6v6c0 1.7 3.6 3 8 3s8-1.3 8-3V6", "M4 12v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"],
   "人员管理": ["M15 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2", "M8.5 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z", "M16 8l2 2 4-4"],
-  "日历与分析设置": ["M5 4h14a1 1 0 0 1 1 1v15a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z", "M16 2v4", "M8 2v4", "M4 10h16"],
+  "目标与日历": ["M5 4h14a1 1 0 0 1 1 1v15a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z", "M16 2v4", "M8 2v4", "M4 10h16"],
   "CRM 设置": ["M4 21v-6", "M4 11V3", "M12 21v-9", "M12 8V3", "M20 21v-4", "M20 13V3", "M2 13h4", "M10 10h4", "M18 15h4"],
   "我的账号": ["M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2", "M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"],
   "系统状态": ["M22 12h-4l-3 9L9 3l-3 9H2"],
 };
 function NavIcon({ label }: { label: string }) {
-  const paths = navIconPaths[label] || navIconPaths["销售工作台"];
+  const paths = navIconPaths[label] || navIconPaths["驾驶舱"];
   return <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths.map(d => <path key={d} d={d} />)}</svg>;
 }
