@@ -3,7 +3,10 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
 import type { CRMEntry } from "./crm-navigation";
 import { dateTime, dayDiff, localTime, money as baseMoney } from "./lib/format";
-import { api as baseApi } from "./lib/api";
+import { api } from "./crm/api";
+import { Editor } from "./crm/editor";
+import { TagManager, TagPicker } from "./crm/tags";
+import type { Detail, Field, Profile, Value } from "./crm/types";
 import type { Contact, CrmPerson as Person, CrmSettings as Settings, Customer, Followup as Follow, Opportunity, Role, Tag, Task } from "./lib/types";
 import {
   contactResultOptions as results,
@@ -16,99 +19,11 @@ import {
   opportunityStageOptions as stages,
 } from "./lib/labels";
 
-/** CRM API：统一走 /api/crm 前缀与 lib/api 的请求/错误处理。 */
-const api = (<T,>(path: string, method = "GET", body?: unknown): Promise<T> =>
-  baseApi<T>(`/api/crm${path}`, body === undefined ? { method } : { method, json: body }));
-
 /** CRM 金额空值显示“未填写”，不加 ¥ 前缀。 */
 const money = (value: string | null) => baseMoney(value, { empty: "未填写" });
 function relLabel(diff: number) { return diff === 0 ? "今天" : diff > 0 ? (diff === 1 ? "明天" : `${diff} 天后`) : (diff === -1 ? "1 天前" : `${-diff} 天前`); }
 
-type Detail = { has_more_history: boolean; sales_summary: { order_count: number; total_amount: string; year_amount: string; last_order_date: string | null; top_products: {name: string; amount: string}[] }; customer: Customer; contacts: Contact[]; followups: Follow[]; tasks: Task[]; opportunities: Opportunity[]; tags: Tag[]; events: { id: string; activity_type: string; occurred_at: string; user_id: string; details: { after?: { reason?: string; owner_user_id?: string } } | null }[]; orders: { id: string; order_no: string; order_date: string; sales_amount: string }[] };
-type Profile = { customer_id: string; name: string; layer: string | null; days_since: number | null; last_order_date: string | null; orders: number; amount: string; aov: string | null; is_repeat: boolean; convert_days: number | null; warnings: string[] };
-type Value = string | boolean | number | null | string[];
-type Field = { key: string; label: string; type?: string; required?: boolean; options?: [string, string][]; step?: string; maxLength?: number; min?: string; max?: string };
 const text = (options: [string,string][], value: string) => options.find(x => x[0] === value)?.[1] || value;
-
-function Editor({title, fields, initial = {}, initialProducts = [], submit, save, cancel}: {title: string; fields: Field[]; initial?: Record<string, Value>; initialProducts?: {id: string; name: string}[]; submit: string; save: (data: Record<string, Value>) => Promise<void>; cancel?: () => void}) {
-  const [busy,setBusy] = useState(false), [error,setError] = useState("");
-  const formRef=useRef<HTMLFormElement>(null);
-  useEffect(()=>{
-    if(!cancel)return;
-    const frame=requestAnimationFrame(()=>{
-      formRef.current?.querySelector('h3')?.focus({preventScroll:true});
-      formRef.current?.scrollIntoView({block:'start',behavior:'instant'});
-    });
-    return()=>cancelAnimationFrame(frame);
-  },[title,!!cancel]);
-  async function handle(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault(); const form=e.currentTarget, fd=new FormData(form); setBusy(true); setError("");
-    const data: Record<string,Value> = {};
-    for (const f of fields) {
-      if (f.type === "products") { data[f.key] = fd.getAll(f.key) as unknown as Value; continue; }
-      const raw=fd.get(f.key)?.toString() || "";
-      data[f.key]=f.type === "checkbox" ? fd.has(f.key) : f.type === "datetime-local" && raw ? new Date(raw+":00+08:00").toISOString() : raw || null;
-    }
-    try { await save(data); form.reset(); } catch(e) { setError(e instanceof Error ? e.message : "保存失败"); } finally { setBusy(false); }
-  }
-  return <form ref={formRef} className="crm-form" aria-label={title} onSubmit={handle}><h3 tabIndex={-1}>{title}</h3><div className="crm-fields">{fields.map(f => f.type === "products" ? <div key={f.key} className="products-field"><span>{f.label}（可多选）</span><ProductPicker initial={initialProducts} /></div> : <label key={f.key}>{f.label}{f.type === "checkbox" ? <input name={f.key} type="checkbox" defaultChecked={!!initial[f.key]} /> : f.options ? <select name={f.key} required={f.required} defaultValue={String(initial[f.key] ?? f.options[0]?.[0] ?? "")}>{f.options.map(([v,t])=><option key={v} value={v}>{t}</option>)}</select> : f.type === "textarea" ? <textarea name={f.key} maxLength={f.maxLength || 4000} defaultValue={String(initial[f.key] ?? "")} /> : <input name={f.key} type={f.type || "text"} required={f.required} maxLength={f.maxLength || 255} step={f.step} min={f.min} max={f.max} defaultValue={f.type === "datetime-local" && initial[f.key] ? localTime(String(initial[f.key])) : String(initial[f.key] ?? "")} />}</label>)}</div>{error && <p role="alert" className="error">{error}</p>}<div className="crm-actions"><button className="primary" disabled={busy} type="submit">{busy ? "保存中…" : submit}</button>{cancel && <button type="button" onClick={cancel} disabled={busy}>取消编辑</button>}</div></form>;
-}
-
-function ProductPicker({initial = []}: {initial?: {id: string; name: string}[]}) {
-  const [draft,setDraft]=useState<{id:string;name:string}[]>(initial);
-  const [q,setQ]=useState(""), [search,setSearch]=useState("");
-  const timer=useRef(0);
-  const [list,setList]=useState<{id:string;name:string}[]>([]);
-  useEffect(()=>{let live=true;api<{id:string;name:string}[]>(`/api/crm/products?q=${encodeURIComponent(search)}&limit=30`).then(d=>{if(live)setList(d);}).catch(()=>{});return()=>{live=false;};},[search]);
-  const toggle=(id:string,name:string)=>setDraft(d=>d.some(x=>x.id===id)?d.filter(x=>x.id!==id):[...d,{id,name}]);
-  return <div className="product-picker">
-    <input aria-label="搜索产品" value={q} maxLength={100} placeholder="输入商品名称或编码搜索…"
-      onChange={e=>{setQ(e.target.value);clearTimeout(timer.current);timer.current=window.setTimeout(()=>setSearch(e.target.value.trim()),300);}}
-      onKeyDown={e=>{if(e.key==="Enter")e.preventDefault();}}/>
-    <div className="product-options">{(found(list, q, draft)).map(p=><button key={p.id} type="button" onClick={()=>toggle(p.id,p.name)}>+ {p.name}</button>)}
-      {!list.length&&<small>{search?"没有匹配的商品。":"输入关键字搜索商品。"}</small>}</div>
-    {draft.length>0&&<div className="product-chips">{draft.map(p=><span key={p.id} className="product-chip">{p.name}<input type="checkbox" name="product_ids" value={p.id} checked readOnly hidden/> <button type="button" aria-label={`移除 ${p.name}`} onClick={()=>toggle(p.id,p.name)}>×</button></span>)}</div>}
-  </div>;
-}
-function found(list:{id:string;name:string}[], q:string, draft:{id:string;name:string}[]) {return list.filter(p=>!draft.some(x=>x.id===p.id));}
-
-function TagPicker({tags, selected, busy, canCreate, onCreate, onSave}: {tags: Tag[]; selected: string[]; busy: boolean; canCreate: boolean; onCreate: (name: string) => Promise<Tag | undefined>; onSave: (ids: string[]) => void}) {
-  const [draft,setDraft]=useState<string[]>(selected);
-  const [name,setName]=useState("");
-  const toggle=(id:string)=>setDraft(d=>d.includes(id)?d.filter(x=>x!==id):[...d,id]);
-  async function create() {
-    const trimmed=name.trim();
-    if (!trimmed) return;
-    const tag=await onCreate(trimmed);
-    setName("");
-    if (tag) setDraft(d=>d.includes(tag.id)?d:[...d,tag.id]);
-  }
-  return <div className="tag-picker">{tags.filter(t=>t.is_active||draft.includes(t.id)).map(t=><button key={t.id} type="button" aria-pressed={draft.includes(t.id)} disabled={busy} onClick={()=>toggle(t.id)}>{t.tag_name}{!t.is_active?"（已停用）":""}</button>)}{canCreate&&<span className="tag-create"><input aria-label="新建标签名称" value={name} maxLength={100} placeholder="新建标签" onChange={e=>setName(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();create();}}}/><button type="button" disabled={busy||!name.trim()} onClick={create}>添加</button></span>}<button className="primary tag-save" disabled={busy} onClick={()=>onSave(draft)}>保存标签</button></div>;
-}
-
-function TagManager({tags, busy, run, role, userId}: {tags: Tag[]; busy: boolean; run: (fn: () => Promise<unknown>) => void; role: Role; userId: string}) {
-  const [name,setName]=useState(""), [group,setGroup]=useState(""), [edits,setEdits]=useState<Record<string,{tag_name:string;tag_group:string}>>({});
-  const row=(t:Tag)=>edits[t.id]||{tag_name:t.tag_name,tag_group:t.tag_group||""};
-  const update=(t:Tag,patch:Partial<{tag_name:string;tag_group:string}>)=>setEdits(s=>({...s,[t.id]:{...row(t),...patch}}));
-  const manageAll=["owner","admin"].includes(role);
-  const editable=(t:Tag)=>manageAll||t.created_by===userId;
-  return <div className="tag-manager">
-    <form className="tag-add" onSubmit={e=>{e.preventDefault();const n=name.trim();if(!n)return;run(async()=>{await api("/tags","POST",{tag_name:n,tag_group:group.trim()||null});setName("");setGroup("");});}}>
-      <input aria-label="新标签名称" value={name} maxLength={100} onChange={e=>setName(e.target.value)} placeholder="新标签名称"/>
-      <input aria-label="新标签分组" value={group} maxLength={32} onChange={e=>setGroup(e.target.value)} placeholder="分组（可选）"/>
-      <button className="primary" disabled={busy||!name.trim()}>添加标签</button>
-    </form>
-    <ul>{tags.map(t=>{const d=row(t);const mine=editable(t);return <li key={t.id}>
-      {mine?<><input aria-label={`改名：${t.tag_name}`} value={d.tag_name} maxLength={100} disabled={busy} onChange={e=>update(t,{tag_name:e.target.value})}/>
-      <input aria-label={`分组：${t.tag_name}`} value={d.tag_group} maxLength={32} disabled={busy} onChange={e=>update(t,{tag_group:e.target.value})}/>
-      <button disabled={busy||!d.tag_name.trim()} onClick={()=>run(()=>api(`/tags/${t.id}`,"PUT",{tag_name:d.tag_name.trim(),tag_group:d.tag_group.trim()||null,is_active:t.is_active}))}>保存修改</button>
-      <button disabled={busy||!d.tag_name.trim()} onClick={()=>run(()=>api(`/tags/${t.id}`,"PUT",{tag_name:d.tag_name.trim(),tag_group:d.tag_group.trim()||null,is_active:!t.is_active}))}>{t.is_active?"删除":"恢复标签"}</button></>
-      :<><strong>{t.tag_name}</strong>{t.tag_group&&<span className="muted">{t.tag_group}</span>}<span className="muted">他人创建，仅老板／管理员可改</span></>}
-      {!t.is_active&&<span className="muted">已删除（停用），历史保留</span>}
-    </li>;})}</ul>
-    <p className="muted">删除=停用：已打此标签的客户保留历史，仅从点选与筛选中隐藏；改名立即生效。标签由大家自行创建和维护：你只能修改自己创建的标签{manageAll?"；你是老板／管理员，可管理全部标签":""}。</p>
-  </div>;
-}
 
 export default function CRM({role, userId, entry, embedded=false}: {role: Role; userId: string; entry?: CRMEntry; embedded?:boolean}) {
   const [workOffset,setWorkOffset]=useState(0), [historyOffset,setHistoryOffset]=useState(0);
