@@ -1,5 +1,14 @@
 # Project Task Status
 
+## 2026-09-17 Business acceptance decisions applied (docs/30, owner decisions via chat)
+
+- [x] Owner decisions recorded in docs/30: ① no returns to consider (imports are deals only); ② 12 unmapped orders → 李延伟 (mapping 安佰强→李延伟 saved on test_src; 4 orders take effect on re-import, 8 empty-salesperson orders of 420 元 cannot auto-map); ③ customer assignment plan A executed; ④ data review deferred until the delete-and-reupload capability exists (review locks imports); ⑤ finance: 1–7 月 uploads coming, blanks stay blank, uploaded data is treated as verified
+- [x] Executed: 183 of 226 order-mapped customers batch-assigned (夏方鹏 57 / 李延伟 51 / 肖昌兴 75; 124 previously-claimed customers keep their claims); assignment plan in app-data/assignment-plan.json
+- [x] docs/30 corrected: distinct order-bearing customers are 226 (not 312; 50 customers have 2 salespeople, 18 have 3); 288 no-order customers stay in pool; 43 pending customers listed in docs/30 附录 A (blocked by batch-assign because they carry in-flight CRM work — owner decides per customer, then transfer)
+- [ ] Pending owner: assign the 43 customers (docs/30 附录 A); decide whether to clear stale import-era owner marks on ~321 pool customers; walkthrough meeting (docs/30 第 7 节)
+- [ ] New feature approved in principle, to implement: source-level "delete sales data & re-upload" for owner — deletes a source's sales facts (orders/lines) while keeping raw import evidence and audit trail; CRM is unaffected (no CRM table references orders); re-upload rebuilds idempotently and invalidates stale sales reviews. Customer data must NOT get a delete function (CRM history references customers) — use existing deactivation + corrected re-import instead
+- [ ] Note: the final E2E run re-created its own test sources (normal); rerun scripts/dev_db_cleanup.py when the suite slows again
+
 ## 2026-09-17 Dev DB test-data cleanup (owner-authorized)
 
 - [x] Removed 955 test-pattern data sources (e2e_/bi_/cockpit_/sw_/assign_) and all dependents in one transaction: 8018 customers, 1985 import batches, 26174 raw rows, 358 orders + 590 lines, 358 products, 7598 assignment histories, 123 claims, 114 followups, 234 tasks, 109 financial periods + 9265 metrics, 112 sales reviews, 1985 field mappings
