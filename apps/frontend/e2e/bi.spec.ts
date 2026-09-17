@@ -49,6 +49,8 @@ async function sample(page: Page) {
 }
 
 test("M3 target save, workbench, team and CRM navigation", async ({ page }) => {
+  // 团队页按人×数据源逐个计算工作台指标；开发库累积历史 E2E 样例源后单请求约 7 秒（生产规模 P95 待优化项）。
+  test.setTimeout(90000);
   await login(page, "owner");
   const salesStaff = await findStaff(page, "demo_sales");
   await page.getByLabel("查看人员").selectOption(salesStaff.id);
@@ -65,7 +67,7 @@ test("M3 target save, workbench, team and CRM navigation", async ({ page }) => {
   await expect(page.getByText("统计截至", { exact: false }).first()).toBeVisible();
   await page.getByRole("navigation", { name: "主导航" }).getByRole("link", { name: "打开团队执行", exact: true }).click();
   const salesRow = page.getByRole("row").filter({ has: page.getByRole("button", { name: salesStaff.display_name, exact: true }) });
-  await expect(salesRow.getByRole("cell").nth(1)).toHaveText("123.45");
+  await expect(salesRow.getByRole("cell").nth(1)).toHaveText("123.45", { timeout: 30000 });
   await page.getByRole("button", { name: salesStaff.display_name, exact: true }).click();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBeTruthy();
   await page.screenshot({ path: `../../.tools/m3-workbench-${test.info().project.name}.png`, fullPage: true });
