@@ -13,6 +13,8 @@ import {
 } from "./lib/labels";
 import type { AttentionPage, Contact, CustomerRow as Customer, FollowupRow as Follow, Metric, OrderRow as Order, Page, TaskPage, TaskRow as Task, User } from "./lib/types";
 import { Empty, Icon, Modal, Panel, Pager, yoySpan } from "./sales/ui";
+import { PerfChart } from "./sales/perf-chart";
+import type { TrendPoint } from "./sales/types";
 
 /** 销售员端金额统一带 ¥ 前缀。 */
 const money = (v: string | null | undefined) => baseMoney(v, { yuan: true });
@@ -21,7 +23,6 @@ type Screen = "workbench" | "customers" | "tasks" | "performance";
 type Work = { metrics: Metric[]; through: string; warnings: string[] };
 type OrderDetail = {order_no:string;customer:string;amount:string;lines:{line_no:number;quantity:string;amount:string}[]};
 type PerfPreset = "this"|"last"|"quarter"|"year";
-type TrendPoint={date:string;value:string|null;last_year:string|null};
 type TopCustomer={id:string;name:string;amount:string|null;last_year:string|null;yoy:string|null};
 type ProductRow={name:string;amount:string|null;yoy:string|null;customers:number|null};
 type FunnelStage={stage:string;current:number|null;prev:number|null};
@@ -219,5 +220,3 @@ function SalesDialog({state,user,close,saved,switchToFollow}:{state:DialogState;
  {state.kind==="defer"&&<><p>{state.task?.title}</p><label>调整方式<select name="status" onChange={e=>setComplete(e.target.value==="cancelled")}><option value="todo">修改截止时间</option><option value="cancelled">取消待办</option></select></label><label>新的截止时间（北京时间）<input name="due" type="datetime-local" required={!complete}/></label><p className="sales-note">取消后保留历史，不删除记录。</p></>}
  <div className="sales-form-footer"><button type="button" disabled={busy} onClick={close}>取消</button><button className="sales-primary" disabled={busy||((state.kind==="follow")&&(!cid||detail.loading||!!detail.error))}>{busy?"正在保存…":state.kind==="follow"?"保存跟进与下一步":"保存"}</button></div></form>}</Modal>;
 }
-
-function PerfChart({points}:{points:TrendPoint[]}) {const ref=useRef<HTMLDivElement>(null);useEffect(()=>{let chart:import("echarts").ECharts|undefined,dead=false;const observer=new ResizeObserver(()=>chart?.resize());if(ref.current)observer.observe(ref.current);import("echarts").then(e=>{if(dead||!ref.current)return;chart=e.init(ref.current,undefined,{renderer:"svg"});chart.setOption({animation:false,color:["#0b62d8"],grid:{left:76,right:20,top:30,bottom:35},tooltip:{trigger:"axis"},xAxis:{type:"category",data:points.map(p=>p.date.slice(5,7)+"月"),axisTick:{show:false},axisLine:{lineStyle:{color:"#e4e4e7"}}},yAxis:{type:"value",name:"元",splitLine:{lineStyle:{color:"#f1f1f3"}}},series:[{name:"本期销售额",type:"bar",barMaxWidth:45,data:points.map((pt,i)=>({value:pt.value===null?null:Number(pt.value),itemStyle:{color:i===points.length-1?"#0b62d8":"#93c5fd",borderRadius:[3,3,0,0]}}))},{name:"去年同期",type:"line",smooth:true,symbol:"none",data:points.map(pt=>pt.last_year===null?null:Number(pt.last_year)),itemStyle:{color:"#8fb0d4"},lineStyle:{color:"#8fb0d4",width:1.5}}]});});return()=>{dead=true;observer.disconnect();chart?.dispose();};},[points]);return points.some(p=>p.value!==null)?<><div className="sales-chart" ref={ref} role="img" aria-label="本期销售额与去年同期对比图，下方提供每月数值"/><details className="sales-definition"><summary>查看每月数值</summary>{points.map(p=><p key={p.date}>{p.date.slice(0,7)}：本期 {money(p.value)} · 去年同期 {money(p.last_year)}</p>)}</details></>:<Empty>数据尚未满足已核实趋势的展示条件。</Empty>;}
