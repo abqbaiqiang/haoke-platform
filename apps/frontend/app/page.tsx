@@ -176,13 +176,13 @@ export default function Home() {
       {view === "staff" && user.role_code === "owner" && <Staff />}
       {view === "bi" && <BI entryTab={biEntry} onTabChange={openBI} role={user.role_code} userId={user.id} openCRM={openCRM} />}
       {view === "crm" && <CRM key={JSON.stringify(crmEntry)} role={user.role_code} userId={user.id} entry={crmEntry} />}
-    </main><footer>好客齐鲁经营管理平台 · v0.5.0</footer></div></div>;
+    </main><footer>好客齐鲁经营管理平台 · v1.1</footer></div></div>;
 }
 
 function SystemStatus() {
   const [status, setStatus] = useState("正在检查…");
   useEffect(() => { fetch("/api/admin/status").then(r => setStatus(r.ok ? "系统接口正常" : r.status === 401 ? "会话已过期，请重新登录" : "无权访问系统状态")).catch(() => setStatus("无法连接服务")); }, []);
-  return <><p className="eyebrow">工作空间 / 系统状态</p><h1>系统状态</h1><section className="card"><h2>{status}</h2><p>当前版本 v0.5.0</p></section></>;
+  return <><p className="eyebrow">工作空间 / 系统状态</p><h1>系统状态</h1><section className="card"><h2>{status}</h2><p>当前版本 v1.1</p></section></>;
 }
 
 const navIconPaths: Record<string, string[]> = {

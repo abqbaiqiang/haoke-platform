@@ -76,7 +76,6 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 @media(max-width:1180px){.login-art{max-width:470px}}
 @media(max-width:980px){.login-page{--login-side:0px}.login-side{display:none}.login-body{grid-template-columns:minmax(0,1fr);justify-items:center;padding:20px 20px 28px}.login-hero{display:none}.login-topbar,.login-footer{padding-left:20px;padding-right:20px}.login-card{width:100%;max-width:440px}}
 @media(max-width:560px){.login-brand-sub,.login-brand-name small{display:none}.login-logo{width:38px;height:38px}.login-footer{flex-direction:column;align-items:flex-start;gap:6px}}
-.visually-hidden{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
 .primary{width:100%;padding:13px;margin-top:26px;font-size:16px;border-radius:10px}
 .footnote{font-size:12px;text-align:center}
 .loading{min-height:100dvh;display:grid;place-items:center;color:var(--muted)}
@@ -113,7 +112,7 @@ dt{color:var(--muted)}
 dd{margin:0;overflow-wrap:anywhere}
 table{font-variant-numeric:tabular-nums}
 @media(max-width:900px){.workspace{grid-template-columns:200px 1fr}.cards{grid-template-columns:1fr}.dashboard{padding:22px}}
-@media(max-width:600px){.login-layout{grid-template-columns:1fr}.intro{padding:32px 24px}.intro .brand-mark{display:none}.intro-footer{display:none}.intro h1{font-size:27px}.login-panel{padding:32px 24px}.workspace{grid-template-columns:1fr}aside{padding:14px;border-right:0;border-bottom:1px solid var(--line)}.nav-label,.sidebar-bottom{display:none}aside nav{display:flex;margin-top:16px;gap:4px;flex-wrap:wrap}aside nav :is(a,button){padding:9px 11px}.brand{font-size:15px}header{padding:14px 16px;gap:8px}header>span{display:none}.dashboard{padding:22px 14px}h1{font-size:25px}.card,.notice{padding:20px}.cards{margin-top:22px;gap:12px}footer{padding:18px 16px}dl{grid-template-columns:85px 1fr;gap:18px}}
+@media(max-width:600px){.workspace{grid-template-columns:1fr}aside{padding:14px;border-right:0;border-bottom:1px solid var(--line)}.nav-label,.sidebar-bottom{display:none}aside nav{display:flex;margin-top:16px;gap:4px;flex-wrap:wrap}aside nav :is(a,button){padding:9px 11px}.brand{font-size:15px}header{padding:14px 16px;gap:8px}header>span{display:none}.dashboard{padding:22px 14px}h1{font-size:25px}.card,.notice{padding:20px}.cards{margin-top:22px;gap:12px}footer{padding:18px 16px}dl{grid-template-columns:85px 1fr;gap:18px}}
 /* ---- M5 shared analytics bits ---- */
 .layer-dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:8px;vertical-align:1px}
 .layer-badge{display:inline-block;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap}

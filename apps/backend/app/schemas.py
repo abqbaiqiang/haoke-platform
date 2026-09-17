@@ -40,4 +40,4 @@ class SessionView(BaseModel):
 
 class StatusView(BaseModel):
     status: str = "ok"
-    milestone: str = "M3"
+    milestone: str = "V1.1"
