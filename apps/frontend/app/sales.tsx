@@ -12,6 +12,7 @@ import {
   taskTypeLabels as taskTypes,
 } from "./lib/labels";
 import type { AttentionPage, Contact, CustomerRow as Customer, FollowupRow as Follow, Metric, OrderRow as Order, Page, TaskPage, TaskRow as Task, User } from "./lib/types";
+import { Empty, Icon, Modal, Panel, Pager, yoySpan } from "./sales/ui";
 
 /** 销售员端金额统一带 ¥ 前缀。 */
 const money = (v: string | null | undefined) => baseMoney(v, { yuan: true });
@@ -33,13 +34,8 @@ type Route = {screen:Screen;pool?:boolean;customerId?:string;q?:string;taskView?
 type DialogState = {kind:"follow"|"task"|"defer"|"complete";customer?:Customer;task?:Task};
 const titles:Record<Screen,string> = {workbench:"工作台",customers:"客户",tasks:"待办",performance:"我的业绩"};
 function perfRange(preset:PerfPreset,month:string):{from:string;to:string;label:string} {const [y,m]=month.split("-").map(Number);const pad=(n:number)=>String(n).padStart(2,"0");const ym=(yy:number,mm:number)=>`${yy}-${pad(mm)}-01`;if(preset==="last"){const yy=m===1?y-1:y,mm=m===1?12:m-1;return {from:ym(yy,mm),to:ym(yy,mm),label:"上月"};}if(preset==="quarter")return {from:ym(y,Math.floor((m-1)/3)*3+1),to:ym(y,m),label:"本季度"};if(preset==="year")return {from:ym(y,1),to:ym(y,m),label:"今年"};return {from:ym(y,m),to:ym(y,m),label:"本月"};}
-function yoySpan(v:string|null):ReactNode {if(v==null)return "—";const n=Number(v);return <span className={n>=0?"perf-up":"perf-down"}>{n>=0?"↑":"↓"} {Math.abs(n)}%</span>;}
 function readRoute():Route {const [path,query=""]=window.location.hash.slice(1).split("?");const p=new URLSearchParams(query);if(path==="sales"){const s=p.get("view") as Screen;return {screen:s in titles?s:"workbench",pool:p.get("pool")==="1",customerId:p.get("customer")||undefined,q:p.get("q")||undefined,taskView:p.get("tasks")||undefined};}if(path==="crm"){try{const e=JSON.parse(p.get("crm")||"{}");return {screen:e.tab==="tasks"?"tasks":"customers",pool:e.tab==="pool",customerId:e.customerId,taskView:e.taskView};}catch{return {screen:"customers"};}}if(path==="bi"&&p.get("tab")&&p.get("tab")!=="workbench")return {screen:"performance"};return {screen:"workbench"};}
 function href(r:Route) {const p=new URLSearchParams({view:r.screen});if(r.pool)p.set("pool","1");if(r.customerId)p.set("customer",r.customerId);if(r.q)p.set("q",r.q);if(r.taskView)p.set("tasks",r.taskView);return "#sales?"+p;}
-function Icon({name}:{name:string}) {const paths:Record<string,string>={workbench:"M3 10 12 3l9 7M5 9v12h5v-7h4v7h5V9",customers:"M16 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0ZM4 21v-3a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v3Z",tasks:"M9 4H5v17h14V4h-4M9 2h6v5H9ZM8 13l3 3 5-6",performance:"M4 20V12h3v8ZM10 20V7h3v13ZM16 20V3h3v17Z",search:"M16 16l5 5M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0"};return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={paths[name]||paths.workbench}/></svg>;}
-function Empty({children}:{children:ReactNode}) {return <div className="sales-empty">{children}</div>;}
-function Panel({title,action,children}:{title:string;action?:ReactNode;children:ReactNode}) {return <section className="sales-panel"><div className="sales-panel-head"><h2>{title}</h2>{action}</div>{children}</section>;}
-function Pager({offset,total,size=20,onChange}:{offset:number;total:number;size?:number;onChange:(n:number)=>void}) {return <div className="sales-pager"><span>共 {total} 条{total>0&&` · 第 ${Math.floor(offset/size)+1} / ${Math.ceil(total/size)} 页`}</span><button disabled={offset===0} onClick={()=>onChange(Math.max(0,offset-size))}>上一页</button><button disabled={offset+size>=total} onClick={()=>onChange(offset+size)}>下一页</button></div>;}
 
 export default function SalesWorkspace({user,onSignOut}:{user:User;onSignOut:()=>Promise<void>}) {
  const [route,setRoute]=useState<Route>({screen:"workbench"}),[revision,setRevision]=useState(0),[query,setQuery]=useState(""),[offset,setOffset]=useState(0),[taskOffset,setTaskOffset]=useState(0),[taskView,setTaskView]=useState("today"),[month,setMonth]=useState(currentMonth),[source,setSource]=useState(""),[recentOffset,setRecentOffset]=useState(0),[showRecent,setShowRecent]=useState(false),[dialog,setDialog]=useState<DialogState|null>(null),[error,setError]=useState(""),[notice,setNotice]=useState(""),[busy,setBusy]=useState(false);
@@ -206,7 +202,6 @@ function QuickFollow({saved}:{saved:(s:string)=>void}) {
  </section>;
 }
 
-function Modal({title,children,close,locked=false}:{title:string;children:ReactNode;close:()=>void;locked?:boolean}) {const ref=useRef<HTMLDialogElement>(null);useEffect(()=>{const d=ref.current;const previous=document.activeElement as HTMLElement|null;d?.showModal();return()=>{d?.close();previous?.focus();};},[]);return <dialog ref={ref} className="sales-modal" aria-label={title} onCancel={e=>{e.preventDefault();if(!locked)close();}}><div className="sales-modal-head"><h2>{title}</h2><button type="button" disabled={locked} aria-label="关闭窗口" onClick={close}>关闭</button></div>{children}</dialog>;}
 function SalesDialog({state,user,close,saved,switchToFollow}:{state:DialogState;user:User;close:()=>void;saved:(s:string)=>void;switchToFollow:(t:Task)=>void}) {
  const [cid,setCid]=useState(state.customer?.id||state.task?.customer_id||""),[q,setQ]=useState(""),[search,setSearch]=useState(""),[busy,setBusy]=useState(false),[error,setError]=useState(""),[complete,setComplete]=useState(state.kind==="follow"&&!!state.task),[nextPlan,setNextPlan]=useState<"need"|"skip">("need");
  const timer=useRef(0);
