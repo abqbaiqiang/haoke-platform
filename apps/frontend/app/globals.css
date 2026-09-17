@@ -113,6 +113,60 @@ dd{margin:0;overflow-wrap:anywhere}
 table{font-variant-numeric:tabular-nums}
 @media(max-width:900px){.workspace{grid-template-columns:200px 1fr}.cards{grid-template-columns:1fr}.dashboard{padding:22px}}
 @media(max-width:600px){.workspace{grid-template-columns:1fr}aside{padding:14px;border-right:0;border-bottom:1px solid var(--line)}.nav-label,.sidebar-bottom{display:none}aside nav{display:flex;margin-top:16px;gap:4px;flex-wrap:wrap}aside nav :is(a,button){padding:9px 11px}.brand{font-size:15px}header{padding:14px 16px;gap:8px}header>span{display:none}.dashboard{padding:22px 14px}h1{font-size:25px}.card,.notice{padding:20px}.cards{margin-top:22px;gap:12px}footer{padding:18px 16px}dl{grid-template-columns:85px 1fr;gap:18px}}
+/* ==== 设计基线（docs/31 第 0 期，2026-09-17 老板拍板：保留现有色值基线，只补规则令牌） ====
+   既有令牌不重命名、不换值；本节只新增。新修改/新增页面禁止在页面代码里写死以下视觉值。 */
+:root{
+  /* 间距体系 */
+  --space-1:4px;--space-2:8px;--space-3:12px;--space-4:16px;--space-6:24px;
+  /* 圆角与控件 */
+  --radius-card:10px;--radius-ctl:8px;--ctl-h:40px;
+  /* 状态色（沿用现有语义色的规范微调：黄/红仅用于需处理异常） */
+  --success:#15803d;--warning:#b45309;--risk:#b91c1c;
+  --success-soft:#f0fdf4;--warning-soft:#fffbeb;--risk-soft:#fef2f2;
+  /* 字号阶梯：24/16/14/12，KPI 主值 28–36 */
+  --fs-title:24px;--fs-heading:16px;--fs-body:14px;--fs-aux:12px;--fs-kpi:28px;
+  /* 表格行高（44–48px 区间的基线值） */
+  --table-row-h:44px;
+}
+/* 页面头：标题 + 说明 + 右侧动作 */
+.page-head{display:flex;flex-wrap:wrap;align-items:flex-end;gap:var(--space-3);margin:var(--space-2) 0 var(--space-4)}
+.page-head h1{font-size:var(--fs-title);margin:0}
+.page-head .page-desc{margin:0;color:var(--muted);font-size:var(--fs-body)}
+.page-head .page-actions{margin-left:auto;display:flex;flex-wrap:wrap;gap:var(--space-2)}
+/* 筛选条：一行紧凑，控件统一高度 */
+.filter-bar{display:flex;flex-wrap:wrap;align-items:center;gap:var(--space-2);margin:var(--space-3) 0}
+.filter-bar label{display:flex;align-items:center;gap:var(--space-2);font-size:var(--fs-body);color:var(--muted);margin:0}
+.filter-bar input:not([type=checkbox]):not([type=radio]),.filter-bar select{width:auto;min-width:120px;height:var(--ctl-h);padding:0 var(--space-3);margin:0;border:1px solid var(--line);border-radius:var(--radius-ctl);background:#fff;font:inherit;color:var(--ink)}
+.filter-bar button{min-height:var(--ctl-h);padding:0 var(--space-4)}
+/* KPI 卡：主值 + 对比/状态副行 */
+.kpi-card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius-card);box-shadow:var(--shadow);padding:var(--space-4) var(--space-4);min-width:0}
+.kpi-card>span{color:var(--muted);font-size:var(--fs-aux)}
+.kpi-card strong{display:block;font-size:var(--fs-kpi);font-weight:700;margin:var(--space-1) 0;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+.kpi-card small{font-size:var(--fs-body);font-weight:400}
+.kpi-card .kpi-sub{margin:0;font-size:var(--fs-aux);color:var(--muted)}
+.kpi-card .kpi-sub.up{color:var(--success)}
+.kpi-card .kpi-sub.down,.kpi-card .kpi-sub.risk{color:var(--risk)}
+.kpi-card .kpi-sub.warn{color:var(--warning)}
+/* 区块卡：标题 + 副说明 + 主体 */
+.panel-card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius-card);box-shadow:var(--shadow);padding:var(--space-6);min-width:0;margin-bottom:var(--space-4)}
+.panel-card>header{display:flex;flex-wrap:wrap;align-items:center;gap:var(--space-2);margin-bottom:var(--space-3)}
+.panel-card>header h2{margin:0;font-size:var(--fs-heading)}
+.panel-card>header .panel-sub{margin:0;font-size:var(--fs-aux);color:var(--muted)}
+.panel-card>header .panel-more{margin-left:auto;font-size:var(--fs-body)}
+/* 高密度表：行高 44–48px、表头吸顶可选、数字右对齐千分位（千分位由 lib/format 保证） */
+.table-dense{width:100%;border-collapse:collapse;font-size:var(--fs-body)}
+.table-dense th,.table-dense td{padding:0 var(--space-3);height:var(--table-row-h);text-align:left;border-bottom:1px solid var(--line);white-space:nowrap;max-width:320px;overflow:hidden;text-overflow:ellipsis}
+.table-dense th{color:var(--muted);background:#fafafa;font-weight:500;position:sticky;top:0;z-index:1}
+.table-dense td.num,.table-dense th.num{text-align:right;font-variant-numeric:tabular-nums}
+.table-dense tbody tr:hover{background:#f8fafc}
+/* 状态标签：默认中性灰；ok=成功、warn=预警（黄）、risk=风险（红），黄/红仅用于需处理异常 */
+.status-tag{display:inline-block;padding:2px 10px;border-radius:999px;font-size:var(--fs-aux);font-weight:500;background:#f4f4f5;color:#52525b;white-space:nowrap}
+.status-tag.ok{background:var(--success-soft);color:var(--success)}
+.status-tag.warn{background:var(--warning-soft);color:var(--warning)}
+.status-tag.risk{background:var(--risk-soft);color:var(--risk)}
+/* 空态：为什么为空 + 下一步 */
+.empty-hint{padding:var(--space-6) var(--space-4);text-align:center;color:var(--muted);font-size:var(--fs-body)}
+.empty-hint strong{display:block;color:var(--ink);font-size:var(--fs-body);margin-bottom:var(--space-1)}
 /* ---- M5 shared analytics bits ---- */
 .layer-dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:8px;vertical-align:1px}
 .layer-badge{display:inline-block;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap}
