@@ -1,5 +1,13 @@
 # Changelog
 
+## C4-2 死 CSS 清理与过期元数据更新 - 2026-09-17（docs/29 执行任务书）
+
+- **死 CSS（审计 §7.2，P2-14）**：按清单逐类 grep 验证 tsx/ts 与 E2E 零引用后删除 19 个改版残留类：`.visually-hidden`、`.contribution-table`、`.team-value`（3 处 media 覆盖）、`.login-layout/.intro/.intro-footer`、`.login-panel`、`.sales-home-grid/.sales-stack`、`.sales-kpis/.sales-period/.sales-target-self/.sales-attention/.sales-panel-footer/.sales-muted/.sales-transactions`、`.legend-old/.legend-new`、`.cockpit-fold`。共享选择器列表中的死成员一并摘除；`--sales-muted` 变量与 `.sales-order-detail` 等活类保留。E2E 对 `.sales-kpis` 的"不得出现"反向断言不受影响。
+- **过期元数据（P2-24/P3-07）**：`MANIFEST.txt` 重建为 38 个文档/治理文件的 SHA256 快照（含生成日期注释，`sha256sum -c` 自校验通过）；`StatusView.milestone` M3→V1.1；前端页脚与系统状态页版本串 v0.5.0→v1.1（对齐基线标签 v1.1-sales）；`cockpit.css` 陈旧的 "forest green" 配色注释更正（P3-09）。
+- **验证**：ruff 0 错误；pytest 264 通过；tsc/next build 通过；E2E 38 通过/10 跳过。
+
+# Changelog
+
 ## C2 前端公共层 + C4 bi_service 后端拆分 - 2026-09-16（docs/29 执行任务书）
 
 按任务书顺序逐步执行，每步独立提交并跑全量回归（ruff + pytest 264 + tsc + next build + E2E 38/10 跳过），可单独回滚。

@@ -1,5 +1,15 @@
 # Project Task Status
 
+## 2026-09-17 C4-2 dead CSS cleanup + stale metadata (docs/29 task book, awaiting owner acceptance)
+
+- [x] 19 dead CSS classes from audit §7.2 deleted after per-class grep verification (tsx/ts + e2e zero references): visually-hidden, contribution-table, team-value, login-layout/intro/intro-footer, login-panel, sales-home-grid/sales-stack, sales-kpis/sales-period/sales-target-self/sales-attention/sales-panel-footer/sales-muted/sales-transactions, legend-old/legend-new, cockpit-fold; dead members removed from shared selector lists; live `--sales-muted` variable and `.sales-order-detail` kept
+- [x] Metadata refresh (P2-24/P3-07): MANIFEST.txt regenerated as a 38-file SHA256 snapshot with generation note (sha256sum -c verified); StatusView.milestone M3→V1.1; frontend version strings v0.5.0→v1.1 (aligned with v1.1-sales tag); cockpit.css stale "forest green" comment corrected (P3-09)
+- [x] Full regression per commit: ruff clean, pytest 264 passed, tsc/next build passed, E2E 38 passed / 10 skipped
+- [ ] C4-3 (final docs/29 item) remains: sales.tsx/crm.tsx split and long-line formatting (改到哪、格式化到哪)
+- [ ] Owner review of C2-4 dictionary wording (stage/result labels) still open
+
+# Project Task Status
+
 ## 2026-09-16 C2 frontend common layer + C4 bi_service split (docs/29 task book, awaiting owner acceptance)
 
 - [x] C2-1 `app/lib/format.ts`: unified money (placeholder/negatives/thousands/2-decimals/optional ¥) and Asia/Shanghai date-time helpers; migrated 8 money + 7 time sites; sales amounts now always show 2 decimals
