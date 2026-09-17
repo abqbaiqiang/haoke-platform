@@ -20,6 +20,12 @@ export type BiPerson = { id: string; name: string };
 /** 源订单行（bi_schemas.OrderRow）。 */
 export type OrderRow = { id: string; number: string; date: string; amount: string; status: string };
 
+/** 商品毛利行（bi_schemas.ProductMarginRow）。成本口径：最近一次采购价 × 数量。 */
+export type ProductMarginRow = { product_id: string; name: string; quantity: string; sales: string; cost: string | null; profit: string | null; rate: string | null };
+
+/** 商品毛利报表（bi_schemas.ProductMarginPage）。 */
+export type ProductMargins = { month: string; through: string; basis: string; warnings: string[]; metrics: Metric[]; total_sales: string; total_cost: string | null; total_profit: string | null; margin_rate: string | null; cost_coverage: string | null; rows: ProductMarginRow[]; total: number };
+
 /** 客户关注项（bi_schemas.Attention/AttentionPage）。 */
 export type AttentionItem = { id: string; name: string; kind: string; days: number | null };
 export type AttentionPage = { rows: AttentionItem[]; total: number; warnings: string[]; counts: Record<string, number> };

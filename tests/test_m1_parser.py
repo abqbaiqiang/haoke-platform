@@ -19,6 +19,19 @@ def test_order_continuations_totals_decimal_and_repeated_sku():
     assert out.data['records'][0]['customer_code'] == '001'
 
 
+def test_sales_last_purchase_price_optional_column():
+    out = parse(sales(last_cost=('0.05', '0.08')), 'sales.csv', 'sales')
+    assert not out.errors
+    costs = [line['last_cost'] for record in out.data['records'] for line in record['lines']]
+    assert costs == ['0.05', '0.08']
+
+
+def test_sales_without_cost_column_keeps_cost_none():
+    out = parse(sales(), 'sales.csv', 'sales')
+    assert not out.errors
+    assert all(line['last_cost'] is None for record in out.data['records'] for line in record['lines'])
+
+
 @pytest.mark.parametrize('body', [sales().replace(b'0.30', b'9.00'), sales().rsplit(b'\r\n', 2)[0],
                                  b'bad,header\r\nfoo,bar', sales().replace(b'T001,', b',', 1)])
 def test_malformed_orders_never_silently_succeed(body):

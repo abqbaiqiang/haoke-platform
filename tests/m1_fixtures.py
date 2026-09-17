@@ -17,9 +17,11 @@ def master(kind='customer', code='001', name='测试客户', staff='甲'):
     return csv_bytes([headers, [code, name, staff]])
 
 
-def sales(order='T001', stamp='2026-08-01 10:00:00', prices=('0.10', '0.20'), customer='001', product='P001', staff='甲'):
+def sales(order='T001', stamp='2026-08-01 10:00:00', prices=('0.10', '0.20'), customer='001', product='P001', staff='甲', last_cost=None):
     heads = ['单据编号', '单据日期', '客户编码', '销售金额', '销售人员', '商品编码', '数量', '金额',
              '销售单价', '最后修改时间', '优惠金额', '优惠后金额', '收款状态', '已收款', '退货状态']
+    if last_cost is not None:
+        heads = heads + ['最近一次采购价']
     from decimal import Decimal
     total = str(sum(map(Decimal, prices)))
     rows = [heads]
@@ -27,8 +29,9 @@ def sales(order='T001', stamp='2026-08-01 10:00:00', prices=('0.10', '0.20'), cu
         rows.append([order if i == 0 else '', '2026-08-01' if i == 0 else '', customer if i == 0 else '',
                      total if i == 0 else '', staff if i == 0 else '', product, '1', price, price,
                      stamp if i == 0 else '', '0' if i == 0 else '', total if i == 0 else '',
-                     '未收款' if i == 0 else '', '0' if i == 0 else '', '未退货' if i == 0 else ''])
-    rows.append(['', '', '', '', '', '合计:', '', total])
+                     '未收款' if i == 0 else '', '0' if i == 0 else '', '未退货' if i == 0 else ''] +
+                    ([last_cost[i]] if last_cost else []))
+    rows.append(['', '', '', '', '', '合计:', '', total] + ([''] if last_cost else []))
     return csv_bytes(rows)
 
 

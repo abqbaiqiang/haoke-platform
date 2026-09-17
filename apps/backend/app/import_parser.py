@@ -183,7 +183,8 @@ ALIASES = {
               'net_amount': ['优惠后金额'], 'received': ['已收款'], 'payment_status': ['收款状态'],
               'product_code': ['商品编码', '商品编号'], 'quantity': ['数量'], 'unit': ['单位'],
               'unit_price': ['销售单价'], 'line_amount': ['金额'], 'warehouse': ['仓库'],
-              'updated': ['最后修改时间'], 'return_status': ['退货状态'], 'status': ['单据状态']},
+              'updated': ['最后修改时间'], 'return_status': ['退货状态'], 'status': ['单据状态'],
+              'last_cost': ['最近一次采购价']},
 }
 REQUIRED = {'customer': {'code', 'name'}, 'product': {'code', 'name'},
             'sales': {'order_no', 'order_date', 'customer_code', 'sales_amount', 'product_code', 'quantity', 'line_amount'}}
@@ -324,7 +325,8 @@ def parse_business(out, sheet, rows, kind, overrides):
                         'unit_price': amount(get(r, 'unit_price'), index, '单价', False, 4),
                         'line_amount': amount(get(r, 'line_amount'), index, '明细金额'),
                         'unit_name': text(get(r, 'unit'))[:100] or None,
-                        'warehouse_name': text(get(r, 'warehouse'))[:255] or None}
+                        'warehouse_name': text(get(r, 'warehouse'))[:255] or None,
+                        'last_cost': amount(get(r, 'last_cost'), index, '最近一次采购价', False, 4)}
                 if Decimal(line['quantity']) <= 0 or Decimal(line['line_amount']) < 0:
                     raise ParseError("非正数量或负金额需退货规则，不按普通销售导入", index, '数量/金额')
                 current['lines'].append(line)

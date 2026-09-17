@@ -82,6 +82,12 @@ def orders(source_id: UUID, month: date, db: DB, actor: Actor,
     return svc.orders(db, actor, source_id, month, dimension, key, offset)
 
 
+@router.get('/product-margins', response_model=dto.ProductMarginPage)
+def product_margins(source_id: UUID, month: date, db: DB, actor: Actor,
+                    offset: int = Query(0, ge=0), limit: int = Query(20, ge=1, le=100)):
+    return svc.product_margins(db, actor, source_id, month, offset, limit)
+
+
 @router.get('/attention', response_model=dto.AttentionPage)
 def attention(source_id: UUID, db: DB, actor: Actor, offset: int = Query(0, ge=0)):
     return svc.attention(db, actor, source_id, offset)

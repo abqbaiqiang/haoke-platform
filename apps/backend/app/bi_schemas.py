@@ -172,6 +172,31 @@ class OrderPage(BaseModel):
     total: int
 
 
+class ProductMarginRow(BaseModel):
+    product_id: UUID
+    name: str
+    quantity: str
+    sales: str
+    cost: str | None
+    profit: str | None
+    rate: str | None
+
+
+class ProductMarginPage(BaseModel):
+    month: date
+    through: date
+    basis: str
+    warnings: list[str]
+    metrics: list[Metric]
+    total_sales: str
+    total_cost: str | None
+    total_profit: str | None
+    margin_rate: str | None
+    cost_coverage: str | None
+    rows: list[ProductMarginRow]
+    total: int
+
+
 class StructureSlice(BaseModel):
     label: str
     amount: str

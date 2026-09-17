@@ -313,11 +313,16 @@ def apply_sales(db, batch, src, counts):
         obj.last_import_batch_id = batch.id
         db.flush()
         for no, line in enumerate(r['lines'], 1):
+            # 行成本 = 最近一次采购价 × 数量（精斗云导出的参考口径，非实际出库成本）。
+            last_cost = Decimal(line['last_cost']) if line.get('last_cost') is not None else None
             db.add(SalesOrderLine(sales_order_id=obj.id, version=obj.version, line_no=no,
                                  product_id=products[line['product_code']], quantity=Decimal(line['quantity']),
                                  unit_price=Decimal(line['unit_price']) if line['unit_price'] is not None else None,
                                  unit_name=line['unit_name'], warehouse_name=line['warehouse_name'],
-                                 line_amount=Decimal(line['line_amount']), last_import_batch_id=batch.id))
+                                 line_amount=Decimal(line['line_amount']),
+                                 actual_cost_amount=(last_cost * Decimal(line['quantity'])).quantize(Decimal('0.01'))
+                                 if last_cost is not None else None,
+                                 last_import_batch_id=batch.id))
 
 
 def apply_finance(db, batch, src, counts, replace_version):

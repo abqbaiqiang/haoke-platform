@@ -1,222 +1,234 @@
 {
-  "EXEC_SALES_AMT": {
-    "definition": "Σ有效销售单金额 - Σ销售退货金额（如退货单独导入）",
-    "source": "精斗云销售/退货"
-  },
-  "SALE_ORDER_COUNT": {
-    "definition": "COUNT(DISTINCT sales_order.id)",
-    "source": "精斗云销售单"
-  },
-  "SALE_CUSTOMER_COUNT": {
-    "definition": "COUNT(DISTINCT customer_id)",
-    "source": "精斗云销售单"
-  },
-  "SALE_SKU_COUNT": {
-    "definition": "COUNT(DISTINCT product_id)",
-    "source": "精斗云销售明细"
-  },
-  "SALE_AOV": {
-    "definition": "经营销售额 / 销售订单数",
-    "source": "精斗云销售单"
-  },
-  "SALE_MOM": {
-    "definition": "(本期销售额 - 上期销售额) / 上期销售额",
-    "source": "精斗云销售"
-  },
-  "SALE_YOY": {
-    "definition": "(本期销售额 - 去年同期销售额) / 去年同期销售额",
-    "source": "精斗云销售"
-  },
-  "TGT_MONTH_AMT": {
-    "definition": "读取sales_target.sales_amount_target",
-    "source": "CRM目标"
-  },
-  "TGT_COMPLETION": {
-    "definition": "本月人员经营销售额 / 月销售目标",
-    "source": "精斗云 + CRM目标"
-  },
-  "TGT_TIME_PROGRESS": {
-    "definition": "已过工作日 / 全月工作日",
-    "source": "系统工作日历"
-  },
-  "TGT_PROGRESS_GAP": {
-    "definition": "目标完成率 - 时间进度",
-    "source": "精斗云 + CRM目标 + 日历"
-  },
-  "TGT_REMAINING": {
-    "definition": "MAX(月目标 - 已完成销售额, 0)",
-    "source": "精斗云 + CRM目标"
-  },
-  "TGT_DAILY_REQUIRED": {
-    "definition": "剩余目标 / 剩余工作日",
-    "source": "精斗云 + CRM目标 + 日历"
-  },
-  "TGT_RUNRATE_FORECAST": {
-    "definition": "已完成销售额 / 已过工作日 × 全月工作日",
-    "source": "精斗云 + 日历"
-  },
-  "TGT_WEIGHTED_FORECAST": {
-    "definition": "已完成销售额 + Σ(开放商机预计金额 × 成交概率)",
-    "source": "精斗云 + CRM商机"
-  },
-  "CUS_NEW_TRANSACT": {
-    "definition": "first_order_date落在统计期的客户数",
-    "source": "精斗云销售历史"
-  },
-  "CUS_RETURNING": {
-    "definition": "本期成交客户 ∩ 历史成交客户",
-    "source": "精斗云销售历史"
-  },
-  "CUS_RETURN_RATE": {
-    "definition": "回购客户数 / 本期成交客户数",
-    "source": "精斗云销售历史"
-  },
-  "CUS_PERIOD_REPEAT": {
-    "definition": "期内订单数≥2客户数 / 期内成交客户数",
-    "source": "精斗云销售"
-  },
-  "CUS_RFM_LAYER": {
-    "definition": "R高=距最近成交≤rfm_recent_days；F高=有效订单数≥rfm_freq_orders；M高=累计源销售金额≥全体成交客户人均金额。组合命名：R高F高M高=重要价值、R低F高M高=重要保持、R高F低M高=重要发展、R低F低M高=重要挽留、R高F高M低=一般价值、R低F高M低=一般保持、R高F低M低=一般发展、R低F低M低=一般挽留",
-    "source": "精斗云销售历史 + 系统参数"
-  },
-  "CUS_CONVERT_CYCLE": {
-    "definition": "首笔有效销售订单日期 - 潜客创建日期；仅统计 source_system=crm 且已绑定正式客户并有源销售记录的潜客",
-    "source": "CRM潜客 + 精斗云销售历史"
-  },
-  "CUS_TOP5_SHARE": {
-    "definition": "Top5客户销售额 / 总销售额",
-    "source": "精斗云销售"
-  },
-  "CUS_TOP20P_SHARE": {
-    "definition": "前ceil(成交客户数×20%)客户销售额 / 总销售额",
-    "source": "精斗云销售"
-  },
-  "CRM_LOGIN_DAY": {
-    "definition": "当日存在user_login事件=1",
-    "source": "activity_log"
-  },
-  "CRM_EFFECTIVE_DAY": {
-    "definition": "当日存在有效动作事件=1",
-    "source": "activity_log + CRM实体"
-  },
-  "CRM_ACTIVE_RATE": {
-    "definition": "有效活跃工作日 / 应工作日",
-    "source": "activity_log + 日历"
-  },
-  "CRM_FOLLOWUP_COUNT": {
-    "definition": "COUNT(valid crm_followup)",
-    "source": "CRM跟进"
-  },
-  "CRM_FOLLOWUP_CUSTOMERS": {
-    "definition": "COUNT(DISTINCT customer_id of valid followup)",
-    "source": "CRM跟进"
-  },
-  "CRM_TASK_COUNT": {
-    "definition": "COUNT(task due_at in period)",
-    "source": "CRM任务"
-  },
-  "CRM_TASK_DONE": {
-    "definition": "COUNT(task status=done)",
-    "source": "CRM任务"
-  },
-  "CRM_TASK_RATE": {
-    "definition": "已完成到期任务 / 到期任务数",
-    "source": "CRM任务"
-  },
-  "CRM_NEW_CUSTOMERS": {
-    "definition": "COUNT(customer) WHERE created_at 在本月 且 权限范围内可见",
-    "source": "CRM客户"
-  },
-  "CRM_EFFECTIVE_FOLLOWUPS": {
-    "definition": "COUNT(valid followup WHERE is_effective = true)",
-    "source": "CRM跟进"
-  },
-  "CRM_QUOTED_CUSTOMERS": {
-    "definition": "COUNT(DISTINCT customer_id of valid followup WHERE quotation_sent)",
-    "source": "CRM跟进"
-  },
-  "CRM_DEAL_CUSTOMERS": {
-    "definition": "COUNT(DISTINCT sales_order.customer_id)，仅销售口径已核实时给出",
-    "source": "精斗云销售单"
-  },
-  "CRM_STALE_CUSTOMERS": {
-    "definition": "COUNT(customer) 最近一次有效跟进早于 7 天（无跟进记录的客户不计入）",
-    "source": "CRM跟进"
-  },
-  "OPP_OPEN_AMT": {
-    "definition": "Σestimated_amount where status=open",
-    "source": "CRM商机"
-  },
-  "OPP_WEIGHTED_AMT": {
-    "definition": "Σ(estimated_amount × probability)",
-    "source": "CRM商机"
-  },
-  "DQ_SALES_RECON": {
-    "definition": "解析后销售额 - 源文件合计",
-    "source": "RAW + CORE"
-  },
-  "TGT_WORKDAYS_REMAINING": {
-    "definition": "全月计划工作日减去已过工作日（辅助展示）",
-    "source": "工作日历"
-  },
-  "EXEC_FIN_REVENUE": {
-    "definition": "直接取利润表“营业收入”月度值",
-    "source": "利润表"
-  },
-  "EXEC_RECON_DIFF": {
-    "definition": "经营销售额 - 财务营业收入",
-    "source": "精斗云 + 利润表"
-  },
-  "EXEC_GROSS_MARGIN_FIN": {
-    "definition": "(营业收入 - 营业成本) / 营业收入",
-    "source": "利润表"
-  },
-  "EXEC_NET_PROFIT": {
-    "definition": "直接取利润表净利润",
-    "source": "利润表"
-  },
-  "EXEC_NET_MARGIN": {
-    "definition": "净利润 / 营业收入",
-    "source": "利润表"
-  },
-  "EXEC_CASH_BAL": {
-    "definition": "直接取资产负债表货币资金",
-    "source": "资产负债表"
-  },
-  "EXEC_AR_BAL": {
-    "definition": "直接取资产负债表应收账款",
-    "source": "资产负债表"
-  },
-  "EXEC_INV_BAL": {
-    "definition": "直接取资产负债表存货",
-    "source": "资产负债表"
-  },
-  "EXEC_CASH_MOM": {
-    "definition": "本月货币资金 - 上月货币资金",
-    "source": "资产负债表"
-  },
-  "FIN_GROSS_PROFIT": {
-    "definition": "营业收入 - 营业成本",
-    "source": "利润表"
-  },
-  "SALE_MOM_BASE": {
-    "definition": "上月完整月经营销售额",
-    "source": "精斗云销售"
-  },
-  "SALE_YOY_BASE": {
-    "definition": "去年同期经营销售额",
-    "source": "精斗云销售"
-  },
-  "TGT_QUARTER_AMT": {
-    "definition": "读取sales_target.sales_amount_target（季度）",
-    "source": "CRM目标"
-  },
-  "TGT_QUARTER_COMPLETION": {
-    "definition": "季度经营销售额 / 季度销售目标",
-    "source": "精斗云 + CRM目标"
-  },
-  "TGT_QUARTER_PROGRESS": {
-    "definition": "季度已过天数 / 季度总天数",
-    "source": "系统日历"
-  }
+ "EXEC_SALES_AMT": {
+  "definition": "Σ有效销售单金额 - Σ销售退货金额（如退货单独导入）",
+  "source": "精斗云销售/退货"
+ },
+ "SALE_ORDER_COUNT": {
+  "definition": "COUNT(DISTINCT sales_order.id)",
+  "source": "精斗云销售单"
+ },
+ "SALE_CUSTOMER_COUNT": {
+  "definition": "COUNT(DISTINCT customer_id)",
+  "source": "精斗云销售单"
+ },
+ "SALE_SKU_COUNT": {
+  "definition": "COUNT(DISTINCT product_id)",
+  "source": "精斗云销售明细"
+ },
+ "SALE_AOV": {
+  "definition": "经营销售额 / 销售订单数",
+  "source": "精斗云销售单"
+ },
+ "SALE_MOM": {
+  "definition": "(本期销售额 - 上期销售额) / 上期销售额",
+  "source": "精斗云销售"
+ },
+ "SALE_YOY": {
+  "definition": "(本期销售额 - 去年同期销售额) / 去年同期销售额",
+  "source": "精斗云销售"
+ },
+ "TGT_MONTH_AMT": {
+  "definition": "读取sales_target.sales_amount_target",
+  "source": "CRM目标"
+ },
+ "TGT_COMPLETION": {
+  "definition": "本月人员经营销售额 / 月销售目标",
+  "source": "精斗云 + CRM目标"
+ },
+ "TGT_TIME_PROGRESS": {
+  "definition": "已过工作日 / 全月工作日",
+  "source": "系统工作日历"
+ },
+ "TGT_PROGRESS_GAP": {
+  "definition": "目标完成率 - 时间进度",
+  "source": "精斗云 + CRM目标 + 日历"
+ },
+ "TGT_REMAINING": {
+  "definition": "MAX(月目标 - 已完成销售额, 0)",
+  "source": "精斗云 + CRM目标"
+ },
+ "TGT_DAILY_REQUIRED": {
+  "definition": "剩余目标 / 剩余工作日",
+  "source": "精斗云 + CRM目标 + 日历"
+ },
+ "TGT_RUNRATE_FORECAST": {
+  "definition": "已完成销售额 / 已过工作日 × 全月工作日",
+  "source": "精斗云 + 日历"
+ },
+ "TGT_WEIGHTED_FORECAST": {
+  "definition": "已完成销售额 + Σ(开放商机预计金额 × 成交概率)",
+  "source": "精斗云 + CRM商机"
+ },
+ "CUS_NEW_TRANSACT": {
+  "definition": "first_order_date落在统计期的客户数",
+  "source": "精斗云销售历史"
+ },
+ "CUS_RETURNING": {
+  "definition": "本期成交客户 ∩ 历史成交客户",
+  "source": "精斗云销售历史"
+ },
+ "CUS_RETURN_RATE": {
+  "definition": "回购客户数 / 本期成交客户数",
+  "source": "精斗云销售历史"
+ },
+ "CUS_PERIOD_REPEAT": {
+  "definition": "期内订单数≥2客户数 / 期内成交客户数",
+  "source": "精斗云销售"
+ },
+ "CUS_RFM_LAYER": {
+  "definition": "R高=距最近成交≤rfm_recent_days；F高=有效订单数≥rfm_freq_orders；M高=累计源销售金额≥全体成交客户人均金额。组合命名：R高F高M高=重要价值、R低F高M高=重要保持、R高F低M高=重要发展、R低F低M高=重要挽留、R高F高M低=一般价值、R低F高M低=一般保持、R高F低M低=一般发展、R低F低M低=一般挽留",
+  "source": "精斗云销售历史 + 系统参数"
+ },
+ "CUS_CONVERT_CYCLE": {
+  "definition": "首笔有效销售订单日期 - 潜客创建日期；仅统计 source_system=crm 且已绑定正式客户并有源销售记录的潜客",
+  "source": "CRM潜客 + 精斗云销售历史"
+ },
+ "CUS_TOP5_SHARE": {
+  "definition": "Top5客户销售额 / 总销售额",
+  "source": "精斗云销售"
+ },
+ "CUS_TOP20P_SHARE": {
+  "definition": "前ceil(成交客户数×20%)客户销售额 / 总销售额",
+  "source": "精斗云销售"
+ },
+ "CRM_LOGIN_DAY": {
+  "definition": "当日存在user_login事件=1",
+  "source": "activity_log"
+ },
+ "CRM_EFFECTIVE_DAY": {
+  "definition": "当日存在有效动作事件=1",
+  "source": "activity_log + CRM实体"
+ },
+ "CRM_ACTIVE_RATE": {
+  "definition": "有效活跃工作日 / 应工作日",
+  "source": "activity_log + 日历"
+ },
+ "CRM_FOLLOWUP_COUNT": {
+  "definition": "COUNT(valid crm_followup)",
+  "source": "CRM跟进"
+ },
+ "CRM_FOLLOWUP_CUSTOMERS": {
+  "definition": "COUNT(DISTINCT customer_id of valid followup)",
+  "source": "CRM跟进"
+ },
+ "CRM_TASK_COUNT": {
+  "definition": "COUNT(task due_at in period)",
+  "source": "CRM任务"
+ },
+ "CRM_TASK_DONE": {
+  "definition": "COUNT(task status=done)",
+  "source": "CRM任务"
+ },
+ "CRM_TASK_RATE": {
+  "definition": "已完成到期任务 / 到期任务数",
+  "source": "CRM任务"
+ },
+ "CRM_NEW_CUSTOMERS": {
+  "definition": "COUNT(customer) WHERE created_at 在本月 且 权限范围内可见",
+  "source": "CRM客户"
+ },
+ "CRM_EFFECTIVE_FOLLOWUPS": {
+  "definition": "COUNT(valid followup WHERE is_effective = true)",
+  "source": "CRM跟进"
+ },
+ "CRM_QUOTED_CUSTOMERS": {
+  "definition": "COUNT(DISTINCT customer_id of valid followup WHERE quotation_sent)",
+  "source": "CRM跟进"
+ },
+ "CRM_DEAL_CUSTOMERS": {
+  "definition": "COUNT(DISTINCT sales_order.customer_id)，仅销售口径已核实时给出",
+  "source": "精斗云销售单"
+ },
+ "CRM_STALE_CUSTOMERS": {
+  "definition": "COUNT(customer) 最近一次有效跟进早于 7 天（无跟进记录的客户不计入）",
+  "source": "CRM跟进"
+ },
+ "OPP_OPEN_AMT": {
+  "definition": "Σestimated_amount where status=open",
+  "source": "CRM商机"
+ },
+ "OPP_WEIGHTED_AMT": {
+  "definition": "Σ(estimated_amount × probability)",
+  "source": "CRM商机"
+ },
+ "DQ_SALES_RECON": {
+  "definition": "解析后销售额 - 源文件合计",
+  "source": "RAW + CORE"
+ },
+ "TGT_WORKDAYS_REMAINING": {
+  "definition": "全月计划工作日减去已过工作日（辅助展示）",
+  "source": "工作日历"
+ },
+ "EXEC_FIN_REVENUE": {
+  "definition": "直接取利润表“营业收入”月度值",
+  "source": "利润表"
+ },
+ "EXEC_RECON_DIFF": {
+  "definition": "经营销售额 - 财务营业收入",
+  "source": "精斗云 + 利润表"
+ },
+ "EXEC_GROSS_MARGIN_FIN": {
+  "definition": "(营业收入 - 营业成本) / 营业收入",
+  "source": "利润表"
+ },
+ "EXEC_NET_PROFIT": {
+  "definition": "直接取利润表净利润",
+  "source": "利润表"
+ },
+ "EXEC_NET_MARGIN": {
+  "definition": "净利润 / 营业收入",
+  "source": "利润表"
+ },
+ "EXEC_CASH_BAL": {
+  "definition": "直接取资产负债表货币资金",
+  "source": "资产负债表"
+ },
+ "EXEC_AR_BAL": {
+  "definition": "直接取资产负债表应收账款",
+  "source": "资产负债表"
+ },
+ "EXEC_INV_BAL": {
+  "definition": "直接取资产负债表存货",
+  "source": "资产负债表"
+ },
+ "EXEC_CASH_MOM": {
+  "definition": "本月货币资金 - 上月货币资金",
+  "source": "资产负债表"
+ },
+ "FIN_GROSS_PROFIT": {
+  "definition": "营业收入 - 营业成本",
+  "source": "利润表"
+ },
+ "SALE_MOM_BASE": {
+  "definition": "上月完整月经营销售额",
+  "source": "精斗云销售"
+ },
+ "SALE_YOY_BASE": {
+  "definition": "去年同期经营销售额",
+  "source": "精斗云销售"
+ },
+ "TGT_QUARTER_AMT": {
+  "definition": "读取sales_target.sales_amount_target（季度）",
+  "source": "CRM目标"
+ },
+ "TGT_QUARTER_COMPLETION": {
+  "definition": "季度经营销售额 / 季度销售目标",
+  "source": "精斗云 + CRM目标"
+ },
+ "TGT_QUARTER_PROGRESS": {
+  "definition": "季度已过天数 / 季度总天数",
+  "source": "系统日历"
+ },
+ "SALE_COST_AMOUNT": {
+  "definition": "Σ(行成本金额)，行成本 = 最近一次采购价 × 数量",
+  "source": "精斗云销售单（最近一次采购价列）"
+ },
+ "SALE_GROSS_PROFIT": {
+  "definition": "Σ(行金额 - 行成本金额)；无成本行不计入成本与毛利",
+  "source": "精斗云销售单 + 最近一次采购价"
+ },
+ "SALE_GROSS_MARGIN": {
+  "definition": "销售毛利 / 销售额 × 100（仅就有成本行计算）",
+  "source": "精斗云销售单 + 最近一次采购价"
+ }
 }

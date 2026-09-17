@@ -112,6 +112,28 @@ def test_sales_scope_and_no_cost_leak(client, setup_m1, sign_in, name, orders, d
         assert detail.status_code == 200 and 'cost' not in detail.text
 
 
+def test_product_margins_report_and_scope(client, setup_m1, sign_in, db):
+    source, upload, confirm = setup_m1
+    assert confirm(upload('sales', sales(last_cost=('0.05', '0.08')))).status_code == 200
+    lines = sorted(db.scalars(select(SalesOrderLine).where(SalesOrderLine.is_active)), key=lambda x: x.line_no)
+    assert [str(ln.actual_cost_amount) for ln in lines] == ['0.05', '0.08']
+    sign_in('Owner')
+    page = client.get('/api/bi/product-margins', params={'source_id': source, 'month': '2026-08-01'}).json()
+    assert page['total_sales'] == '0.30' and page['total_cost'] == '0.13' and page['total_profit'] == '0.17'
+    import pytest
+    assert float(page['margin_rate']) == pytest.approx(56.7, abs=0.05)
+    assert len(page['rows']) == 1 and page['rows'][0]['cost'] == '0.13' and page['rows'][0]['quantity'] == '2.00'
+    # 数据权限：S2 名下无该源订单 → 数据源 404；S1（甲）→ 只看自己的毛利
+    sign_in('S2')
+    assert client.get('/api/bi/product-margins', params={'source_id': source, 'month': '2026-08-01'}).status_code == 404
+    sign_in('S1')
+    own = client.get('/api/bi/product-margins', params={'source_id': source, 'month': '2026-08-01'}).json()
+    assert own['total_sales'] == '0.30' and own['total_profit'] == '0.17'
+    # 未来月份拒绝
+    sign_in('Owner')
+    assert client.get('/api/bi/product-margins', params={'source_id': source, 'month': '2099-01-01'}).status_code == 422
+
+
 def test_finance_cannot_read_sales_preview_raw_or_files(client, setup_m1, sign_in):
     _, upload, _ = setup_m1
     b = upload('sales', sales())
@@ -267,3 +289,4 @@ def test_bi_refreshes_after_import_without_duplicate_or_old_lines(client, setup_
     final = client.get('/api/bi/sales', params=params).json()
     assert final['rows'][0]['current'] == '0.40'
     assert final['line_difference'] == '0.00'
+

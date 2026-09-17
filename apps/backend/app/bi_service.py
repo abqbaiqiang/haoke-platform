@@ -15,7 +15,7 @@ from app.bi_access import TZ, audit, get_target, latest_fact, load_orders, month
 from app.bi_caliber import included, normal_sale, order_value, review_ready
 from app.bi_calculations import ZERO, metric, money, month_end, month_start, ratio, shift_month, target_metrics, work_dates
 from app.bi_insights import CONVERT_BUCKETS, RFM_SEGMENTS, analysis, attention, customer_analytics, customer_profile, \
-    orders, overview, workbench
+    orders, overview, product_margins, workbench
 from app.bi_models import SalesReview
 from app.data_models import DataSource, SalesOrder
 from app.models import utcnow
@@ -26,6 +26,6 @@ __all__ = [
     'included', 'normal_sale', 'order_value', 'review_ready',
     'ZERO', 'metric', 'money', 'month_end', 'month_start', 'ratio', 'shift_month', 'target_metrics', 'work_dates',
     'RFM_SEGMENTS', 'CONVERT_BUCKETS', 'analysis', 'attention', 'customer_analytics', 'customer_profile',
-    'orders', 'overview', 'workbench',
+    'orders', 'overview', 'product_margins', 'workbench',
     'SalesReview', 'DataSource', 'SalesOrder', 'utcnow',
 ]

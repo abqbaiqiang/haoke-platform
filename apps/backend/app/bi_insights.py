@@ -182,6 +182,75 @@ def orders(db, actor, sid, period, dimension=None, key=None, offset=0):
         amount=money(o.sales_amount), status=o.source_status) for o in db.scalars(query.order_by(SalesOrder.order_date, SalesOrder.id).offset(offset).limit(30))])
 
 
+def product_margins(db, actor, sid, period, offset=0, limit=20):
+    """SALE_COST_AMOUNT / SALE_GROSS_PROFIT / SALE_GROSS_MARGIN：按商品聚合的销售毛利。
+
+    成本口径 = 行成本（最近一次采购价 × 数量，精斗云导出列），非实际出库成本；
+    未导入成本的行不计入成本与毛利，但计入销售额（cost_coverage 反映成本覆盖率）。
+    """
+    month(period)
+    src = source(db, actor, sid)
+    today = utcnow().astimezone(TZ).date()
+    if period > month_start(today):
+        raise HTTPException(422, '商品毛利不能查询未来月份')
+    through = min(today, month_end(period))
+    line_rows = db.execute(
+        select(SalesOrderLine, SalesOrder)
+        .join(SalesOrder, SalesOrder.id == SalesOrderLine.sales_order_id)
+        .where(SalesOrder.source_system == src.source_code,
+               SalesOrder.order_date >= month_start(period),
+               SalesOrder.order_date <= through,
+               SalesOrderLine.is_active.is_(True),
+               SalesOrderLine.version == SalesOrder.version,
+               scope(db, actor, SalesOrder.sales_user_id))
+        .order_by(SalesOrder.order_date, SalesOrder.id)).all()
+    ready, cfg, why = review_ready(db, src, period, through, [o for _, o in line_rows], actor.role_code != ROLE_OWNER)
+    warnings = [] if ready else [why]
+    if period == month_start(today):
+        warnings.append(f'本月截至 {through}，当月数据随导入持续更新')
+    per: dict[UUID, dict] = {}
+    for line, _ in line_rows:
+        entry = per.setdefault(line.product_id, {'sales': ZERO, 'cost': ZERO, 'quantity': ZERO,
+                                                 'has_cost': True, 'has_line': False})
+        entry['sales'] += line.line_amount
+        entry['quantity'] += line.quantity
+        entry['has_line'] = True
+        if line.actual_cost_amount is not None:
+            entry['cost'] += line.actual_cost_amount
+        else:
+            entry['has_cost'] = False
+    names = {p.id: p.product_name for p in db.scalars(select(Product).where(Product.id.in_(per)))}
+    def margin(entry):
+        if not entry['has_cost'] or not entry['sales']:
+            return None
+        return ratio((entry['sales'] - entry['cost']) * 100, entry['sales'])
+    ordered = sorted(per.items(), key=lambda kv: (
+        margin(kv[1]) is not None, margin(kv[1]) if margin(kv[1]) is not None else 0, kv[1]['sales']), reverse=True)
+    total_sales = sum((e['sales'] for e in per.values()), ZERO)
+    cost_entries = [e for e in per.values() if e['has_cost']]
+    total_cost = sum((e['cost'] for e in cost_entries), ZERO)
+    covered_sales = sum((e['sales'] for e in cost_entries), ZERO)
+    total_profit = total_sales - total_cost if cost_entries else None
+    margin_rate = ratio(total_profit * 100, total_sales) if total_profit is not None and total_sales else None
+    cost_coverage = ratio(covered_sales * 100, total_sales) if total_sales else None
+    metrics = [metric('SALE_COST_AMOUNT', '销售成本', total_cost if cost_entries else None, reason='导入文件未含成本列'),
+        metric('SALE_GROSS_PROFIT', '销售毛利', total_profit, reason='导入文件未含成本列'),
+        metric('SALE_GROSS_MARGIN', '毛利率', margin_rate, '%', reason='导入文件未含成本列')]
+    sliced = ordered[offset:offset + limit]
+    return dto.ProductMarginPage(month=period, through=through,
+        basis='源销售核对（未确认口径）', warnings=warnings, metrics=metrics,
+        total_sales=money(total_sales), total_cost=money(total_cost) if cost_entries else None,
+        total_profit=money(total_profit) if total_profit is not None else None,
+        margin_rate=money(margin_rate) if margin_rate is not None else None,
+        cost_coverage=money(cost_coverage) if cost_coverage is not None else None,
+        rows=[dto.ProductMarginRow(product_id=pid, name=names.get(pid, '未知商品'),
+            quantity=money(e['quantity']), sales=money(e['sales']),
+            cost=money(e['cost']) if e['has_cost'] else None,
+            profit=money(e['sales'] - e['cost']) if e['has_cost'] else None,
+            rate=money(margin(e)) if margin(e) is not None else None) for pid, e in sliced],
+        total=len(per))
+
+
 def workbench(db, actor, uid, period):
     target_user = person(db, actor, uid)
     month(period)
