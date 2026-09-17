@@ -215,7 +215,7 @@ def product_margins(db, actor, sid, period, offset=0, limit=20):
         entry['sales'] += line.line_amount
         entry['quantity'] += line.quantity
         entry['has_line'] = True
-        if line.actual_cost_amount is not None:
+        if line.actual_cost_amount:  # 0/空视为未维护采购价，避免出现 100% 假毛利
             entry['cost'] += line.actual_cost_amount
         else:
             entry['has_cost'] = False
@@ -224,8 +224,10 @@ def product_margins(db, actor, sid, period, offset=0, limit=20):
         if not entry['has_cost'] or not entry['sales']:
             return None
         return ratio((entry['sales'] - entry['cost']) * 100, entry['sales'])
+    def profit_of(entry):
+        return (entry['sales'] - entry['cost']) if entry['has_cost'] and entry['sales'] else None
     ordered = sorted(per.items(), key=lambda kv: (
-        margin(kv[1]) is not None, margin(kv[1]) if margin(kv[1]) is not None else 0, kv[1]['sales']), reverse=True)
+        profit_of(kv[1]) is not None, profit_of(kv[1]) or ZERO, kv[1]['sales']), reverse=True)
     total_sales = sum((e['sales'] for e in per.values()), ZERO)
     cost_entries = [e for e in per.values() if e['has_cost']]
     total_cost = sum((e['cost'] for e in cost_entries), ZERO)
