@@ -7,6 +7,9 @@ import { api } from "./crm/api";
 import { Editor } from "./crm/editor";
 import { TagManager, TagPicker } from "./crm/tags";
 import { TaskList, OppList, FollowList } from "./crm/lists";
+import { DetailSummary } from "./crm/detail/summary";
+import { DetailOverview } from "./crm/detail/overview";
+import { DetailSections } from "./crm/detail/sections";
 import { money, relLabel, text } from "./crm/shared";
 import type { Detail, Field, Profile, Value } from "./crm/types";
 import type { Contact, CrmPerson as Person, CrmSettings as Settings, Customer, Followup as Follow, Opportunity, Role, Tag, Task } from "./lib/types";
@@ -112,21 +115,7 @@ export default function CRM({role, userId, entry, embedded=false}: {role: Role; 
   },[tab,selected,search,offset,view,revision,tagFilter,levelFilter,claimFilter,workOffset,historyOffset,personFilter,openOnly,ownership,pageSize]);
   async function act(run:()=>Promise<unknown>, message="已保存") {setBusy(true);setError("");setNotice("");try{await run();if(message)setNotice(message);refresh();}catch(e){setError(e instanceof Error?e.message:"操作失败");}finally{setBusy(false);}}
   async function save(path:string,method:string,data:unknown) {await api(path,method,data);setEdit(null);setNotice("已保存，操作历史已保留");refresh();}
-  const contactFields: Field[]=[{key:"name",label:"联系人姓名",required:true,maxLength:100},{key:"role_label",label:"职位/关系角色（如老板、采购）",maxLength:64},{key:"mobile",label:"联系电话",maxLength:32},{key:"wechat",label:"微信",maxLength:100},{key:"email",label:"邮箱",maxLength:255},{key:"decision_role",label:"业务角色",options:[["","未指定"],...decisionRoles]},{key:"is_primary",label:"主要联系人",type:"checkbox"},{key:"relationship_note",label:"关系备注",type:"textarea"},{key:"is_active",label:"联系人有效",type:"checkbox"}];
-  const followFields: Field[]=[{key:"interaction_method",label:"跟进方式",options:methods},{key:"contact_result",label:"沟通结果",options:results},{key:"contact_id",label:"关联联系人",options:[["","未指定"],...(detail?.contacts.filter(c=>c.is_active).map(c=>[c.id,c.name] as [string,string]) || [])]},{key:"occurred_at",label:"沟通时间（北京时间）",type:"datetime-local"},{key:"summary",label:"沟通摘要",type:"textarea"},{key:"material_sent",label:"已发送资料",type:"checkbox"},{key:"material_note",label:"资料说明"},{key:"quotation_sent",label:"已报价",type:"checkbox"},{key:"next_action",label:"下一步动作"},{key:"next_followup_at",label:"下次跟进时间（北京时间）",type:"datetime-local"}];
-  const oppFields: Field[]=[{key:"opportunity_name",label:"商机名称",required:true},{key:"owner_user_id",label:"商机负责人",required:true,options:personOptions},{key:"stage",label:"商机阶段",options:stages},{key:"estimated_amount",label:"预计金额（元）",type:"number",step:"0.01",min:"0"},{key:"probability",label:"成交概率（0—1，如 0.7）",type:"number",step:"0.0001",min:"0",max:"1"},{key:"expected_close_date",label:"预计成交日期",type:"date"},{key:"product_ids",label:"推荐产品",type:"products"},{key:"need_summary",label:"主要需求",type:"textarea"},{key:"current_blocker",label:"当前卡点（如：等待客户确认预算）",maxLength:255},{key:"next_promotion",label:"下一步推进（如：9月17日发送3套方案）",maxLength:500},{key:"lost_reason",label:"流失原因"}];
-  const customer=detail?.customer;
-  // 概览工作台派生数据：下一步 = 最早到期的待处理待办；当前商机 = 预计成交最近且未关闭的商机。
-  const todoTasks=(detail?.tasks||[]).filter(t=>t.status==="todo").slice().sort((a,b)=>+new Date(a.due_at)-+new Date(b.due_at));
-  const nextTask=todoTasks[0];
-  const currentOpp=(detail?.opportunities||[]).filter(o=>o.status==="open").slice()
-    .sort((a,b)=>Date.parse(a.expected_close_date||"9999-12-31")-Date.parse(b.expected_close_date||"9999-12-31"))[0];
-  const activeContacts=(detail?.contacts||[]).filter(c=>c.is_active);
-  const primaryContact=activeContacts.find(c=>c.is_primary)||activeContacts[0];
-  const lastFollow=detail?.followups[0];
-  const detailTabs: [string,string][]=[["overview","概览"],["contacts","联系人"],...(role!=="finance"?[["followups","跟进记录"],["tasks","待办任务"],["opportunities","商机"]] as [string,string][]:[]),["transactions","交易"]];
-  const stageIndex=(s: string)=>stageFlow.findIndex(([v])=>v===s);
-  async function copyText(value: string, label: string) { try { await navigator.clipboard.writeText(value); setNotice(`已复制${label}：${value}`); } catch { setNotice(`复制失败，请手动复制${label}：${value}`); } }
+  const customer = detail?.customer;
   return <section className="crm"><p className="eyebrow">工作空间 / 轻量 CRM</p><h1>{selected ? "客户 360" : "客户与待办"}</h1><p className="muted">记录客户关系和下一步安排。正式交易以精斗云为准。</p>
     <div className="data-tabs">{[["customers",role==="sales"?"我的客户":"客户列表"],...(role!=="finance"?[["pool","客户公海"],["opportunities","商机列表"],["followups","跟进记录"],["tasks","我的待办"]]:[]),...(["owner","admin"].includes(role)?[["settings","CRM 设置"]]:[])].map(([key,label])=><button key={key} aria-pressed={tab===key&&!selected} onClick={()=>{setTab(key);setQuickFollowup(false);setWorkOffset(0);setHistoryOffset(0);setSelected(null);rememberCustomer(null);setDetail(null);setEdit(null);setOffset(0);setNotice("");}}>{label}</button>)}</div>
     {error && <p role="alert" className="error">{error}<button onClick={refresh}>重试</button></p>}{notice && <p role="status" className="data-success">{notice}</p>}{loading && <p role="status">正在加载…</p>}
@@ -143,141 +132,11 @@ export default function CRM({role, userId, entry, embedded=false}: {role: Role; 
     {!selected&&tab==="followups"&&<><p className="muted">按沟通时间排序，可翻页查看历史跟进。</p><FollowList data={follows} name={name} selected={selected} processWrite={processWrite} role={role} edit={edit} setEdit={setEdit} save={save} open={open}/></>}
     {!selected&&tab==="opportunities"&&<><p className="muted">按更新时间排序，可翻页查看历史商机。预计金额与加权金额不计入实际销售额。</p><OppList data={opps} name={name} selected={selected} processWrite={processWrite} open={open} setEdit={setEdit}/></>}
     {!selected&&["tasks","followups","opportunities"].includes(tab)&&<div className="crm-actions"><button disabled={workOffset===0||loading} onClick={()=>setWorkOffset(Math.max(0,workOffset-100))}>上一页记录</button><span>第 {workOffset/100+1} 页</span><button disabled={loading||(tab==="tasks"?tasks:tab==="followups"?follows:opps).length<100} onClick={()=>setWorkOffset(workOffset+100)}>下一页记录</button></div>}
-    {selected&&detail&&customer&&<><div className="cd">{!embedded&&<div className="cd-topline"><button onClick={()=>{setSelected(null);rememberCustomer(null);setDetail(null);setEdit(null);}}>← 返回客户列表</button></div>}
-      <header className="cd-card cd-summary" aria-label="客户摘要">
-        <div>
-          <div className="cd-title-row"><h2 className="cd-name">{customer.customer_name}</h2>
-            <div className="cd-title-actions">
-              {customerWrite&&processWrite&&<button className="cd-primary" onClick={()=>{setDetailTab("followups");setEdit({kind:"followup"});}}>记录跟进</button>}
-              {customerWrite&&<button onClick={()=>setEdit({kind:"customer"})}>编辑客户</button>}
-              {manage&&<details><summary aria-label="更多客户操作">···</summary><div className="cd-actions-row">{manage&&<button onClick={()=>setEdit({kind:"transfer"})}>分配／转交／公海</button>}{manage&&customer.source_system==="crm"&&!customer.bound_customer_id&&<button onClick={()=>{setEdit({kind:"bind"});setCandidates([]);}}>绑定精斗云客户</button>}</div></details>}
-            </div>
-          </div>
-          <div className="cd-tagwrap" style={{marginTop:8}}>
-            {customer.customer_level&&<span className="cd-tag level">{customer.customer_level}级客户</span>}
-            <span className="cd-tag status">{text(lifecycle,customer.lifecycle_status)}</span>
-            {customer.customer_type&&<span className="cd-tag plain">{customer.customer_type}</span>}
-          </div>
-          <p className="cd-desc">{customer.remark||"暂无客户备注"}</p>
-        </div>
-        <dl className="cd-meta">
-          <div><dt>负责人</dt><dd>{name(customer.owner_user_id)}</dd></div>
-          <div><dt>主要联系人</dt><dd>{primaryContact?primaryContact.name:"未登记"}</dd></div>
-          <div><dt>联系电话</dt><dd>{primaryContact?.mobile||"—"}</dd></div>
-          <div><dt>客户编号</dt><dd>{customer.customer_code||"CRM 潜客"}</dd></div>
-          <div><dt>创建时间</dt><dd>{dateTime(customer.created_at)}</dd></div>
-        </dl>
-        <div>
-          <div className="cd-tagwrap">
-            {detail.tags.slice(0,4).map(t=><span key={t.id} className="cd-tag plain">{t.tag_name}</span>)}
-            {detail.tags.length>4&&<span className="cd-tag more">+{detail.tags.length-4}</span>}
-            {!detail.tags.length&&<span className="cd-empty">暂无标签</span>}
-          </div>
-          {customerWrite&&<button className="cd-more" aria-expanded={tagMgr} onClick={()=>setTagMgr(v=>!v)}>{tagMgr?"收起标签管理":"管理标签"}</button>}
-          {customer.claims?.length?<p className="cd-sub">认养人：{customer.claims.map(x=>x.display_name+(x.user_id===userId?"（我）":"")).join("、")}</p>:null}
-        </div>
-      </header>
-      <nav className="cd-tabs" aria-label="客户详情分区">{detailTabs.map(([key,label])=><button key={key} aria-pressed={detailTab===key} onClick={()=>setDetailTab(key)}>{label}</button>)}</nav>
-      {tagMgr&&customerWrite&&<section className="card data-section" aria-label="标签管理"><TagManager tags={tags} busy={busy} run={act} role={role} userId={userId}/><TagPicker key={detail.tags.map(t=>t.id).join(",")} tags={tags} selected={detail.tags.map(t=>t.id)} busy={busy} canCreate={!!processWrite&&!!config?.sales_create_tags} onCreate={async tagName=>{let t:Tag|undefined;await act(async()=>{t=await api<Tag>("/tags","POST",{tag_name:tagName,tag_group:null});},"");return t;}} onSave={ids=>act(()=>api(`/customers/${selected}/tags`,"PUT",{tag_ids:ids}))}/></section>}
-      {!customerWrite&&<section className="card data-section" aria-label="标签管理"><div className="tag-picker">{detail.tags.map(t=><span key={t.id} className="tag-chip">{t.tag_name}</span>)}{!detail.tags.length&&<p className="muted">暂无标签</p>}</div></section>}
-      {edit?.kind==="customer"&&<Editor title="客户扩展信息" initial={customer as unknown as Record<string,Value>} fields={[...(customer.source_system==="crm"&&!customer.bound_customer_id?[{key:"customer_name",label:"客户名称",required:true}]:[]),{key:"remark",label:"客户备注",type:"textarea"},...(customerWrite?[{key:"customer_level",label:"客户级别（A-D，销售可自行调整）",options:[["","未评级"],["A","A"],["B","B"],["C","C"],["D","D"]] as [string,string][]}]:[]),...(customerWrite?[{key:"customer_status",label:"客户阶段",options:[["","未标记"],...customerStage] as [string,string][]}]:[]),...(manage?[{key:"customer_type",label:"客户类型",maxLength:32},{key:"lifecycle_status",label:"合作状态",options:lifecycle}]:[])]} submit="保存客户" cancel={()=>setEdit(null)} save={d=>save(`/customers/${selected}`,"PATCH",d)}/>}
-      {edit?.kind==="transfer"&&<Editor title="客户归属调整" fields={[{key:"owner_user_id",label:"新负责人",options:[["","进入公海"],...personOptions]},{key:"reason",label:"转交原因",required:true,maxLength:500}]} initial={{owner_user_id:customer.owner_user_id}} submit="确认调整归属" cancel={()=>setEdit(null)} save={async d=>{await api(`/customers/${selected}/transfer`,"POST",d);setSelected(null);rememberCustomer(null);setDetail(null);setEdit(null);setNotice("归属已调整，历史记录保留");refresh();}}/>}
-      {edit?.kind==="bind"&&<><Editor title="查找精斗云正式客户" fields={[{key:"q",label:"正式客户名称",required:true,maxLength:100}]} submit="查找可绑定客户" cancel={()=>setEdit(null)} save={async d=>setCandidates(await api<Customer[]>(`/binding-candidates?q=${encodeURIComponent(String(d.q))}`))}/><p>仅列出未分配、未管理的正式客户。绑定保留潜客历史和精斗云原始订单。</p>{candidates.map(c=><p key={c.id}>{c.customer_name} · {c.customer_code}<button disabled={busy} onClick={()=>act(async()=>{const bound=await api<Customer>(`/customers/${selected}/bind`,"POST",{target_id:c.id});open(bound.id);},"已绑定，潜客历史已保留")}>绑定此客户</button></p>)}</>}
-      {detailTab==="overview"&&<><div className="cd-kpis">
-        <button className="cd-card cd-kpi" onClick={()=>setDetailTab("transactions")}><span>累计销售额</span><strong>{detail.sales_summary.order_count?money(detail.sales_summary.total_amount):"—"}</strong><small>{detail.sales_summary.order_count?`${detail.sales_summary.order_count} 单`:"暂无精斗云销售记录"}</small></button>
-        <button className="cd-card cd-kpi" onClick={()=>setDetailTab("transactions")}><span>本年销售额</span><strong>{detail.sales_summary.order_count?money(detail.sales_summary.year_amount):"—"}</strong><small>同比 —</small></button>
-        <button className="cd-card cd-kpi" onClick={()=>setDetailTab("transactions")}><span>最近成交</span><strong>{profile?.days_since!=null?`${profile.days_since} 天前`:"—"}</strong><small>{detail.sales_summary.last_order_date||"暂无成交记录"}</small></button>
-        <button className="cd-card cd-kpi" onClick={()=>setDetailTab("followups")}><span>最近跟进</span><strong>{lastFollow?relLabel(dayDiff(lastFollow.occurred_at)):"—"}</strong><small>{lastFollow?dateTime(lastFollow.occurred_at):"暂无跟进记录"}</small></button>
-        <button className="cd-card cd-kpi" onClick={()=>setDetailTab("tasks")}><span>下一步计划</span><strong className={nextTask&&dayDiff(nextTask.due_at)<0?"danger":""}>{nextTask?relLabel(dayDiff(nextTask.due_at)):"—"}</strong><small>{nextTask?dateTime(nextTask.due_at):"暂无待办"}</small></button>
-      </div>
-      <div className="cd-columns">
-        <div className="cd-main">
-          <section className="cd-card" aria-label="下一步行动">
-            <header><h3>下一步行动</h3>{["owner","manager","sales"].includes(role)&&<button className="cd-more" onClick={()=>setEdit({kind:"newtask"})}>+ 新建下一步行动</button>}</header>
-            {nextTask?<div className={"cd-next"+(dayDiff(nextTask.due_at)<0?" overdue":"")}>
-              <div className="when">{dateTime(nextTask.due_at)}<br/><span className="due">{dayDiff(nextTask.due_at)<0?`已逾期 ${-dayDiff(nextTask.due_at)} 天`:relLabel(dayDiff(nextTask.due_at))}</span></div>
-              <div className="what"><strong>{nextTask.title}</strong><p>负责人：{name(nextTask.assignee_user_id)} · {nextTask.source_type==="followup"?"跟进生成":nextTask.source_type==="manager"?"管理者分配":"手动创建"}</p></div>
-              <div className="cd-actions-row">{["owner","manager","sales"].includes(role)&&<><button className="cd-primary" disabled={busy} onClick={()=>act(()=>api(`/tasks/${nextTask.id}`,"PATCH",{status:"done"}),"待办已完成；建议顺手记录一次跟进")}>完成</button><button onClick={()=>setEdit({kind:"task",id:nextTask.id})}>修改</button></>}</div>
-            </div>:<p className="cd-empty">暂无下一步行动，为这个客户安排一件今天能推进的事。</p>}
-            {edit?.kind==="task"&&edit.id&&detail.tasks.some(t=>t.id===edit.id)&&<Editor title="调整待办" fields={[{key:"due_at",label:"延期至（北京时间）",type:"datetime-local"},{key:"status",label:"待办状态",options:[["todo","待处理"],["cancelled","取消"]]},{key:"completion_result",label:"简短结果",maxLength:100}]} initial={{}} submit="保存待办" cancel={()=>setEdit(null)} save={async d=>{if(d.status==="cancelled"||!d.due_at)delete d.due_at;await save(`/tasks/${edit!.id}`,"PATCH",d);}}/>}
-          </section>
-          <section className={"cd-card"+(currentOpp?" cd-opp":"")} aria-label="当前商机">
-            <header><h3>当前商机</h3><button className="cd-more" onClick={()=>setDetailTab("opportunities")}>查看全部商机 ›</button></header>
-            {currentOpp?<>
-              <div className="cd-opp-head"><strong>{currentOpp.opportunity_name}</strong><span className="amount">{currentOpp.estimated_amount?money(currentOpp.estimated_amount):"未填写"}</span></div>
-              <ol className="cd-steps">{stageFlow.map(([v,label])=><li key={v} className={v===currentOpp.stage?"current":stageIndex(v)<stageIndex(currentOpp.stage)?"done":""}>{label}</li>)}</ol>
-              <dl><dt>预计成交时间</dt><dd>{currentOpp.expected_close_date||"未填写"}</dd><dt>当前卡点</dt><dd>{currentOpp.current_blocker||"未填写"}</dd><dt>下一步推进</dt><dd>{currentOpp.next_promotion||"未填写"}</dd><dt>相关产品</dt><dd>{currentOpp.products&&currentOpp.products.length?currentOpp.products.map(p=>p.name).join("、"):"—"}</dd><dt>商机负责人</dt><dd>{name(currentOpp.owner_user_id)}</dd></dl>
-              {currentOpp.expected_close_date&&dayDiff(currentOpp.expected_close_date)<0&&<p className="warn">已超过预计成交日期，请与负责人确认商机进展。</p>}
-              {processWrite&&<div className="cd-actions-row"><button onClick={()=>setEdit({kind:"opportunity",id:currentOpp.id})}>编辑商机</button><button className="cd-primary" onClick={()=>setEdit({kind:"promote",id:currentOpp.id})}>推进商机</button></div>}
-            </>:<p className="cd-empty">暂无进行中商机。{processWrite?"可为这个客户新增一个商机。":""}</p>}
-          </section>
-          <div className="cd-duo">
-            <section className="cd-card" aria-label="最近跟进">
-              <header><h3>最近跟进</h3><button className="cd-more" onClick={()=>setDetailTab("followups")}>查看全部 ›</button></header>
-              {detail.followups.length?<ul className="cd-feed">{detail.followups.slice(0,3).map(f=><li key={f.id}><span className="dot"/><div className="body"><div className="head"><time>{dateTime(f.occurred_at)}</time><span className="cd-tag plain">{text(methods,f.interaction_method)}</span><span className="muted">{name(f.owner_user_id)}</span></div><p>{f.summary||"未填写摘要"}{f.next_action?` · 下一步：${f.next_action}`:""}</p></div></li>)}</ul>:<p className="cd-empty">暂无跟进记录。</p>}
-              {processWrite&&<div className="cd-actions-row"><button className="cd-primary" onClick={()=>{setDetailTab("followups");setEdit({kind:"followup"});}}>+ 记录跟进</button></div>}
-            </section>
-            <section className="cd-card" aria-label="最近交易">
-              <header><h3>最近交易</h3><button className="cd-more" onClick={()=>setDetailTab("transactions")}>查看全部 ›</button></header>
-              {detail.orders.length?<><table className="cd-table"><thead><tr><th>日期</th><th>单据号</th><th>金额</th></tr></thead><tbody>{detail.orders.slice(0,3).map(o=><tr key={o.id}><td>{o.order_date}</td><td>{o.order_no}</td><td>{money(o.sales_amount)}</td></tr>)}</tbody></table>
-                <div className="cd-mini"><div><span>累计销售</span><strong>{money(detail.sales_summary.total_amount)}</strong></div><div><span>本年销售</span><strong>{money(detail.sales_summary.year_amount)}</strong></div><div><span>订单数</span><strong>{detail.sales_summary.order_count} 单</strong></div></div></>
-                :<p className="cd-empty">暂无精斗云销售记录。</p>}
-            </section>
-          </div>
-        </div>
-        <div className="cd-side">
-          <section className="cd-card" aria-label="联系人">
-            <header><h3>联系人（{activeContacts.length}）</h3><button className="cd-more" onClick={()=>{setDetailTab("contacts");setEdit({kind:"contact"});}}>+ 新增联系人</button></header>
-            <div className="cd-contacts">{activeContacts.slice(0,4).map(c=>
-              <div className="cd-contact" key={c.id}>
-                <span className="avatar">{c.name.slice(0,1)}</span>
-                <div className="who">
-                  <div className="nm">{c.name}{c.is_primary&&<span className="cd-tag">主要联系人</span>}</div>
-                  <div className="rl">{[c.role_label,c.decision_role?text(decisionRoles,c.decision_role):""].filter(Boolean).join(" · ")||"未指定角色"}</div>
-                  {c.mobile&&<div className="mb">{c.mobile}</div>}
-                </div>
-                <div className="cd-quick">
-                  {c.mobile&&<button onClick={()=>copyText(c.mobile!,"电话号码")}>电话</button>}
-                  {c.wechat&&<button onClick={()=>copyText(c.wechat!,"微信号")}>微信</button>}
-                  <button onClick={()=>{setDetailTab("contacts");setEdit({kind:"contact",id:c.id});}}>编辑</button>
-                </div>
-              </div>)}
-              {!activeContacts.length&&<p className="cd-empty">暂无联系人。</p>}
-            </div>
-          </section>
-          <section className="cd-card" aria-label="客户信息">
-            <header><h3>客户信息</h3>{customerWrite&&<button className="cd-more" onClick={()=>setEdit({kind:"customer"})}>编辑</button>}</header>
-            <dl className="cd-info">
-              <div><dt>客户等级</dt><dd>{customer.customer_level?`${customer.customer_level}级客户`:"未评级"}</dd></div>
-              <div><dt>RFM 分层</dt><dd>{profile?.layer||"—"}</dd></div>
-              <div><dt>客户阶段</dt><dd>{customer.customer_status?text(customerStage,customer.customer_status):"未标记"}</dd></div>
-              <div><dt>合作状态</dt><dd>{text(lifecycle,customer.lifecycle_status)}</dd></div>
-              <div><dt>客户类型</dt><dd>{customer.customer_type||"—"}</dd></div>
-              <div className="weak"><dt>绑定状态</dt><dd>{customer.bound_at?"已绑定精斗云":"未绑定精斗云"}</dd></div>
-            </dl>
-          </section>
-          <section className="cd-card" aria-label="客户备注">
-            <header><h3>客户备注</h3>{customerWrite&&<button className="cd-more" onClick={()=>setEdit({kind:"customer"})}>编辑</button>}</header>
-            <p className="cd-note">{customer.remark||"暂无客户备注"}</p>
-          </section>
-        </div>
-      </div>
-      {edit?.kind==="promote"&&edit.id&&<Editor title="推进商机" fields={[{key:"stage",label:"商机阶段",options:stages},{key:"estimated_amount",label:"预计金额（元）",type:"number",step:"0.01",min:"0"},{key:"expected_close_date",label:"预计成交日期",type:"date"},{key:"current_blocker",label:"当前卡点（如：等待客户确认预算）",maxLength:255},{key:"next_promotion",label:"下一步推进（如：9月17日发送3套方案）",maxLength:500}]} initial={detail.opportunities.find(o=>o.id===edit.id) as unknown as Record<string,Value>} submit="保存推进" cancel={()=>setEdit(null)} save={async d=>{const o=detail.opportunities.find(x=>x.id===edit!.id)!;await save(`/customers/${selected}/opportunities/${edit!.id}`,"PUT",{opportunity_name:o.opportunity_name,owner_user_id:o.owner_user_id,probability:o.probability,need_summary:o.need_summary,lost_reason:o.lost_reason,product_ids:o.products.map(p=>p.id),...d});}}/>}
-      </>}
-      {detailTab==="transactions"&&role!=="finance"&&<section className="card data-section" aria-label="经营画像"><h2>经营画像</h2>
-      {profile&&!profile.warnings.length?<div className="cards" style={{gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",marginTop:12,gap:12}}>
-        <div><span>RFM 分层</span><h3>{profile.layer||"—"}</h3></div>
-        <div><span>累计源销售金额</span><h3>{money(profile.amount)} 元</h3></div>
-        <div><span>订单数 / 客单价</span><h3>{profile.orders} 单 · {money(profile.aov)} 元</h3></div>
-        <div><span>最近成交</span><h3>{profile.days_since!==null?`${profile.days_since} 天前`:"—"}</h3><p>{profile.last_order_date||""}</p></div>
-        <div><span>复购</span><h3>{profile.is_repeat?"已复购":"尚未复购"}</h3></div>
-        <div><span>成交转化周期</span><h3>{profile.convert_days!==null?`${profile.convert_days} 天`:"—"}</h3></div>
-      </div>:<p className="muted">{profile?.warnings?.join("；")||(loading?"正在加载经营画像…":"当前账号暂无可用经营画像")}</p>}
-      <p className="muted">分层基于源销售历史（R=近期成交 · F=成交频次 · M=金额贡献），阈值由老板在销售工作台设置中调整。</p></section>}
-      {detailTab==="contacts"&&<section id="customer-contacts" className="card data-section"><h2>联系人与关系人</h2>{["owner","manager","sales"].includes(role)&&<button onClick={()=>setEdit({kind:"contact"})}>新增联系人</button>}{detail.contacts.map(c=><article className="crm-item" key={c.id}><strong>{c.name} · {c.role_label||"未指定角色"}{c.is_primary?" · 主要联系人":""}{!c.is_active?" · 已停用":""}</strong><p>{c.mobile||"无电话"} · 微信 {c.wechat||"未填写"}</p><p>{c.relationship_note}</p>{customerWrite&&<button onClick={()=>setEdit({kind:"contact",id:c.id})}>编辑联系人</button>}</article>)}{edit?.kind==="contact"&&<Editor key={edit.id||"new"} title="联系人信息" fields={contactFields} initial={(detail.contacts.find(c=>c.id===edit.id)||{is_active:true}) as unknown as Record<string,Value>} submit="保存联系人" cancel={()=>setEdit(null)} save={d=>save(`/customers/${selected}/contacts${edit.id?"/"+edit.id:""}`,edit.id?"PUT":"POST",d)} />}</section>}
-      {detailTab==="followups"&&role!=="finance"&&<section id="customer-followups" className="card data-section"><h2>跟进记录</h2>{processWrite&&<button onClick={()=>setEdit({kind:"followup"})}>新增跟进</button>}{edit?.kind==="followup"&&<Editor key={edit.id||"new"} title="记录跟进" fields={followFields} initial={(detail.followups.find(f=>f.id===edit.id)||{occurred_at:new Date().toISOString()}) as unknown as Record<string,Value>} submit="保存跟进与下一步" cancel={()=>setEdit(null)} save={d=>save(`/customers/${selected}/followups${edit.id?"/"+edit.id:""}`,edit.id?"PUT":"POST",d)}/>}<p className="muted">同时填写下一步动作和时间，将自动生成一条待办；修改保留历史。</p><FollowList data={detail.followups} name={name} selected={selected} processWrite={processWrite} role={role} edit={edit} setEdit={setEdit} save={save} open={open}/></section>}{detailTab==="tasks"&&role!=="finance"&&<section id="customer-tasks" className="card data-section"><h2>客户待办</h2>{["owner","manager","sales"].includes(role)&&<button onClick={()=>setEdit({kind:"newtask"})}>为客户安排待办</button>}<TaskList data={detail.tasks} name={name} selected={selected} processWrite={processWrite} role={role} busy={busy} act={act} open={open} edit={edit} setEdit={setEdit} save={save}/></section>}{detailTab==="opportunities"&&role!=="finance"&&<section className="card data-section"><h2>客户商机</h2>{processWrite&&<button onClick={()=>setEdit({kind:"opportunity"})}>新增商机</button>}{edit?.kind==="opportunity"&&<Editor key={edit.id||"new"} title="商机信息" fields={oppFields} initial={(detail.opportunities.find(o=>o.id===edit.id)||{owner_user_id:customer.owner_user_id||userId}) as unknown as Record<string,Value>} initialProducts={detail.opportunities.find(o=>o.id===edit.id)?.products||[]} submit="保存商机" cancel={()=>setEdit(null)} save={d=>{const ids=Array.isArray(d.product_ids)?d.product_ids as string[]:[];const hits:string[]=[];for(const o of detail.opportunities){if(edit.id&&o.id===edit.id)continue;for(const p of o.products||[])if(ids.includes(p.id))hits.push(`${p.name}（${o.opportunity_name||"未命名商机"}）`);}if(hits.length&&!window.confirm(`该客户已经推荐过这款产品：${hits.join("、")}。仍要保存？`))return Promise.reject(new Error("已取消：存在重复推荐，可调整产品后重试"));return save(`/customers/${selected}/opportunities${edit.id?"/"+edit.id:""}`,edit.id?"PUT":"POST",d);}}/>}<p className="muted">商机预计金额用于销售过程管理，赢单不会生成正式销售订单。同一客户重复推荐同款产品时系统会提醒。</p><OppList data={detail.opportunities} name={name} selected={selected} processWrite={processWrite} open={open} setEdit={setEdit}/></section>}
-      {detailTab==="transactions"&&<section id="customer-transactions" className="card data-section"><h2>精斗云销售历史</h2><p>按销售数据权限显示导入记录；客户转交不改变历史业绩归属。以下为源销售核对值，退货和作废范围仍待业务确认。</p><div className="cards crm-summary"><div><span>累计源销售金额</span><h3>{money(detail.sales_summary.total_amount)} 元</h3></div><div><span>本年源销售金额</span><h3>{money(detail.sales_summary.year_amount)} 元</h3></div><div><span>授权订单 / 最近成交</span><h3>{detail.sales_summary.order_count} 单</h3><p>{detail.sales_summary.last_order_date||"暂无记录"}</p></div></div>{detail.sales_summary.top_products.length>0&&<><h3>主要购买商品（按源行金额）</h3>{detail.sales_summary.top_products.map((p,i)=><p key={i}>{p.name} · {money(p.amount)} 元</p>)}</>}{detail.orders.length===0?<p>暂无授权范围内的销售记录。</p>:<div className="table-scroll"><table><thead><tr><th>单号</th><th>日期</th><th>源销售金额（元）</th></tr></thead><tbody>{detail.orders.map(o=><tr key={o.id}><td>{o.order_no}</td><td>{o.order_date}</td><td>{money(o.sales_amount)}</td></tr>)}</tbody></table></div>}</section>}
-      {detailTab==="followups"&&role!=="finance"&&<section className="card data-section"><h2>操作时间线</h2>{detail.events.length===0?<p>暂无 CRM 操作。</p>:detail.events.map(e=><p key={e.id}>{dateTime(e.occurred_at)} · {name(e.user_id)} · {crmActivityLabels[e.activity_type]||"客户操作"}{e.details?.after?.reason?" · "+e.details.after.reason:""}</p>)}</section>}<div className="crm-actions"><button disabled={loading||historyOffset===0} onClick={()=>setHistoryOffset(Math.max(0,historyOffset-50))}>较新客户记录</button><span>客户历史第 {historyOffset/50+1} 页（跟进、待办、商机、订单、时间线各 50 条）</span><button disabled={loading||!detail.has_more_history} onClick={()=>setHistoryOffset(historyOffset+50)}>更早客户记录</button></div></div></>}
+    {selected&&detail&&customer&&<div className="cd">{!embedded&&<div className="cd-topline"><button onClick={()=>{setSelected(null);rememberCustomer(null);setDetail(null);setEdit(null);}}>← 返回客户列表</button></div>}
+      <DetailSummary detail={detail} customer={customer} tags={tags} config={config} role={role} userId={userId} processWrite={processWrite} manage={manage} customerWrite={customerWrite} busy={busy} name={name} tagMgr={tagMgr} onTagMgr={setTagMgr} detailTab={detailTab} onDetailTab={setDetailTab} edit={edit} setEdit={setEdit} candidates={candidates} setCandidates={setCandidates} personOptions={personOptions} selected={selected} act={act} save={save} refresh={refresh} open={open} setNotice={setNotice} onCloseDetail={()=>{setSelected(null);rememberCustomer(null);setDetail(null);setEdit(null);}}/>
+      {detailTab==="overview"&&<DetailOverview detail={detail} profile={profile} role={role} processWrite={processWrite} customerWrite={customerWrite} busy={busy} name={name} edit={edit} setEdit={setEdit} onDetailTab={setDetailTab} selected={selected} act={act} save={save} setNotice={setNotice}/>}
+      <DetailSections detail={detail} customer={customer} profile={profile} role={role} userId={userId} processWrite={processWrite} customerWrite={customerWrite} busy={busy} loading={loading} name={name} detailTab={detailTab} edit={edit} setEdit={setEdit} personOptions={personOptions} selected={selected} act={act} save={save} open={open} historyOffset={historyOffset} onHistoryOffset={setHistoryOffset}/>
+    </div>}
     {edit?.kind==="newtask"&&<section className="card data-section"><Editor title="新建待办" fields={[{key:"title",label:"待办标题",required:true},{key:"assignee_user_id",label:"执行人",required:true,options:personOptions},{key:"due_at",label:"截止时间（北京时间）",type:"datetime-local",required:true},{key:"priority",label:"优先级",options:[["normal","普通"],["high","高"],["urgent","紧急"],["low","低"]]}]} initial={{assignee_user_id:customer?.owner_user_id||userId}} submit="创建待办" cancel={()=>setEdit(null)} save={d=>save("/tasks","POST",{...d,customer_id:selected})}/></section>}
     {!selected&&tab==="settings"&&["owner","admin"].includes(role)&&config&&<section className="card data-section"><Editor title="CRM 参数" fields={[{key:"sales_create_tags",label:"允许销售和经理自建标签",type:"checkbox"},{key:"public_pool_claim_enabled",label:"允许公海领取",type:"checkbox"},{key:"allow_prospect_create",label:"允许新增潜客（默认关闭：客户以精斗云导入为准）",type:"checkbox"},{key:"followup_edit_hours",label:"销售跟进修改时限（小时，0—720）",type:"number",required:true,min:"0",max:"720",step:"1"}]} initial={{...config}} submit="保存 CRM 参数" save={d=>save("/settings","PUT",{...d,followup_edit_hours:Number(d.followup_edit_hours)})}/><p>公海自动回收未启用；跟进、转交和配置变更均保留操作历史。</p></section>}
     {!selected&&((["owner","admin"].includes(role)&&tab==="settings")||(processWrite&&config?.sales_create_tags&&tab==="customers"))&&<section className="card data-section"><Editor title="维护公共标签" fields={[{key:"tag_name",label:"标签名称",required:true,maxLength:100},{key:"tag_group",label:"标签组",maxLength:32}]} submit="新增标签" save={d=>save("/tags","POST",d)}/>{["owner","admin"].includes(role)&&tags.map(t=><p key={t.id}>{t.tag_name} · {t.is_active?"启用":"停用"}<button disabled={busy} onClick={()=>act(()=>api(`/tags/${t.id}`,"PUT",{tag_name:t.tag_name,tag_group:t.tag_group,is_active:!t.is_active}))}>{t.is_active?"停用标签":"启用标签"}</button></p>)}</section>}
