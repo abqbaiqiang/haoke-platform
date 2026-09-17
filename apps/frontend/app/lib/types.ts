@@ -138,7 +138,8 @@ export type TaskRow = Task & { customer_name: string | null; customer_level: str
 /** 销售工作台待办分页（sales_workspace.Tasks，含视图计数）。 */
 export type TaskPage = Page<TaskRow> & { counts: Record<string, number> };
 
-export type OpportunityStage = "initial" | "demand" | "quoted" | "negotiating" | "won" | "lost";
+/** 项目阶段（docs/31 第 2.A 节）：接触客户→推荐产品→选品→招投标→大单议价→交付→成交/流失。 */
+export type OpportunityStage = "contact" | "recommend" | "selection" | "bidding" | "negotiation" | "delivery" | "won" | "lost";
 
 /** 商机（crm_schemas.OpportunityView）。 */
 export type Opportunity = {
@@ -148,15 +149,26 @@ export type Opportunity = {
   owner_user_id: string;
   stage: OpportunityStage;
   status: string;
+  project_id: string | null;
+  project_name: string | null;
   estimated_amount: string | null;
   probability: string | null;
   weighted_amount: string | null;
   expected_close_date: string | null;
+  planned_contact_date: string | null;
+  planned_recommend_date: string | null;
+  planned_selection_date: string | null;
+  planned_bidding_date: string | null;
+  planned_negotiation_date: string | null;
+  planned_delivery_date: string | null;
+  delivery_ratio: string | null;
   need_summary: string | null;
   current_blocker: string | null;
   next_promotion: string | null;
   lost_reason: string | null;
   closed_at: string | null;
+  stagnant_days: number | null;
+  stagnant_level: "warn" | "risk" | null;
   products: { id: string; name: string }[];
 };
 
@@ -164,7 +176,7 @@ export type Opportunity = {
 export type Tag = { id: string; tag_name: string; tag_group: string | null; is_active: boolean; created_by: string | null };
 
 /** CRM 参数（crm_schemas.Settings）。 */
-export type CrmSettings = { sales_create_tags: boolean; followup_edit_hours: number; public_pool_claim_enabled: boolean; allow_prospect_create: boolean };
+export type CrmSettings = { sales_create_tags: boolean; followup_edit_hours: number; public_pool_claim_enabled: boolean; allow_prospect_create: boolean; stage_probability: Record<string, number>; stagnant_warn_days: number; stagnant_risk_days: number };
 
 /** CRM 人员（crm_schemas.Person：{id, display_name, username}）。 */
 export type CrmPerson = { id: string; display_name: string; username: string };

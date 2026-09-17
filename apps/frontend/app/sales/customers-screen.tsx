@@ -62,7 +62,7 @@ export function CustomersScreen({ route, customers, user, revision, offset, onOf
         <label>每页<select value={pageSize} onChange={e => onPageSizeChange(Number(e.target.value))}>{[10, 20, 50].map(n => <option key={n} value={n}>{n} 行</option>)}</select></label>
         {route.pool && <label>认养状态<select value={claimFilter} onChange={e => onClaimFilterChange(e.target.value)}><option value="">全部</option><option value="unclaimed">未认养</option><option value="claimed">已认养</option></select></label>}
         {route.pool && <button className="sales-primary" disabled={busy || !poolIds.length} onClick={() => run(async () => { const r = await api<{ claimed_count: number; skipped: string[] }>("/api/crm/customers/batch-claim", { method: "POST", json: { customer_ids: poolIds } }); onPoolIdsChange([]); }, `已认养成功，可在“我的客户”查看`)}>一键认养（{poolIds.length}）</button>}
-        <p>{route.pool ? "勾选未认养客户可一键认养；同一客户允许多位同事认养。" : "客户状态与报价阶段分开管理；商机在客户详情中维护。"}</p>
+        <p>{route.pool ? "勾选未认养客户可一键认养；同一客户允许多位同事认养。" : "客户状态与报价阶段分开管理；项目在客户详情中维护。"}</p>
       </div>
       {customers.loading ? <Empty>正在加载客户…</Empty> : customers.data?.rows.length ? (
         <div className="sales-table-scroll">

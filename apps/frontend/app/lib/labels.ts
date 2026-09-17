@@ -32,13 +32,16 @@ export const interactionMethodOptions: [string, string][] = Object.entries(inter
 export const contactResultLabels: Record<string, string> = { no_answer: "未接通", good: "沟通顺利", normal: "已沟通", no_need: "暂无需求", waiting: "等待反馈", rejected: "明确拒绝", won: "已成交", other: "其他" };
 export const contactResultOptions: [string, string][] = [["good", "沟通顺利"], ["normal", "已沟通"], ["no_answer", "未接通"], ["no_need", "暂无需求"], ["waiting", "等待反馈"], ["rejected", "明确拒绝"], ["won", "已成交"], ["other", "其他"]];
 
-// ---------- 商机（字典 §744）----------
+// ---------- 项目（原商机；docs/31 第 2.A 节阶段枚举，老板 2026-09-17 拍板）----------
 
-export const opportunityStageLabels: Record<string, string> = { initial: "初步沟通", demand: "有明确需求", quoted: "已报价", negotiating: "谈判中", won: "成交", lost: "流失" };
+export const opportunityStageLabels: Record<string, string> = { contact: "接触客户", recommend: "推荐产品", selection: "选品", bidding: "招投标", negotiation: "大单议价", delivery: "交付", won: "成交", lost: "流失" };
 export const opportunityStageOptions: [string, string][] = Object.entries(opportunityStageLabels);
 
-/** 当前商机推进步骤条（展示用流程文案，非枚举直译）。 */
-export const opportunityStageFlowOptions: [string, string][] = [["initial", "需求沟通"], ["demand", "方案沟通"], ["quoted", "报价"], ["negotiating", "谈判"], ["won", "成交"]];
+/** 当前项目推进步骤条（展示用流程文案）。 */
+export const opportunityStageFlowOptions: [string, string][] = [["contact", "接触客户"], ["recommend", "推荐产品"], ["selection", "选品"], ["bidding", "招投标"], ["negotiation", "大单议价"], ["delivery", "交付"], ["won", "成交"]];
+
+/** 各阶段默认成交概率（0-1；界面按百分比换算，初始建议值与 CRM 设置默认一致，可被设置覆盖）。 */
+export const opportunityStageProbability: Record<string, number> = { contact: 0.10, recommend: 0.25, selection: 0.40, bidding: 0.55, negotiation: 0.70, delivery: 0.90, won: 1.0, lost: 0.0 };
 
 /** 联系人业务角色（crm_schemas.ContactInput.decision_role）。 */
 export const decisionRoleOptions: [string, string][] = [["decision_maker", "关键决策人"], ["buyer", "采购"], ["boss", "老板"], ["finance", "财务"], ["influencer", "影响人"], ["user", "使用者"], ["key_relationship", "关键关系人"], ["introducer", "引荐人"], ["other", "其他"]];
@@ -62,9 +65,9 @@ export const crmActivityLabels: Record<string, string> = {
   task_complete: "完成待办",
   task_update: "修改待办",
   task_transfer: "转交待办",
-  opportunity_create: "创建商机",
-  opportunity_update: "修改商机",
-  opportunity_transfer: "转交商机",
+  opportunity_create: "创建项目",
+  opportunity_update: "修改项目",
+  opportunity_transfer: "转交项目",
 };
 
 // ---------- 数据中心导入批次 ----------

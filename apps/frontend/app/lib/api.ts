@@ -21,7 +21,12 @@ export async function api<T>(url: string, init: ApiInit = {}): Promise<T> {
     body: hasJson ? JSON.stringify(json) : rest.body,
   });
   const data = await response.json();
-  if (!response.ok) throw new Error((data as { error?: { message?: string } })?.error?.message || "请求失败，请重试");
+  if (!response.ok) {
+    // 结构化错误（如跨客户产品推荐冲突的 conflicts）挂在 payload 上供调用方读取。
+    const error = new Error((data as { error?: { message?: string } })?.error?.message || "请求失败，请重试") as Error & { payload?: { code?: string; message?: string; conflicts?: unknown[] } };
+    error.payload = (data as { error?: { code?: string; message?: string; conflicts?: unknown[] } })?.error;
+    throw error;
+  }
   return data as T;
 }
 

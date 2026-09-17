@@ -345,9 +345,9 @@ def workbench(db, actor, uid, period):
         metric('CRM_QUOTED_CUSTOMERS', '本月报价客户', len({f.customer_id for f in follows if f.quotation_sent}), '个'),
         metric('CRM_DEAL_CUSTOMERS', '本月成交客户', len(deal_customers) if sales_ready else None, '个', reason='销售口径待核实'),
         metric('CRM_STALE_CUSTOMERS', '7天未跟进客户', stale_customers, '个', reason='暂无跟进记录客户'),
-        metric('OPP_OPEN_AMT', '当前开放商机金额', sum((o.estimated_amount or ZERO for o in opps), ZERO) if all(o.estimated_amount is not None for o in opps) else None,
-               reason='部分商机金额未填写'),
-        metric('OPP_WEIGHTED_AMT', '当前加权商机金额', None if missing else weighted_known, reason='部分商机金额/概率未填写')]
+        metric('OPP_OPEN_AMT', '当前开放项目金额', sum((o.estimated_amount or ZERO for o in opps), ZERO) if all(o.estimated_amount is not None for o in opps) else None,
+               reason='部分项目金额未填写'),
+        metric('OPP_WEIGHTED_AMT', '当前加权项目金额', None if missing else weighted_known, reason='部分项目金额/概率未填写')]
     q_target = db.scalar(select(SalesTarget).where(SalesTarget.user_id == uid, SalesTarget.period_month == q_start,
                                                    SalesTarget.target_type == TARGET_QUARTERLY))
     q_completion = ratio(quarter_actual, q_target.sales_amount_target) if q_target and quarter_ready else None
@@ -356,7 +356,7 @@ def workbench(db, actor, uid, period):
         metric('TGT_QUARTER_COMPLETION', '季度目标完成率', q_completion * 100 if q_completion is not None else None, '%',
                '季度目标未设置或销售待核实'),
         metric('TGT_QUARTER_PROGRESS', '季度时间进度', q_progress * 100 if q_progress is not None else None, '%')]
-    warnings = ['任务按当前截止时间与状态统计；延期后归入新到期日，历史完成时间保留。当前商机储备不代表历史月末快照。',
+    warnings = ['任务按当前截止时间与状态统计；延期后归入新到期日，历史完成时间保留。当前项目储备不代表历史月末快照。',
                 '工作日默认周一至周五，节假日/休假由管理员维护；历史停用和入离职日期请用人员日历例外表达。']
     warnings += warnings_unmapped
     if not sales_ready:

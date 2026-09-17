@@ -435,7 +435,7 @@ def performance(db: DB, actor: Actor, source_id: UUID, from_month: date, to_mont
 
 
 def recent_opportunities(db: DB, actor: Actor, days: int = 30, limit: int = 10):
-    """工作台首页：最近创建的开放商机及其推荐产品。身份取自登录态。"""
+    """工作台首页：最近创建的开放项目及其推荐产品。身份取自登录态。"""
     crm.role(actor, {ROLE_SALES})
     since = bi.utcnow() - timedelta(days=days)
     query = select(Opportunity, Customer.customer_name).join(Customer, Customer.id == Opportunity.customer_id).where(

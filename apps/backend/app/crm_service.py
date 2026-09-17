@@ -452,7 +452,7 @@ def task_create(db, actor, payload):
     if payload.opportunity_id:
         opp = work_access(db, actor, db.get(Opportunity,payload.opportunity_id), 'owner_user_id')
         if not cust or opp.customer_id != cust.id:
-            raise HTTPException(422, '商机不属于当前客户')
+            raise HTTPException(422, '项目不属于当前客户')
     obj = Task(**payload.model_dump(), source_type='manual' if payload.assignee_user_id == actor.id else 'manager', created_by=actor.id)
     db.add(obj)
     db.flush()
@@ -525,7 +525,7 @@ def weighted(amount, probability):
 
 
 def attach_products(db, rows):
-    """批量装配商机的推荐产品列表。"""
+    """批量装配项目的推荐产品列表。"""
     ids = [r.id for r in rows]
     if not ids:
         return
@@ -591,10 +591,10 @@ def save_opportunity(db, actor, cid, payload, oid=None):
     assignee(db, actor,payload.owner_user_id,cust)
     obj = work_access(db, actor, db.get(Opportunity,oid),'owner_user_id') if oid else Opportunity(customer_id=cid)
     if obj.customer_id != cid:
-        raise HTTPException(404, '商机不存在或无权访问')
+        raise HTTPException(404, '项目不存在或无权访问')
     before = snapshot(obj) if oid else None
     if oid and obj.status != 'open' and payload.stage != obj.stage:
-        raise HTTPException(409, '已关闭商机不能重新流转，请建立新商机')
+        raise HTTPException(409, '已关闭项目不能重新流转，请建立新项目')
     data = payload.model_dump()
     product_ids = data.pop('product_ids', [])
     data.pop('confirm_cross_customer')

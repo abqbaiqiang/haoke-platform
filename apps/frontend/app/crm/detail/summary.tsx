@@ -44,7 +44,7 @@ export function DetailSummary({ detail, customer, tags, config, role, userId, pr
   onCloseDetail: () => void;
 }) {
   const primaryContact = primaryContactOf(detail);
-  const detailTabs: [string, string][] = [["overview", "概览"], ["contacts", "联系人"], ...(role !== "finance" ? [["followups", "跟进记录"], ["tasks", "待办任务"], ["opportunities", "商机"]] as [string, string][] : []), ["transactions", "交易"]];
+  const detailTabs: [string, string][] = [["overview", "概览"], ["contacts", "联系人"], ...(role !== "finance" ? [["followups", "跟进记录"], ["tasks", "待办任务"], ["opportunities", "项目"]] as [string, string][] : []), ["transactions", "交易"]];
   return <>
     <header className="cd-card cd-summary" aria-label="客户摘要">
       <div>

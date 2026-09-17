@@ -29,7 +29,7 @@ export function TaskList({ data, name, selected, processWrite, role, busy, act, 
   );
 }
 
-/** 商机列表：商机 Tab 与客户详情商机 Tab 共用。 */
+/** 项目列表：项目 Tab 与客户详情项目 Tab 共用。 */
 export function OppList({ data, name, selected, processWrite, open, setEdit }: {
   data: Opportunity[];
   name: (id: string | null) => string;
@@ -38,8 +38,9 @@ export function OppList({ data, name, selected, processWrite, open, setEdit }: {
   open: (id: string, followup?: boolean) => void;
   setEdit: Dispatch<SetStateAction<EditState>>;
 }) {
+  const milestones: [string, string][] = [["planned_contact_date", "接触"], ["planned_recommend_date", "推荐"], ["planned_selection_date", "选品"], ["planned_bidding_date", "招投标"], ["planned_negotiation_date", "大单议价"], ["planned_delivery_date", "交付"]];
   return (
-    <div className="crm-list">{data.length === 0 && <p className="muted">暂无商机</p>}{data.map(o => <article className="crm-item" key={o.id}><strong>{o.opportunity_name}</strong><p>{text(stages, o.stage)} · {name(o.owner_user_id)} · 预计 {money(o.estimated_amount)} 元 · 加权 {money(o.weighted_amount)} 元</p>{o.products && o.products.length > 0 && <p>推荐产品：{o.products.map(p => p.name).join("、")}</p>}{o.closed_at && <p>关闭时间：{dateTime(o.closed_at)}</p>}{o.lost_reason && <p>流失原因：{o.lost_reason}</p>}{!selected ? <button onClick={() => open(o.customer_id)}>查看客户与商机</button> : processWrite && <button onClick={() => setEdit({ kind: "opportunity", id: o.id })}>更新商机</button>}</article>)}</div>
+    <div className="crm-list">{data.length === 0 && <p className="muted">暂无项目。在客户详情里为客户新增一个项目（如“2026 保险开门红”）后，这里会显示。</p>}{data.map(o => <article className="crm-item" key={o.id}><strong>{o.opportunity_name}{o.project_name && o.project_name !== o.opportunity_name ? ` · ${o.project_name}` : ""}</strong><p>{text(stages, o.stage)} · {name(o.owner_user_id)} · 预计 {money(o.estimated_amount)} 元 · 加权 {money(o.weighted_amount)} 元{o.expected_close_date ? ` · 预计成交 ${o.expected_close_date}` : ""}{o.delivery_ratio ? ` · 交付比例 ${o.delivery_ratio}%` : ""}</p>{o.stagnant_level && <p className={o.stagnant_level === "risk" ? "error" : "data-warning"}>{o.stagnant_level === "risk" ? "已停滞" : "停滞预警"}：{o.stagnant_days} 天无更新且没有下一步，请立即安排推进动作。</p>}{!!o.products?.length && <p>推荐产品：{o.products.map(p => p.name).join("、")}</p>}{milestones.some(([k]) => (o as unknown as Record<string, string | null>)[k]) && <ol className="proj-timeline" aria-label="里程碑计划时间线">{milestones.map(([k, label]) => { const d = (o as unknown as Record<string, string | null>)[k]; return <li key={k} className={d ? "done" : ""}><span>{label}</span><time>{d || "未排期"}</time></li>; })}</ol>}{o.closed_at && <p>关闭时间：{dateTime(o.closed_at)}</p>}{o.lost_reason && <p>流失原因：{o.lost_reason}</p>}{!selected ? <button onClick={() => open(o.customer_id)}>查看客户与项目</button> : processWrite && <button onClick={() => setEdit({ kind: "opportunity", id: o.id })}>更新项目</button>}</article>)}</div>
   );
 }
 

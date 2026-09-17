@@ -123,7 +123,8 @@ test("M3 imported sales chart, drilldown and explicit source review", async ({ p
   await page.getByLabel("统计月份").fill("2026-08");
   await page.getByLabel("数据口径").selectOption("verified");
   await page.getByLabel("分析维度").selectOption("product");
-  await expect(page.getByRole("cell", { name: "BI测试商品", exact: true })).toBeVisible();
+  // 商品毛利区块与销售变化贡献表会出现同名商品单元格，取第一个即可。
+  await expect(page.getByRole("cell", { name: "BI测试商品", exact: true }).first()).toBeVisible();
   const amount = page.locator(".bi-metrics .card").filter({ has: page.locator("span", { hasText: /^经营销售额$/ }) });
   await expect(amount.locator("strong")).toContainText("0.30");
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBeTruthy();

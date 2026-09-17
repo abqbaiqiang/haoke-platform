@@ -62,6 +62,6 @@ def target_metrics(amount, actual, days, today, weighted, month):
         metric('TGT_REMAINING', '剩余目标', remaining, reason='目标未设置或销售待核实'),
         metric('TGT_DAILY_REQUIRED', '剩余工作日日均需完成', ratio(remaining, remaining_days), reason='无剩余工作日或目标/销售不可用'),
         metric('TGT_RUNRATE_FORECAST', '月底节奏预测', forecast, reason='无已过工作日或销售待核实'),
-        metric('TGT_WEIGHTED_FORECAST', '月底商机加权预测', weighted_forecast, reason='仅当前月可用，需完整销售及商机金额/概率'),
+        metric('TGT_WEIGHTED_FORECAST', '月底项目加权预测', weighted_forecast, reason='仅当前月可用，需完整销售及项目金额/概率'),
         metric('TGT_WORKDAYS_REMAINING', '剩余工作日', remaining_days, '天'),
     ]

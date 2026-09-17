@@ -1,7 +1,7 @@
 "use client";
 
 import { dateTime, dayDiff } from "../../lib/format";
-import { opportunityStageFlowOptions as stageFlow, opportunityStageOptions as stages, interactionMethodOptions as methods, decisionRoleOptions as decisionRoles, lifecycleOptions as lifecycle, customerStatusOptions as customerStage } from "../../lib/labels";
+import { opportunityStageFlowOptions as stageFlow, opportunityStageOptions as stages, opportunityStageProbability as defaultStageProbability, interactionMethodOptions as methods, decisionRoleOptions as decisionRoles, lifecycleOptions as lifecycle, customerStatusOptions as customerStage } from "../../lib/labels";
 import type { Role } from "../../lib/types";
 import { api } from "../api";
 import { Editor } from "../editor";
@@ -33,6 +33,7 @@ export function DetailOverview({ detail, profile, role, processWrite, customerWr
   const lastFollow = lastFollowOf(detail);
   const activeContacts = detail.contacts.filter(c => c.is_active);
   const stageIndex = (s: string) => stageFlow.findIndex(([v]) => v === s);
+  const stageProbability = defaultStageProbability;
   async function copyText(value: string, label: string) { try { await navigator.clipboard.writeText(value); setNotice(`已复制${label}：${value}`); } catch { setNotice(`复制失败，请手动复制${label}：${value}`); } }
   return <>
     <div className="cd-kpis">
@@ -53,15 +54,15 @@ export function DetailOverview({ detail, profile, role, processWrite, customerWr
           </div> : <p className="cd-empty">暂无下一步行动，为这个客户安排一件今天能推进的事。</p>}
           {edit?.kind === "task" && edit.id && detail.tasks.some(t => t.id === edit.id) && <Editor title="调整待办" fields={[{ key: "due_at", label: "延期至（北京时间）", type: "datetime-local" }, { key: "status", label: "待办状态", options: [["todo", "待处理"], ["cancelled", "取消"]] }, { key: "completion_result", label: "简短结果", maxLength: 100 }]} initial={{}} submit="保存待办" cancel={() => setEdit(null)} save={async d => { if (d.status === "cancelled" || !d.due_at) delete d.due_at; await save(`/tasks/${edit!.id}`, "PATCH", d); }} />}
         </section>
-        <section className={"cd-card" + (currentOpp ? " cd-opp" : "")} aria-label="当前商机">
-          <header><h3>当前商机</h3><button className="cd-more" onClick={() => onDetailTab("opportunities")}>查看全部商机 ›</button></header>
+        <section className={"cd-card" + (currentOpp ? " cd-opp" : "")} aria-label="当前项目">
+          <header><h3>当前项目</h3><button className="cd-more" onClick={() => onDetailTab("opportunities")}>查看全部项目 ›</button></header>
           {currentOpp ? <>
             <div className="cd-opp-head"><strong>{currentOpp.opportunity_name}</strong><span className="amount">{currentOpp.estimated_amount ? money(currentOpp.estimated_amount) : "未填写"}</span></div>
             <ol className="cd-steps">{stageFlow.map(([v, label]) => <li key={v} className={v === currentOpp.stage ? "current" : stageIndex(v) < stageIndex(currentOpp.stage) ? "done" : ""}>{label}</li>)}</ol>
-            <dl><dt>预计成交时间</dt><dd>{currentOpp.expected_close_date || "未填写"}</dd><dt>当前卡点</dt><dd>{currentOpp.current_blocker || "未填写"}</dd><dt>下一步推进</dt><dd>{currentOpp.next_promotion || "未填写"}</dd><dt>相关产品</dt><dd>{currentOpp.products && currentOpp.products.length ? currentOpp.products.map(p => p.name).join("、") : "—"}</dd><dt>商机负责人</dt><dd>{name(currentOpp.owner_user_id)}</dd></dl>
-            {currentOpp.expected_close_date && dayDiff(currentOpp.expected_close_date) < 0 && <p className="warn">已超过预计成交日期，请与负责人确认商机进展。</p>}
-            {processWrite && <div className="cd-actions-row"><button onClick={() => setEdit({ kind: "opportunity", id: currentOpp.id })}>编辑商机</button><button className="cd-primary" onClick={() => setEdit({ kind: "promote", id: currentOpp.id })}>推进商机</button></div>}
-          </> : <p className="cd-empty">暂无进行中商机。{processWrite ? "可为这个客户新增一个商机。" : ""}</p>}
+            <dl><dt>预计成交时间</dt><dd>{currentOpp.expected_close_date || "未填写"}</dd><dt>当前卡点</dt><dd>{currentOpp.current_blocker || "未填写"}</dd><dt>下一步推进</dt><dd>{currentOpp.next_promotion || "未填写"}</dd><dt>相关产品</dt><dd>{currentOpp.products && currentOpp.products.length ? currentOpp.products.map(p => p.name).join("、") : "—"}</dd><dt>项目负责人</dt><dd>{name(currentOpp.owner_user_id)}</dd></dl>
+            {currentOpp.expected_close_date && dayDiff(currentOpp.expected_close_date) < 0 && <p className="warn">已超过预计成交日期，请与负责人确认项目进展。</p>}
+            {processWrite && <div className="cd-actions-row"><button onClick={() => setEdit({ kind: "opportunity", id: currentOpp.id })}>编辑项目</button><button className="cd-primary" onClick={() => setEdit({ kind: "promote", id: currentOpp.id })}>推进项目</button></div>}
+          </> : <p className="cd-empty">暂无进行中项目。{processWrite ? "可为这个客户新增一个项目。" : ""}</p>}
         </section>
         <div className="cd-duo">
           <section className="cd-card" aria-label="最近跟进">
@@ -114,6 +115,6 @@ export function DetailOverview({ detail, profile, role, processWrite, customerWr
         </section>
       </div>
     </div>
-    {edit?.kind === "promote" && edit.id && <Editor title="推进商机" fields={[{ key: "stage", label: "商机阶段", options: stages }, { key: "estimated_amount", label: "预计金额（元）", type: "number", step: "0.01", min: "0" }, { key: "expected_close_date", label: "预计成交日期", type: "date" }, { key: "current_blocker", label: "当前卡点（如：等待客户确认预算）", maxLength: 255 }, { key: "next_promotion", label: "下一步推进（如：9月17日发送3套方案）", maxLength: 500 }]} initial={detail.opportunities.find(o => o.id === edit.id) as unknown as Record<string, Value>} submit="保存推进" cancel={() => setEdit(null)} save={async d => { const o = detail.opportunities.find(x => x.id === edit!.id)!; await save(`/customers/${selected}/opportunities/${edit!.id}`, "PUT", { opportunity_name: o.opportunity_name, owner_user_id: o.owner_user_id, probability: o.probability, need_summary: o.need_summary, lost_reason: o.lost_reason, product_ids: o.products.map(p => p.id), ...d }); }} />}
+    {edit?.kind === "promote" && edit.id && <Editor title="推进项目" autoProbability={stageProbability} fields={[{ key: "stage", label: "项目阶段", options: stages }, { key: "estimated_amount", label: "预计金额（元）", type: "number", step: "0.01", min: "0" }, { key: "probability", label: "成交概率（%，切换阶段自动带出默认值）", type: "percent", step: "0.0001", min: "0", max: "100" }, { key: "expected_close_date", label: "预计成交日期", type: "date" }, { key: "current_blocker", label: "当前卡点（如：等待客户确认预算）", maxLength: 255 }, { key: "next_promotion", label: "下一步推进（如：9月17日发送3套方案）", maxLength: 500 }]} initial={detail.opportunities.find(o => o.id === edit.id) as unknown as Record<string, Value>} submit="保存推进" cancel={() => setEdit(null)} save={async d => { const o = detail.opportunities.find(x => x.id === edit!.id)!; await save(`/customers/${selected}/opportunities/${edit!.id}`, "PUT", { opportunity_name: o.opportunity_name, owner_user_id: o.owner_user_id, project_id: o.project_id, stage: String(d.stage), estimated_amount: d.estimated_amount, probability: d.probability, expected_close_date: d.expected_close_date, planned_contact_date: o.planned_contact_date, planned_recommend_date: o.planned_recommend_date, planned_selection_date: o.planned_selection_date, planned_bidding_date: o.planned_bidding_date, planned_negotiation_date: o.planned_negotiation_date, planned_delivery_date: o.planned_delivery_date, delivery_ratio: o.delivery_ratio, need_summary: o.need_summary, lost_reason: o.lost_reason, current_blocker: d.current_blocker, next_promotion: d.next_promotion, product_ids: o.products.map(p => p.id) }); }} />}
   </>;
 }

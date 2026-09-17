@@ -251,7 +251,31 @@ table{font-variant-numeric:tabular-nums}
 .tag-manager li input{flex:1;min-width:120px;padding:8px 12px;border:1px solid var(--line);border-radius:8px}
 .tag-manager li button{min-height:36px;padding:6px 12px}
 .tag-manager li .muted{font-size:12px}
-/* 商机推荐产品多选 */
+/* 项目名称联想：输入前缀弹历史项目（名称+客户数+产品摘要） */
+.project-field{grid-column:1/-1}
+.project-field>span{display:block;font-size:13px;color:#506883;margin-bottom:6px}
+.project-picker{position:relative}
+.project-picker>input{width:100%;padding:10px 12px;border:1px solid #d5dfec;border-radius:6px;background:#fff;font:inherit;color:#203957}
+.project-suggest{list-style:none;margin:6px 0 0;padding:0;display:grid;gap:4px}
+.project-suggest button{display:flex;flex-direction:column;align-items:flex-start;gap:2px;width:100%;text-align:left;padding:8px 12px;min-height:0;border-radius:6px}
+.project-suggest button small{color:#71717a;font-size:12px}
+/* 项目页 5 指标与里程碑时间线 */
+.proj-kpis{grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin-top:12px}
+.proj-kpis .kpi-card{padding:14px 16px}
+.proj-kpis .kpi-card strong{font-size:22px}
+.proj-kpis .kpi-card strong.kpi-risk{color:var(--risk)}
+.proj-timeline{display:flex;align-items:flex-start;margin:10px 0 2px;padding:0}
+.proj-timeline li{flex:1;text-align:center;font-size:12px;color:#98a2b3;position:relative;min-width:0;list-style:none}
+.proj-timeline li::before{content:"";display:block;width:12px;height:12px;border-radius:50%;margin:0 auto 4px;background:#fff;border:2px solid #e7ecf3;box-sizing:border-box;position:relative;z-index:1}
+.proj-timeline li::after{content:"";position:absolute;top:5px;left:-50%;width:100%;height:2px;background:#e7ecf3}
+.proj-timeline li:first-child::after{display:none}
+.proj-timeline li.done{color:var(--accent)}
+.proj-timeline li.done::before{background:var(--accent);border-color:var(--accent)}
+.proj-timeline li.done::after{background:var(--accent)}
+.proj-timeline li span{display:block;font-weight:500}
+.proj-timeline li time{display:block;font-size:11px;color:#98a2b3}
+@media(max-width:900px){.proj-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+/* 项目推荐产品多选 */
 .products-field{grid-column:1/-1}
 .products-field>span{display:block;font-size:13px;color:#506883;margin-bottom:6px}
 .product-picker input{width:100%;padding:10px 12px;border:1px solid #d5dfec;border-radius:6px;background:#fff;font:inherit;color:#203957}

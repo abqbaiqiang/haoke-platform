@@ -8,7 +8,7 @@ import { RecentTable } from "./recent-table";
 import { QuickFollow } from "./quick-follow";
 import { Empty, Panel, money } from "./ui";
 
-/** 工作台屏幕：今日概览 / 重点提醒 / 今天最该做的事 / 快速跟进 / 执行进度 / 最近跟进 / 客户动态 / 本月商机。 */
+/** 工作台屏幕：今日概览 / 重点提醒 / 今天最该做的事 / 快速跟进 / 执行进度 / 最近跟进 / 客户动态 / 本月项目。 */
 export function WorkbenchScreen({ work, focusToday, focusOverdue, attention, oppRecent, recent, go, record, busy, onQuickSaved, onShowRecent }: {
   work: Data<Work>;
   focusToday: Data<TaskPage>;
@@ -55,8 +55,8 @@ export function WorkbenchScreen({ work, focusToday, focusOverdue, attention, opp
         <Panel title="最近跟进" action={<button onClick={onShowRecent}>查看更多 →</button>}><RecentTable recent={recent} go={go} /></Panel>
         <Panel title="本周客户动态" action={<button onClick={() => go({ screen: "performance" })}>查看更多 →</button>}><div className="wb-dynamics">{[["新增客户", "CRM_NEW_CUSTOMERS"], ["已报价客户", "CRM_QUOTED_CUSTOMERS"], ["成交客户", "CRM_DEAL_CUSTOMERS"], ["7天未跟进", "CRM_STALE_CUSTOMERS"]].map(([label, code]) => { const m = metricOf(code); return <div key={code} className="wb-dyn"><span>{label}</span><strong>{m?.value != null ? m.value : "—"}<small> 家</small></strong></div>; })}</div><p className="sales-note">按本月累计口径统计；成交客户仅统计已核实销售单。</p></Panel>
       </div>
-      <Panel title="本月商机" action={<button onClick={() => go({ screen: "customers" })}>查看客户 →</button>}>
-        {oppRecent.loading ? <Empty>正在加载商机…</Empty> : oppRecent.data?.rows.length ? <div className="sales-table-scroll"><table className="sales-table"><thead><tr><th>客户名称</th><th>商机</th><th>推荐产品</th><th>阶段</th><th>预计金额</th><th>预计成交</th></tr></thead><tbody>{oppRecent.data.rows.map(o => <tr key={o.id}><td><button className="sales-customer-link" onClick={() => go({ screen: "customers", customerId: o.customer_id })}>{o.customer_name}</button></td><td>{o.opportunity_name}</td><td>{o.products.length ? o.products.map(p => <span key={p.id} className="sales-tag-chip">{p.name}</span>) : <span className="sales-dim">—</span>}</td><td><span className={`sales-status ${o.stage === "won" ? "won" : ""}`}>{oppStageLabels[o.stage] || o.stage}</span></td><td>{money(o.estimated_amount)}</td><td>{stamp(o.expected_close_date, false)}</td></tr>)}</tbody></table></div> : <Empty>{oppRecent.data ? "最近 30 天暂无新商机。在客户详情里新增商机后会显示在这里。" : "正在加载商机…"}</Empty>}
+      <Panel title="本月项目" action={<button onClick={() => go({ screen: "customers" })}>查看客户 →</button>}>
+        {oppRecent.loading ? <Empty>正在加载项目…</Empty> : oppRecent.data?.rows.length ? <div className="sales-table-scroll"><table className="sales-table"><thead><tr><th>客户名称</th><th>项目</th><th>推荐产品</th><th>阶段</th><th>预计金额</th><th>预计成交</th></tr></thead><tbody>{oppRecent.data.rows.map(o => <tr key={o.id}><td><button className="sales-customer-link" onClick={() => go({ screen: "customers", customerId: o.customer_id })}>{o.customer_name}</button></td><td>{o.opportunity_name}</td><td>{o.products.length ? o.products.map(p => <span key={p.id} className="sales-tag-chip">{p.name}</span>) : <span className="sales-dim">—</span>}</td><td><span className={`sales-status ${o.stage === "won" ? "won" : ""}`}>{oppStageLabels[o.stage] || o.stage}</span></td><td>{money(o.estimated_amount)}</td><td>{stamp(o.expected_close_date, false)}</td></tr>)}</tbody></table></div> : <Empty>{oppRecent.data ? "最近 30 天暂无新项目。在客户详情里新增项目后会显示在这里。" : "正在加载项目…"}</Empty>}
       </Panel>
     </div>
   );

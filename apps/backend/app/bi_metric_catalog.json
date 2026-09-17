@@ -56,8 +56,8 @@
   "source": "精斗云 + 日历"
  },
  "TGT_WEIGHTED_FORECAST": {
-  "definition": "已完成销售额 + Σ(开放商机预计金额 × 成交概率)",
-  "source": "精斗云 + CRM商机"
+  "definition": "已完成销售额 + Σ(开放项目预计金额 × 成交概率)",
+  "source": "精斗云 + CRM项目"
  },
  "CUS_NEW_TRANSACT": {
   "definition": "first_order_date落在统计期的客户数",
@@ -145,11 +145,11 @@
  },
  "OPP_OPEN_AMT": {
   "definition": "Σestimated_amount where status=open",
-  "source": "CRM商机"
+  "source": "CRM项目"
  },
  "OPP_WEIGHTED_AMT": {
   "definition": "Σ(estimated_amount × probability)",
-  "source": "CRM商机"
+  "source": "CRM项目"
  },
  "DQ_SALES_RECON": {
   "definition": "解析后销售额 - 源文件合计",
