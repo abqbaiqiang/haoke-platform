@@ -1,7 +1,7 @@
 "use client";
 
 import { useData } from "../lib/api";
-import type { CustomerRow as Customer, TaskRow as Task } from "../lib/types";
+import type { CustomerRow as Customer, Metric, TaskRow as Task } from "../lib/types";
 
 /** 销售员端四个屏幕。 */
 export type Screen = "workbench" | "customers" | "tasks" | "performance";
@@ -17,3 +17,9 @@ export type TrendPoint = { date: string; value: string | null; last_year: string
 
 /** useData 的返回结构。 */
 export type Data<T> = ReturnType<typeof useData<T>>;
+
+/** 经营工作台指标（/api/bi/workbench）。 */
+export type Work = { metrics: Metric[]; through: string; warnings: string[] };
+
+/** 最近商机行（/api/sales/opportunities）。 */
+export type OppRow = { id: string; customer_id: string; customer_name: string; opportunity_name: string; stage: string; estimated_amount: string | null; expected_close_date: string | null; created_at: string; products: { id: string; name: string }[] };

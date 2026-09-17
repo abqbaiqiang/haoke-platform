@@ -1,6 +1,10 @@
 "use client";
 
 import { ReactNode, useEffect, useRef } from "react";
+import { money as baseMoney } from "../lib/format";
+
+/** 销售员端金额统一带 ¥ 前缀。 */
+export const money = (v: string | null | undefined) => baseMoney(v, { yuan: true });
 
 export function Icon({ name }: { name: string }) {
   const paths: Record<string, string> = {
