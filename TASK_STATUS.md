@@ -1,5 +1,18 @@
 # Project Task Status
 
+## 2026-09-17 C4-3 sales.tsx/crm.tsx split and long-line formatting (docs/29 task book complete, awaiting owner acceptance)
+
+- [x] sales.tsx (228→65 lines): split into app/sales/ — ui (Icon/Empty/Panel/Pager/Modal/yoySpan/money), perf-chart, quick-follow, sales-dialog, recent-table, four screens (workbench/customers/tasks/performance), shared types, four data modals; main file keeps routing and state orchestration only
+- [x] crm.tsx (375→144 lines): split into app/crm/ — api wrapper, shared types, display helpers, Editor+ProductPicker, TagPicker/TagManager, TaskList/OppList/FollowList, and detail/ (derive + summary + overview + sections); main file keeps data loading and tab orchestration
+- [x] Formatting rule honored (改到哪、格式化到哪): only touched/moved code reformatted (2000+ char single-line JSX expanded); untouched lines kept; DOM/className/E2E selectors unchanged; no business/API/permission changes; detail JSX verified segment-by-segment against HEAD via normalized comparison (15/15 segments identical)
+- [x] 12 independent commits, each with full regression: ruff clean, pytest 264 passed (known flake test_opportunity_products_roundtrip_and_recent_list failed twice in full runs, passed on isolated reruns per task-book rule), tsc/next build/bundle scan passed, E2E 38 passed / 10 skipped
+- [x] E2E stability: bi.spec M3 target-save case given test.setTimeout 90s and a 30s team-row assertion. Root cause: dev DB accumulated 335 order-bearing data sources (334 single-order leftovers from historical E2E/cockpit runs); /api/bi/team computes workbench metrics per person × per source (~7.6s), exceeding the default 5s assertion timeout — pre-existing scalability item (M3 "production-scale P95" follow-up), not introduced by C4-3
+- [x] Local environment: two orphaned uvicorn instances (SO_REUSEADDR double-bind on :8000) found during triage and replaced with a single healthy instance
+- [ ] New follow-up: /api/bi/team per-person×per-source N+1-style metric computation degrades with data volume — needs batching or SQL aggregation before production-scale use (separate task)
+- [ ] Known flake (pre-existing): test_opportunity_products_roundtrip_and_recent_list — continue watching
+- [ ] Owner review of C2-4 dictionary wording (stage/result labels) still open
+- [ ] Docker acceptance and real-business owner sign-off remain separate
+
 ## 2026-09-17 C4-2 dead CSS cleanup + stale metadata (docs/29 task book, awaiting owner acceptance)
 
 - [x] 19 dead CSS classes from audit §7.2 deleted after per-class grep verification (tsx/ts + e2e zero references): visually-hidden, contribution-table, team-value, login-layout/intro/intro-footer, login-panel, sales-home-grid/sales-stack, sales-kpis/sales-period/sales-target-self/sales-attention/sales-panel-footer/sales-muted/sales-transactions, legend-old/legend-new, cockpit-fold; dead members removed from shared selector lists; live `--sales-muted` variable and `.sales-order-detail` kept

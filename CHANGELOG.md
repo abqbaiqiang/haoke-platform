@@ -1,5 +1,14 @@
 # Changelog
 
+## C4-3 sales.tsx / crm.tsx 拆分与超长行格式化 - 2026-09-17（docs/29 执行任务书收官）
+
+- **sales.tsx（228 行 → 65 行）**：拆出 `app/sales/` 9 个模块——`ui.tsx`（Icon/Empty/Panel/Pager/Modal/yoySpan + 销售端 money）、`perf-chart.tsx`（ECharts 业绩趋势）、`quick-follow.tsx`、`sales-dialog.tsx`（四类跟进/待办弹窗）、`recent-table.tsx`（工作台面板与跟进弹窗共用）、四屏 `workbench/customers/tasks/performance-screen.tsx`、`types.ts`（Screen/Route/DialogState/Performance 等共享类型）、`modals.tsx`（交易明细/我的跟进/全部成交客户/商品排行四个数据弹窗）。主文件只留路由（readRoute/href/go）与状态编排。
+- **crm.tsx（375 行 → 144 行）**：拆出 `app/crm/` 8 个模块——`api.ts`（/api/crm 包装）、`types.ts`（Detail/Profile/Value/Field）、`shared.ts`（money/relLabel/text）、`editor.tsx`（Editor + ProductPicker）、`tags.tsx`（TagPicker/TagManager）、`lists.tsx`（TaskList/OppList/FollowList）、`detail/`（derive.ts 派生数据 + summary.tsx 摘要与归属/绑定编辑器 + overview.tsx 概览 Tab + sections.tsx 其余分区，字段定义随迁）。主文件留数据加载与 Tab 编排。
+- **格式化铁则（改到哪、格式化到哪）**：仅对移动/触碰的代码重排超长行（最长 2000+ 字符的单行 JSX 全部展开为正常排版），未触碰行保持原样；DOM 结构、className、E2E 选择器零变化；业务逻辑、接口、权限零改动。详情区 JSX 与 HEAD 原文做规范化逐段比对（去空白 + 已知 prop 重命名映射），15 段全部确认转录一致。
+- **E2E 稳定性调整（bi.spec）**：M3 目标保存用例改为 `test.setTimeout(90s)` + 团队页行断言 30s。根因：开发库累积 335 个含订单数据源（其中 334 个为历史 E2E/cockpit 运行留下的单笔订单残留源），`/api/bi/team` 按人 × 源逐个计算工作台指标耗时约 7.6s，超过默认 5s 断言超时；属既有可扩展性待办（M3 记录的“生产规模 P95 测量”事项），非本次改动引入。
+- **本地环境修复**：排查中发现两个 uvicorn 后端实例（历史会话孤儿进程经 SO_REUSEADDR 双绑 8000 端口竞争响应），已清理并重启单实例；排查中偶发失败均复验为环境问题而非代码问题。
+- **验证**：共 12 个独立提交，每步跑全量回归；ruff 0 错误；pytest 264 通过（`test_opportunity_products_roundtrip_and_recent_list` 两次偶发失败，按约定单跑复验均 1 passed）；tsc/next build/bundle 密钥扫描通过；E2E 最终 38 通过/10 跳过。
+
 ## C4-2 死 CSS 清理与过期元数据更新 - 2026-09-17（docs/29 执行任务书）
 
 - **死 CSS（审计 §7.2，P2-14）**：按清单逐类 grep 验证 tsx/ts 与 E2E 零引用后删除 19 个改版残留类：`.visually-hidden`、`.contribution-table`、`.team-value`（3 处 media 覆盖）、`.login-layout/.intro/.intro-footer`、`.login-panel`、`.sales-home-grid/.sales-stack`、`.sales-kpis/.sales-period/.sales-target-self/.sales-attention/.sales-panel-footer/.sales-muted/.sales-transactions`、`.legend-old/.legend-new`、`.cockpit-fold`。共享选择器列表中的死成员一并摘除；`--sales-muted` 变量与 `.sales-order-detail` 等活类保留。E2E 对 `.sales-kpis` 的"不得出现"反向断言不受影响。
