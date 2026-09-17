@@ -1,4 +1,5 @@
 """docs/31 第 1 期项目管理升级：项目主档/联想、跨客户产品冲突、停滞判定、下一步必填、5 指标汇总。"""
+# ruff: noqa: F401, F811  # sample 夹具按 test_cockpit_regressions 同样方式复用（模块级导入 + 参数同名）。
 from datetime import timedelta
 from decimal import Decimal
 
@@ -6,6 +7,9 @@ from sqlalchemy import select, update
 
 from app.crm_models import Opportunity, Project, Task
 from app.models import utcnow
+
+# sample 夹具来自 test_m3（固定样本源+已导入订单），供 overview 管道测试复用。
+from test_m3 import sample as _sample_fix  # noqa: F401
 
 
 def make_customer(db, owner, name):
@@ -184,3 +188,33 @@ def test_settings_stage_probability_and_stagnation_thresholds(db, client, accoun
     # 销售不能改设置。
     sign_in('S1')
     assert client.put('/api/crm/settings', json=again).status_code == 403
+
+
+def test_overview_project_pipeline_and_attention(db, client, accounts, sign_in, _sample_fix):
+    """驾驶舱项目管道 5 指标/阶段漏斗与『需要关注』停滞项目聚合项（docs/31 第 1 期）。"""
+    from test_m3 import NOW
+    src, _, _, _ = _sample_fix
+    sign_in('S1')
+    c = make_customer(db, accounts['S1'].id, '管道客户')
+    r = client.post(f'/api/crm/customers/{c.id}/opportunities', json={
+        'opportunity_name': '管道项目', 'owner_user_id': str(accounts['S1'].id), 'stage': 'negotiation',
+        'estimated_amount': '80.00', 'probability': '0.7', 'next_promotion': '推进中',
+        'expected_close_date': NOW.strftime('%Y-%m') + '-20'})
+    assert r.status_code == 201, r.text
+    sign_in('Owner')
+    body = client.get(f'/api/bi/overview?source_id={src.id}').json()
+    pipe = body['project_pipeline']
+    assert pipe['open_count'] == 1 and pipe['open_amount'] == '80.00' and pipe['weighted_amount'] == '56.00'
+    assert pipe['expected_this_month'] == 1
+    assert {s['stage']: s['count'] for s in pipe['stages']}['negotiation'] == 1
+    # 停滞项目进入『需要关注』并带建议动作与入口。
+    db.execute(update(Opportunity).where(Opportunity.id == r.json()['id']).values(
+        next_promotion=None, updated_at=utcnow() - timedelta(days=20)))
+    db.commit()
+    body = client.get(f'/api/bi/overview?source_id={src.id}').json()
+    assert 'attention_items' in body, body
+    item = next(a for a in body['attention_items'] if a['kind'] == '项目停滞')
+    assert item['entry'] == 'projects' and item['action'] and item['name'].startswith('1 个停滞项目')
+    # 客户类关注项默认带入口 customer。
+    body2 = client.get(f'/api/bi/overview?source_id={src.id}').json()
+    assert all(a.get('entry') for a in body2['attention_items'])

@@ -369,6 +369,55 @@ def workbench(db, actor, uid, period):
         metrics=metrics, warnings=warnings, today_tasks=today_tasks, week_tasks=week_tasks, overdue_tasks=overdue, open_opportunities=len(opps))
 
 
+PROJECT_STAGE_ORDER = ['contact', 'recommend', 'selection', 'bidding', 'negotiation', 'delivery']
+
+
+def project_pipeline(db, actor):
+    """驾驶舱项目管道：开放项目的 5 指标与阶段漏斗（复用 crm_opportunity，不改动任何销售事实）。
+
+    停滞阈值取自 CRM 设置（crm_service.settings），与 CRM 项目列表判定完全同口径。
+    """
+    from app.crm_service import settings as crm_settings
+    config = crm_settings(db)
+    objs = db.scalars(select(Opportunity).join(Customer, Customer.id == Opportunity.customer_id).where(
+        Customer.is_active, Opportunity.status == 'open', scope(db, actor, Opportunity.owner_user_id))).all()
+    now = utcnow().astimezone(TZ)
+    month_start_d = now.date().replace(day=1)
+    next_month = shift_month(month_start_d, 1)
+    stages = {stage: [0, ZERO] for stage in PROJECT_STAGE_ORDER}
+    open_amount = weighted_total = ZERO
+    expected = stagnant = 0
+    ids = [o.id for o in objs]
+    todo_counts = dict(db.execute(select(Task.opportunity_id, func.count()).where(
+        Task.opportunity_id.in_(ids), Task.status == 'todo').group_by(Task.opportunity_id)).all()) if ids else {}
+    for o in objs:
+        if o.estimated_amount is not None:
+            open_amount += o.estimated_amount
+            if o.probability is not None:
+                weighted_total += (o.estimated_amount * o.probability).quantize(Decimal('0.01'))
+            if o.stage in stages:
+                stages[o.stage][0] += 1
+                stages[o.stage][1] += o.estimated_amount
+        if o.expected_close_date and month_start_d <= o.expected_close_date < next_month:
+            expected += 1
+        # 停滞判定与 CRM 列表同口径：无下一步推进且无关联待办，超过阈值天数。
+        if not (o.next_promotion or '').strip() and not todo_counts.get(o.id):
+            if (now - o.updated_at).days >= config.stagnant_warn_days:
+                stagnant += 1
+    return dto.ProjectPipeline(
+        open_count=len(objs), open_amount=money(open_amount), weighted_amount=money(weighted_total),
+        expected_this_month=expected, stagnant_count=stagnant,
+        stages=[dto.PipelineStage(stage=stage, count=info[0], amount=money(info[1])) for stage, info in stages.items()])
+
+
+ATTENTION_ACTIONS = {
+    '沉睡': '安排一次回访并记录跟进，唤醒老客户',
+    '疑似流失': '查看历史成交与跟进，制定挽回动作',
+    '尚无有效跟进记录': '立即安排首次跟进',
+    '去年同月成交、本月尚未复购': '发送复购提醒或当期推荐方案',
+}
+
+
 def attention(db, actor, sid, offset=0):
     src = source(db, actor, sid)
     today = utcnow().astimezone(TZ).date()
@@ -704,6 +753,7 @@ def overview(db, actor, source_id):
     person_ranking: list[dto.PersonRankRow] = []
     attention_items: list[dto.AttentionItem] = []
     attention_total = 0
+    pipeline = None
     customer_contributions = []
     if actor.role_code == ROLE_OWNER:
         sale_orders = [r for r in current if normal_sale(r, cfg, verified)]
@@ -763,7 +813,25 @@ def overview(db, actor, source_id):
         person_ranking.sort(key=lambda row: Decimal(row.amount), reverse=True)
         page = attention(db, actor, src.id, 0)
         attention_total = page.total
-        attention_items = [dto.AttentionItem(customer_id=r.id, name=r.name, kind=r.kind, days=r.days) for r in page.rows[:4]]
+        attention_items = [dto.AttentionItem(customer_id=r.id, name=r.name, kind=r.kind, days=r.days,
+                                             action=ATTENTION_ACTIONS.get(r.kind, '打开客户查看详情并安排下一步'), entry='customer')
+                           for r in page.rows[:4]]
+        # 聚合关注项：目标偏差（有金额，排最前）、停滞项目、逾期任务，均给出原因+建议动作+入口。
+        targeted = [r for r in person_ranking if r.target is not None]
+        if verified and targeted:
+            gap = sum((Decimal(r.target) for r in targeted), ZERO) - sum((Decimal(r.amount) for r in targeted), ZERO)
+            if gap > 0:
+                attention_items.insert(0, dto.AttentionItem(name=f'目标缺口 {money(gap)} 元', kind='目标偏差',
+                    action='查看团队执行，调整目标或跟进入量', entry='team'))
+        pipeline = project_pipeline(db, actor)
+        if pipeline.stagnant_count:
+            attention_items.append(dto.AttentionItem(name=f'{pipeline.stagnant_count} 个停滞项目', kind='项目停滞',
+                action='查看项目列表，补下一步推进或待办', entry='projects'))
+        overdue = db.scalar(select(func.count()).select_from(Task).where(
+            Task.status == 'todo', Task.due_at < utcnow(), scope(db, actor, Task.assignee_user_id)))
+        if overdue:
+            attention_items.append(dto.AttentionItem(name=f'{overdue} 条逾期待办', kind='逾期任务',
+                action='进入待办与跟进，优先处理逾期事项', entry='tasks'))
 
     return dto.Overview(month=period, through=today, verified=verified, warnings=warnings,
                         finance_warnings=finance_warnings, sales_metrics=sales_metrics,
@@ -771,5 +839,5 @@ def overview(db, actor, source_id):
                         customer_contributions=customer_contributions[:5],
                         customer_structure=customer_structure, product_structure=product_structure,
                         person_ranking=person_ranking, attention_items=attention_items,
-                        attention_total=attention_total,
+                        attention_total=attention_total, project_pipeline=pipeline,
                         updated_at=max((r.updated_at for r in rows), default=None))

@@ -30,8 +30,11 @@ export type ProductMargins = { month: string; through: string; basis: string; wa
 export type AttentionItem = { id: string; name: string; kind: string; days: number | null };
 export type AttentionPage = { rows: AttentionItem[]; total: number; warnings: string[]; counts: Record<string, number> };
 
-/** 经营总览需要关注项（bi_schemas.AttentionItem，customer_id 键）。 */
-export type OverviewAttention = { customer_id: string; name: string; kind: string; days: number | null };
+/** 经营总览需要关注项（bi_schemas.AttentionItem）：customer_id 可空（聚合项），action=建议动作，entry=入口。 */
+export type OverviewAttention = { customer_id: string | null; name: string; kind: string; days: number | null; action: string; entry: "customer" | "tasks" | "projects" | "team" };
+
+/** 驾驶舱项目管道（bi_schemas.ProjectPipeline）。 */
+export type ProjectPipeline = { open_count: number; open_amount: string; weighted_amount: string; expected_this_month: number; stagnant_count: number; stages: { stage: string; count: number; amount: string }[] };
 
 // ---------- CRM（crm_schemas.py）----------
 

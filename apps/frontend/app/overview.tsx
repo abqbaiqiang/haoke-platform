@@ -2,7 +2,8 @@
 import { useEffect, useRef, useState } from "react";
 import type { CRMEntry } from "./crm-navigation";
 import { compact, dateTime, money } from "./lib/format";
-import type { Metric, OverviewAttention as Attention } from "./lib/types";
+import { opportunityStageLabels } from "./lib/labels";
+import type { Metric, OverviewAttention as Attention, ProjectPipeline } from "./lib/types";
 type Point = { date: string; value: string };
 type Ranking = { user_id: string; name: string; amount: string; target: string | null; completion: string | null };
 type Contribution = { customer_id: string; name: string; owner_name: string | null; level: string | null; amount: string; orders: number };
@@ -11,6 +12,7 @@ type OverviewData = {
   sales_metrics: Metric[]; finance_metrics: Metric[]; trend: Point[]; customer_trend: Point[]; updated_at: string | null;
   person_ranking: Ranking[]; customer_contributions: Contribution[];
   attention_items: Attention[]; attention_total: number;
+  project_pipeline: ProjectPipeline | null;
 };
 type Source = { id: string; name: string };
 /** 完成率低于该值时以琥珀色提示，仅为阅读帮助，不参与任何指标计算，也不改写口径。 */
@@ -150,10 +152,47 @@ function TeamTargets({ rows, verified, onOpenTeam }: { rows: Ranking[]; verified
   </section>;
 }
 
-/** 需要关注：久未联系 / 无成交 / 商机停滞，按后端紧急度顺序展示。 */
-function AttentionList({ items, total, onOpenAll, onOpenTasks, onOpenCustomer }: {
-  items: Attention[]; total: number; onOpenAll: () => void; onOpenTasks: () => void; onOpenCustomer: (id: string) => void;
+/** 项目管道：5 指标 + 阶段漏斗（开放项目口径）；无项目时给“为什么为空+下一步”。 */
+function ProjectPipelinePanel({ pipeline, onOpenProjects, onOpenCRM }: {
+  pipeline: ProjectPipeline; onOpenProjects: () => void; onOpenCRM: () => void;
 }) {
+  return <section className="cockpit-panel" aria-label="项目管道">
+    <div className="panel-heading">
+      <div>
+        <h2>项目管道</h2>
+        <p className="panel-sub">开放项目口径 · 预计金额与加权金额为预测，不等于实际销售</p>
+      </div>
+      <button className="text-button" onClick={onOpenProjects}>项目列表 →</button>
+    </div>
+    {pipeline.open_count ? <>
+      <dl className="pipe-kpis">
+        <div><dt>开放项目</dt><dd>{pipeline.open_count}<small>个</small></dd></div>
+        <div><dt>有效项目金额</dt><dd>{money(pipeline.open_amount)}<small>元</small></dd></div>
+        <div><dt>加权金额</dt><dd>{money(pipeline.weighted_amount)}<small>元</small></dd></div>
+        <div><dt>本月预计成交</dt><dd>{pipeline.expected_this_month}<small>个</small></dd></div>
+        <div><dt>停滞项目</dt><dd className={pipeline.stagnant_count ? "pipe-risk" : undefined}>{pipeline.stagnant_count}<small>个</small></dd></div>
+      </dl>
+      <ul className="pipe-funnel">
+        {pipeline.stages.map(s => {
+          const max = Math.max(1, ...pipeline.stages.map(x => Number(x.amount)));
+          const width = Number(s.amount) > 0 ? Math.max(1.5, Number(s.amount) / max * 100) : 0;
+          return <li key={s.stage}>
+            <span className="pipe-stage">{opportunityStageLabels[s.stage] || s.stage}</span>
+            <span className="pipe-track" role="img" aria-label={`${opportunityStageLabels[s.stage] || s.stage} ${s.count} 个 · ${money(s.amount)} 元`}><i style={{ width: `${width}%` }} /></span>
+            <span className="pipe-figures">{s.count} 个 · {money(s.amount)} 元</span>
+          </li>;
+        })}
+      </ul>
+    </> : <div className="cockpit-empty"><strong>还没有开放的项目记录</strong><p>项目（原商机）刚起步属正常：进入客户详情为正在跟的客户新增项目（如“2026 保险开门红”），这里会显示 5 项指标和阶段漏斗。</p><div className="panel-actions"><button className="text-button" onClick={onOpenCRM}>进入客户与项目 →</button></div></div>}
+    <p className="panel-note">漏斗条长按各阶段开放项目金额缩放；停滞=无下一步且超阈值未更新（阈值在 CRM 设置）。</p>
+  </section>;
+}
+
+/** 需要关注：久未联系 / 无成交 / 项目停滞 / 逾期任务 / 目标偏差，每条含原因+建议动作+入口。 */
+function AttentionList({ items, total, onOpenAll, onOpenTasks, onOpenCustomer, onOpenProjects, onOpenTeam }: {
+  items: Attention[]; total: number; onOpenAll: () => void; onOpenTasks: () => void; onOpenCustomer: (id: string) => void; onOpenProjects: () => void; onOpenTeam: () => void;
+}) {
+  const entryOf = (a: Attention) => a.customer_id ? () => onOpenCustomer(a.customer_id!) : a.entry === "tasks" ? onOpenTasks : a.entry === "projects" ? onOpenProjects : a.entry === "team" ? onOpenTeam : undefined;
   return <section className="cockpit-panel" aria-label="需要关注">
     <div className="panel-heading">
       <div>
@@ -162,14 +201,17 @@ function AttentionList({ items, total, onOpenAll, onOpenTasks, onOpenCustomer }:
       </div>
     </div>
     {items.length ? <ul className="attn-list">
-      {items.map((a, i) => <li className="attn-item" key={`${a.customer_id}-${i}`}>
+      {items.map((a, i) => <li className="attn-item" key={`${a.customer_id ?? a.entry}-${i}`}>
         <div className="attn-main">
-          <button className="text-button customer-link" onClick={() => onOpenCustomer(a.customer_id)}>{a.name}</button>
+          {entryOf(a)
+            ? <button className="text-button customer-link" onClick={entryOf(a)}>{a.name}</button>
+            : <strong>{a.name}</strong>}
           <span className="attn-kind">{a.kind}</span>
+          {a.action && <span className="attn-action">{a.action}</span>}
         </div>
         {a.days !== null && <span className="attn-days">{a.days} 天</span>}
       </li>)}
-    </ul> : <div className="cockpit-empty"><strong>暂无需要关注的客户</strong><p>出现久未联系、长时间无成交或商机停滞时，会在这里列出。</p></div>}
+    </ul> : <div className="cockpit-empty"><strong>暂无需要关注的客户</strong><p>出现久未联系、长时间无成交或项目停滞时，会在这里列出。</p></div>}
     <div className="panel-actions">
       {total > 0 && <button className="text-button" onClick={onOpenAll}>查看全部 {total} 项 →</button>}
       <button className="text-button" onClick={onOpenTasks}>进入待办与跟进 →</button>
@@ -286,8 +328,9 @@ export default function Overview({ role, openBI, openCRM }: { role: string; open
           : <section className="cockpit-panel"><div className="panel-heading"><div><h2>客户贡献</h2><p className="panel-sub">本月暂无贡献数据</p></div></div><div className="cockpit-empty"><strong>还没有可视的客户贡献</strong><p>完成销售导入并核对人员映射后，本月客户金额排名会在这里以比例条展示。</p></div></section>}
         <TeamTargets rows={data.person_ranking} verified={data.verified} onOpenTeam={() => openBI("team")} />
       </div>}
+      {owner && data.project_pipeline && <ProjectPipelinePanel pipeline={data.project_pipeline} onOpenProjects={() => openCRM({ tab: "opportunities" })} onOpenCRM={() => openCRM({ tab: "opportunities" })} />}
       {owner && <div className={`cockpit-grid${data.finance_metrics.length ? "" : " single"}`}>
-        <AttentionList items={data.attention_items} total={attention} onOpenAll={() => openBI("attention")} onOpenTasks={() => openCRM({ tab: "tasks" })} onOpenCustomer={id => openCRM({ tab: "customers", customerId: id })} />
+        <AttentionList items={data.attention_items} total={attention} onOpenAll={() => openBI("attention")} onOpenTasks={() => openCRM({ tab: "tasks" })} onOpenCustomer={id => openCRM({ tab: "customers", customerId: id })} onOpenProjects={() => openCRM({ tab: "opportunities" })} onOpenTeam={() => openBI("team")} />
         {!!data.finance_metrics.length && <FinancePanel metrics={data.finance_metrics} warnings={data.finance_warnings} month={data.month} />}
       </div>}
       {!owner && <section className="cockpit-panel"><div className="panel-heading"><div><h2>我的工作</h2><p className="panel-sub">查看个人业绩、待办与客户进展</p></div></div><div className="panel-actions"><button className="text-button" onClick={() => openBI()}>销售工作台 →</button><button className="text-button" onClick={() => openCRM({ tab: "tasks" })}>待办与跟进 →</button></div></section>}

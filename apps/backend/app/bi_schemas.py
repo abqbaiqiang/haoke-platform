@@ -212,10 +212,30 @@ class PersonRankRow(BaseModel):
 
 
 class AttentionItem(BaseModel):
-    customer_id: UUID
+    # customer_id 可空：逾期任务/停滞项目/目标偏差等聚合项没有单一客户对象。
+    customer_id: UUID | None = None
     name: str
     kind: str
     days: int | None = None
+    # 建议动作文案与入口（entry: customer|tasks|projects|team），由前端路由到对应页面。
+    action: str = ""
+    entry: str = "customer"
+
+
+class PipelineStage(BaseModel):
+    stage: str
+    count: int
+    amount: str
+
+
+class ProjectPipeline(BaseModel):
+    """驾驶舱项目管道：5 指标 + 阶段漏斗（开放项目口径，docs/31 第 1 期）。"""
+    open_count: int
+    open_amount: str
+    weighted_amount: str
+    expected_this_month: int
+    stagnant_count: int
+    stages: list[PipelineStage] = []
 
 
 class CustomerContribution(BaseModel):
@@ -243,6 +263,7 @@ class Overview(BaseModel):
     product_structure: list[StructureSlice] = []
     person_ranking: list[PersonRankRow] = []
     attention_items: list[AttentionItem] = []
+    project_pipeline: ProjectPipeline | None = None
     attention_total: int = 0
 
 
