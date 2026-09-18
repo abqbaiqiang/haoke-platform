@@ -26,8 +26,9 @@ def performance(source_id: UUID, db: DB, actor: Actor,
 def customers(db: DB, actor: Actor, q: str = Query('', max_length=100), pool: bool = False,
               offset: int = Query(0, ge=0), limit: int = Query(20, ge=1, le=100),
               claim: Literal['claimed', 'unclaimed'] | None = None,
-              level: str | None = Query(None, max_length=8), tag_id: UUID | None = None):
-    return svc.customers(db, actor, q, pool, offset, limit, claim, level, tag_id)
+              level: str | None = Query(None, max_length=8), tag_id: UUID | None = None,
+              status: str | None = Query(None, max_length=16)):
+    return svc.customers(db, actor, q, pool, offset, limit, claim, level, tag_id, status)
 
 
 @router.get('/opportunities', response_model=svc.RecentOpportunities)

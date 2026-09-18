@@ -19,7 +19,6 @@ import {
   decisionRoleOptions as decisionRoles,
   interactionMethodOptions as methods,
   lifecycleOptions as lifecycle,
-  customerStatusOptions as customerStage,
   opportunityStageFlowOptions as stageFlow,
   opportunityStageOptions as stages,
 } from "./lib/labels";

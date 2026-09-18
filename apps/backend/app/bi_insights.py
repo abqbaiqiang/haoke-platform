@@ -491,6 +491,29 @@ def rfm_key_customers(db, actor, sid):
     return {cid for cid, s in enriched.items() if s['layer'].startswith('重要')}, None
 
 
+def key_customers_all_sources(db, actor):
+    """重点客户（跨全部可见来源聚合 RFM，docs/32 §3.4）：客户页 status=key 用。
+
+    返回 (customer_id 集合, 提示)。来源不可见（销售无订单）跳过；全空时集合为空并给出原因。
+    """
+    today = utcnow().astimezone(TZ).date()
+    stats: dict[UUID, dict] = {}
+    for src in db.scalars(select(DataSource).where(DataSource.is_enabled)):
+        try:
+            s, _v, _w, _t, _vis, _cfg = _source_customer_stats(db, actor, src)
+        except HTTPException:
+            continue
+        for cid, v in s.items():
+            acc = stats.setdefault(cid, {'orders': 0, 'amount': ZERO, 'last': None})
+            acc['amount'] += v['amount']
+            acc['orders'] += v['orders']
+            acc['last'] = v['last'] if acc['last'] is None else max(acc['last'], v['last'])
+    if not stats:
+        return set(), '暂无已导入销售订单，暂无法判定重点客户'
+    enriched, _ = _rfm_stats(stats, settings(db), today)
+    return {cid for cid, s in enriched.items() if s['layer'].startswith('重要')}, None
+
+
 RFM_SEGMENTS = [
     ('重要价值客户', 'R高F高M高', '重点维护，防止被竞争对手挖走'),
     ('重要保持客户', 'R低F高M高', '高频高额但久未成交，优先唤回'),

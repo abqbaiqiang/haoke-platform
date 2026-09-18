@@ -186,3 +186,52 @@ def test_task_row_carries_customer_project_stage(db, client, accounts, sign_in):
     task(db, accounts, bare, due + timedelta(hours=1), title='无项目任务')
     rows = client.get('/api/sales/tasks?view=today').json()['rows']
     assert {r['title']: r['opp_stage'] for r in rows}['无项目任务'] is None
+
+
+def test_customer_tab_cascade_and_status_filter(db, client, accounts, sign_in):
+    """docs/32 §3.2：标签页级联（沉睡>成交>报价中>意向>新客户，流失不入标签）+ status 筛选。"""
+    from datetime import date, timedelta as td
+    from app.data_models import SalesOrder
+    today = date.today()
+    rows = {}
+    for key, name in [('deal', '甲成交'), ('dormant', '乙沉睡'), ('quoting', '丙报价'),
+                      ('intent', '丁意向'), ('new', '戊新客'), ('lost', '己流失')]:
+        c = Customer(source_system='crm', customer_name=name, normalized_name=name,
+                     owner_user_id=accounts['S1'].id, ownership_status='owned')
+        db.add(c)
+        rows[key] = c
+    db.commit()
+    source = DataSource(source_code='sr_tab', source_name='标签账套', entity_name='测试公司')
+    db.add(source)
+    db.flush()
+    batch = ImportBatch(data_source_id=source.id, business_type='sales', original_filename='fake.csv',
+                        storage_path='x', file_hash='c' * 64, imported_by=accounts['Admin'].id, status='succeeded')
+    db.add(batch)
+    db.commit()
+
+    def order(c, days_ago):
+        db.add(SalesOrder(source_system=source.source_code, order_no=uuid4().hex,
+                          order_date=today - td(days=days_ago), customer_id=c.id,
+                          sales_user_id=accounts['S1'].id, sales_amount=Decimal('10'),
+                          source_status='valid', content_hash=uuid4().hex,
+                          updated_at=datetime.now(crm.TZ), last_import_batch_id=batch.id))
+    order(rows['deal'], 3)
+    order(rows['dormant'], 200)
+    order(rows['lost'], 3)
+    rows['lost'].lifecycle_status = 'lost'
+    opp(db, accounts, rows['quoting'], 'S1', '丙项目', 'negotiation')
+    opp(db, accounts, rows['intent'], 'S1', '丁项目', 'contact')
+    db.commit()
+    sign_in('S1')
+    data = client.get('/api/sales/customers').json()
+    # 200 天未成交同时命中疑似流失；key=3：三户金额相同（M 高=≥人均）均为 RFM 重要层。
+    assert data['tabs'] == {'dormant': 1, 'deal': 1, 'quoting': 1, 'intent': 1, 'new': 1,
+                            'at_risk': 1, 'key': 3}
+    assert data['total'] == 6  # 流失客户仍在“全部”可见
+    for status, expected in [('deal', '甲成交'), ('dormant', '乙沉睡'), ('quoting', '丙报价'),
+                             ('intent', '丁意向'), ('new', '戊新客')]:
+        page = client.get(f'/api/sales/customers?status={status}').json()
+        assert page['total'] == 1 and page['rows'][0]['customer_name'] == expected, status
+    assert client.get('/api/sales/customers?status=bogus').status_code == 422
+    # 无效等级校验仍保留。
+    assert client.get('/api/sales/customers?level=X').status_code == 422

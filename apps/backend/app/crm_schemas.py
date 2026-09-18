@@ -25,7 +25,7 @@ class CustomerPatch(DTO):
     customer_name: Name | None = None
     customer_type: Annotated[str, Field(max_length=32)] | None = None
     customer_level: Literal['A', 'B', 'C', 'D'] | None = None
-    customer_status: Literal['potential', 'contacted', 'demand', 'quoted', 'won', 'dormant'] | None = None
+    company_address: Annotated[str, Field(max_length=255)] | None = None
     lifecycle_status: Literal['prospect', 'active', 'dormant', 'lost'] | None = None
     remark: Note | None = None
 
@@ -45,7 +45,7 @@ class CustomerView(DTO):
     ownership_status: str
     customer_type: str | None
     customer_level: str | None
-    customer_status: str | None
+    company_address: str | None
     lifecycle_status: str
     remark: str | None
     bound_customer_id: UUID | None

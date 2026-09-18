@@ -142,7 +142,8 @@ def test_no_next_step_requires_terminal_reason(db, client, accounts, sign_in):
     assert ok.json()['next_action'] is None
 
 
-def test_effective_flag_saved_and_quotation_progresses_status(db, client, accounts, sign_in):
+def test_effective_flag_saved_and_quotation_no_longer_rewrites_status(db, client, accounts, sign_in):
+    """docs/32 §2：customer_status 字段已下线，报价留痕不再改写任何客户阶段字段。"""
     mine, other = seed(db, accounts)
     sign_in('S1')
     f = {'interaction_method': 'quote', 'contact_result': 'good', 'summary': '已发送报价', 'quotation_sent': True,
@@ -150,20 +151,21 @@ def test_effective_flag_saved_and_quotation_progresses_status(db, client, accoun
     r = client.post(f'/api/sales/customers/{mine.id}/followup', json={'followup': f})
     assert r.status_code == 201, r.text
     assert r.json()['is_effective'] is True
-    db.refresh(mine)
-    assert mine.customer_status == 'quoted'
+    assert 'customer_status' not in r.json()
     f2 = {'interaction_method': 'phone', 'contact_result': 'no_answer', 'is_effective': False}
     r2 = client.post(f'/api/sales/customers/{mine.id}/followup', json={'followup': f2})
     assert r2.status_code == 201, r2.text
     assert r2.json()['is_effective'] is False
 
 
-def test_sales_can_edit_customer_status_with_enum(db, client, accounts, sign_in):
+def test_sales_can_edit_company_address_but_not_retired_status(db, client, accounts, sign_in):
+    """docs/32 §3：销售可维护公司地址；customer_status 字段整体拒绝。"""
     mine, other = seed(db, accounts)
     sign_in('S1')
-    assert client.patch(f'/api/crm/customers/{mine.id}', json={'customer_status': 'demand'}).status_code == 200
-    assert client.get(f'/api/crm/customers/{mine.id}').json()['customer']['customer_status'] == 'demand'
-    assert client.patch(f'/api/crm/customers/{mine.id}', json={'customer_status': 'bogus'}).status_code == 422
+    assert client.patch(f'/api/crm/customers/{mine.id}', json={'company_address': '济南市历下区XX路1号'}).status_code == 200
+    assert client.get(f'/api/crm/customers/{mine.id}').json()['customer']['company_address'] == '济南市历下区XX路1号'
+    r = client.patch(f'/api/crm/customers/{mine.id}', json={'customer_status': 'demand'})
+    assert r.status_code == 422  # 字段已随 docs/32 §2 从 DTO 删除，直接被校验拒绝
 
 
 def test_customer_list_returns_tags(db, client, accounts, sign_in):

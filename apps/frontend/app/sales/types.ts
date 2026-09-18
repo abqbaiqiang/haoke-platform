@@ -1,7 +1,7 @@
 "use client";
 
 import { useData } from "../lib/api";
-import type { CustomerRow as Customer, Metric, TaskRow as Task } from "../lib/types";
+import type { CustomerRow as Customer, Metric, Page, TaskRow as Task } from "../lib/types";
 
 /** 销售员端四个屏幕。 */
 export type Screen = "workbench" | "customers" | "tasks" | "performance";
@@ -14,6 +14,9 @@ export type DialogState = { kind: "follow" | "task" | "defer" | "complete"; cust
 
 /** 业绩趋势单点：value/last_year 为 null 表示该月无已核实数据。 */
 export type TrendPoint = { date: string; value: string | null; last_year: string | null };
+
+/** 客户列表页（/api/sales/customers）：附级联标签页计数（docs/32 §3.2）。 */
+export type CustomersPage = Page<Customer> & { tabs: Record<string, number | null> };
 
 /** useData 的返回结构。 */
 export type Data<T> = ReturnType<typeof useData<T>>;

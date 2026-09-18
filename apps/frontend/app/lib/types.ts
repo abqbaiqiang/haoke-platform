@@ -40,7 +40,6 @@ export type ProjectPipeline = { open_count: number; open_amount: string; weighte
 
 export type Claim = { user_id: string; display_name: string; claimed_at: string };
 
-export type CustomerStatus = "potential" | "contacted" | "demand" | "quoted" | "won" | "dormant";
 export type LifecycleStatus = "prospect" | "active" | "dormant" | "lost";
 export type CustomerLevel = "A" | "B" | "C" | "D";
 
@@ -54,7 +53,7 @@ export type Customer = {
   ownership_status: string;
   customer_type: string | null;
   customer_level: CustomerLevel | null;
-  customer_status: CustomerStatus | null;
+  company_address: string | null;
   lifecycle_status: LifecycleStatus;
   remark: string | null;
   bound_customer_id: string | null;

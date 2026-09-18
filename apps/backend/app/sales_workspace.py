@@ -33,6 +33,8 @@ class CustomerRow(dto.CustomerView):
 class Customers(dto.DTO):
     rows: list[CustomerRow]
     total: int
+    # 客户页标签页计数（docs/32 §3.2 级联推导，互斥；at_risk/key 为提醒直达口径，可能不在五标签内）。
+    tabs: dict[str, int | None] = {}
 
 
 class TaskRow(dto.TaskView):
@@ -164,9 +166,66 @@ def visible(db, actor):
     return select(Customer.id).where(Customer.is_active, crm.customer_scope(db, actor, Customer.owner_user_id))
 
 
+STATUS_KEYS = ('dormant', 'deal', 'quoting', 'intent', 'new', 'at_risk', 'key')
+
+
+def customer_caliber(db, actor, ids):
+    """客户页级联口径（docs/32 §3.2）：按 沉睡>成交>报价中>意向>新客户 互斥判定。
+
+    返回 (cid->bucket 映射, tabs 计数, 附加集合 {at_risk, key})。判定锚点：
+    成交=有精斗云销售单；沉睡=距最近成交>dormant_days；报价中=无成交且开放项目
+    最高阶段∈{招投标,大单议价}（跟项目走，老板拍板）；意向=无成交且有开放项目；
+    新客户=无成交且无开放项目。
+    """
+    config = bi.settings(db)
+    today = bi.utcnow().astimezone(bi.TZ).date()
+    last_order: dict = {}
+    for cid, last in db.execute(select(SalesOrder.customer_id, func.max(SalesOrder.order_date))
+                                .where(SalesOrder.customer_id.in_(ids)).group_by(SalesOrder.customer_id)):
+        last_order[cid] = last
+    rank = case({'contact': 0, 'recommend': 1, 'selection': 2, 'bidding': 3, 'negotiation': 4, 'delivery': 5},
+                value=Opportunity.stage, else_=-1)
+    top_stage: dict = {}
+    for cid, stage in db.execute(select(Opportunity.customer_id, Opportunity.stage)
+                                 .where(Opportunity.customer_id.in_(ids), Opportunity.status == 'open', Opportunity.is_active)
+                                 .order_by(Opportunity.customer_id, rank.desc())):
+        top_stage.setdefault(cid, stage)
+    key_ids, _key_warning = bi.key_customers_all_sources(db, actor)
+    lifecycle = dict(db.execute(select(Customer.id, Customer.lifecycle_status).where(Customer.id.in_(ids))).all())
+    bucket: dict[str, str] = {}
+    counts = {'dormant': 0, 'deal': 0, 'quoting': 0, 'intent': 0, 'new': 0}
+    at_risk: set = set()
+    quote_stages = {'bidding', 'negotiation'}
+    for cid in ids:
+        if lifecycle.get(cid) == 'lost':
+            # 手动认定的流失客户不入任何标签页，仅“全部”可见（docs/32 §1 拍板 8）。
+            bucket[cid] = 'lost'
+            continue
+        last = last_order.get(cid)
+        if last is not None:
+            days = (today - last).days
+            if days >= config.lost_warning_days:
+                at_risk.add(cid)
+            if days > config.dormant_days:
+                bucket[cid] = 'dormant'
+            else:
+                bucket[cid] = 'deal'
+        elif top_stage.get(cid) in quote_stages:
+            bucket[cid] = 'quoting'
+        elif cid in top_stage:
+            bucket[cid] = 'intent'
+        else:
+            bucket[cid] = 'new'
+        counts[bucket[cid]] += 1
+    tabs = {**counts,
+            'at_risk': len(at_risk),
+            'key': len(key_ids & set(ids)) if key_ids else None}
+    return bucket, tabs, at_risk, key_ids
+
+
 def customers(db: DB, actor: Actor, q: str = '', pool: bool = False,
               offset: int = 0, limit: int = 20, claim: str | None = None,
-              level: str | None = None, tag_id=None):
+              level: str | None = None, tag_id=None, status: str | None = None):
     ids = visible(db, actor)
     query = select(Customer).where(Customer.is_active)
     query = query.where(Customer.ownership_status == OWNERSHIP_PUBLIC_POOL) if pool else query.where(Customer.id.in_(ids))
@@ -185,12 +244,21 @@ def customers(db: DB, actor: Actor, q: str = '', pool: bool = False,
     if not pool and level == 'none':
         query = query.where(Customer.customer_level.is_(None))
     elif not pool and level:
-        from fastapi import HTTPException
         if level not in {'A', 'B', 'C', 'D'}:
             raise HTTPException(422, '客户等级无效')
         query = query.where(Customer.customer_level == level)
     if not pool and tag_id:
         query = query.where(exists().where(CustomerTag.customer_id == Customer.id, CustomerTag.tag_id == tag_id))
+    id_list = list(db.scalars(select(Customer.id).where(Customer.id.in_(ids), Customer.is_active)))
+    tabs: dict[str, int | None] = {}
+    if not pool:
+        bucket, tabs, at_risk, key_ids = customer_caliber(db, actor, id_list)
+        if status:
+            if status not in STATUS_KEYS:
+                raise HTTPException(422, '客户状态筛选无效')
+            selected = key_ids if status == 'key' else at_risk if status == 'at_risk' else {
+                cid for cid in id_list if bucket.get(cid) == status}
+            query = query.where(Customer.id.in_(selected or {UUID(int=0)}))
     total = db.scalar(select(func.count()).select_from(query.subquery()))
     rows = [CustomerRow.model_validate(c) for c in db.scalars(query.order_by(Customer.customer_name, Customer.id).offset(offset).limit(limit))]
     crm.attach_claims(db, rows)
@@ -218,7 +286,7 @@ def customers(db: DB, actor: Actor, q: str = '', pool: bool = False,
         row.last_followup = f.occurred_at if f else None
         row.next_action, row.next_due = (t.title, t.due_at) if t else (None, None)
         row.tags = tags.get(row.id, [])
-    return Customers(rows=rows, total=total)
+    return Customers(rows=rows, total=total, tabs=tabs)
 
 
 def tasks(db: DB, actor: Actor, view: Literal['today', 'overdue', 'week', 'future', 'done'] = 'today',

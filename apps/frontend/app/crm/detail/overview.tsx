@@ -1,7 +1,7 @@
 "use client";
 
 import { dateTime, dayDiff } from "../../lib/format";
-import { opportunityStageFlowOptions as stageFlow, opportunityStageOptions as stages, opportunityStageProbability as defaultStageProbability, interactionMethodOptions as methods, decisionRoleOptions as decisionRoles, lifecycleOptions as lifecycle, customerStatusOptions as customerStage } from "../../lib/labels";
+import { opportunityStageFlowOptions as stageFlow, opportunityStageOptions as stages, opportunityStageProbability as defaultStageProbability, interactionMethodOptions as methods, decisionRoleOptions as decisionRoles, lifecycleOptions as lifecycle } from "../../lib/labels";
 import type { Role } from "../../lib/types";
 import { api } from "../api";
 import { Editor } from "../editor";
@@ -103,7 +103,7 @@ export function DetailOverview({ detail, profile, role, processWrite, customerWr
           <dl className="cd-info">
             <div><dt>客户等级</dt><dd>{detail.customer.customer_level ? `${detail.customer.customer_level}级客户` : "未评级"}</dd></div>
             <div><dt>RFM 分层</dt><dd>{profile?.layer || "—"}</dd></div>
-            <div><dt>客户阶段</dt><dd>{detail.customer.customer_status ? text(customerStage, detail.customer.customer_status) : "未标记"}</dd></div>
+            <div><dt>公司地址</dt><dd>{detail.customer.company_address || "未填写"}</dd></div>
             <div><dt>合作状态</dt><dd>{text(lifecycle, detail.customer.lifecycle_status)}</dd></div>
             <div><dt>客户类型</dt><dd>{detail.customer.customer_type || "—"}</dd></div>
             <div className="weak"><dt>绑定状态</dt><dd>{detail.customer.bound_at ? "已绑定精斗云" : "未绑定精斗云"}</dd></div>

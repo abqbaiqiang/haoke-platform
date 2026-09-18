@@ -4,15 +4,14 @@ import type { Dispatch, SetStateAction } from "react";
 import CRM from "../crm";
 import { api } from "../lib/api";
 import { stamp } from "../lib/format";
-import { customerStatusLabels as statusLabels } from "../lib/labels";
 import type { CustomerRow as Customer, Page, TaskRow as Task, User } from "../lib/types";
-import type { Data, Route } from "./types";
+import type { CustomersPage, Data, Route } from "./types";
 import { Empty, Panel, Pager } from "./ui";
 
 /** 客户屏幕：客户详情（内嵌 CRM）或 我的客户/客户公海 列表。 */
 export function CustomersScreen({ route, customers, user, revision, offset, onOffsetChange, pageSize, onPageSizeChange, claimFilter, onClaimFilterChange, poolIds, onPoolIdsChange, levelFilter, onLevelFilterChange, tagFilter, onTagFilterChange, searchInput, setSearchInput, onSearchInput, liveSearch, tagList, busy, run, record, go }: {
   route: Route;
-  customers: Data<Page<Customer>>;
+  customers: Data<CustomersPage>;
   user: User;
   revision: number;
   offset: number;
@@ -37,6 +36,8 @@ export function CustomersScreen({ route, customers, user, revision, offset, onOf
   record: (task?: Task, customer?: Customer) => void;
   go: (r: Route) => void;
 }) {
+  const tabs: [string, string][] = [["", "全部客户"], ["new", "新客户"], ["intent", "意向客户"], ["quoting", "报价中"], ["deal", "成交客户"], ["dormant", "沉睡客户"]];
+  const tabCount = (key: string) => { const t = customers.data?.tabs; if (!t) return ""; if (key === "") return t.deal == null ? "" : (["dormant","deal","quoting","intent","new"] as const).reduce((a, k) => a + (Number(t[k] ?? 0)), 0); return t[key as "dormant"] ?? ""; };
   return route.customerId ? (
     <div className="sales-detail">
       <button onClick={() => go({ screen: "customers" })}>← 返回客户列表</button>
@@ -49,6 +50,10 @@ export function CustomersScreen({ route, customers, user, revision, offset, onOf
         <button aria-pressed={!route.pool} onClick={() => go({ screen: "customers", q: route.q })}>我的客户</button>
         <button aria-pressed={!!route.pool} onClick={() => go({ screen: "customers", pool: true, q: route.q })}>客户公海</button>
       </div>}>
+      {!route.pool && <div className="sales-tabs cust-tabs" aria-label="客户状态">
+        {tabs.map(([key, label]) => <button key={key || "all"} aria-pressed={(route.status || "") === key} onClick={() => go({ screen: "customers", q: route.q, status: key || undefined })}>{label}{tabCount(key) !== "" && `（${tabCount(key)}）`}</button>)}
+      </div>}
+      {!route.pool && route.status && !["new", "intent", "quoting", "deal", "dormant"].includes(route.status) && <p className="sales-notice" style={{ margin: "0 0 12px" }}>已按「{route.status === "key" ? "RFM 重点客户" : "疑似流失"}」筛选；<button onClick={() => go({ screen: "customers", q: route.q })}>清除筛选</button></p>}
       <div className="sales-list-toolbar">
         <form role="search" onSubmit={e => { e.preventDefault(); liveSearch(searchInput.trim()); }}>
           <input aria-label="搜索客户" placeholder="搜索客户" value={searchInput} maxLength={100} onChange={e => onSearchInput(e.target.value)} />
@@ -62,7 +67,7 @@ export function CustomersScreen({ route, customers, user, revision, offset, onOf
         <label>每页<select value={pageSize} onChange={e => onPageSizeChange(Number(e.target.value))}>{[10, 20, 50].map(n => <option key={n} value={n}>{n} 行</option>)}</select></label>
         {route.pool && <label>认养状态<select value={claimFilter} onChange={e => onClaimFilterChange(e.target.value)}><option value="">全部</option><option value="unclaimed">未认养</option><option value="claimed">已认养</option></select></label>}
         {route.pool && <button className="sales-primary" disabled={busy || !poolIds.length} onClick={() => run(async () => { const r = await api<{ claimed_count: number; skipped: string[] }>("/api/crm/customers/batch-claim", { method: "POST", json: { customer_ids: poolIds } }); onPoolIdsChange([]); }, `已认养成功，可在“我的客户”查看`)}>一键认养（{poolIds.length}）</button>}
-        <p>{route.pool ? "勾选未认养客户可一键认养；同一客户允许多位同事认养。" : "客户状态与报价阶段分开管理；项目在客户详情中维护。"}</p>
+        <p>{route.pool ? "勾选未认养客户可一键认养；同一客户允许多位同事认养。" : "状态标签由成交事实与开放项目阶段推导（docs/32）；项目在客户详情中推进。"}</p>
       </div>
       {customers.loading ? <Empty>正在加载客户…</Empty> : customers.data?.rows.length ? (
         <div className="sales-table-scroll">
@@ -76,7 +81,7 @@ export function CustomersScreen({ route, customers, user, revision, offset, onOf
             <tbody>{customers.data.rows.map(c =>
               <tr key={c.id}>
                 {route.pool && <td><input type="checkbox" aria-label={`认养客户 ${c.customer_name}`} checked={poolIds.includes(c.id)} disabled={busy || c.claims.some(x => x.user_id === user.id)} onChange={e => onPoolIdsChange(ids => e.target.checked ? [...new Set([...ids, c.id])] : ids.filter(id => id !== c.id))} /></td>}
-                <td><strong>{c.customer_name}</strong>{!route.pool && c.customer_level && <span className="sales-level" aria-label={`客户等级 ${c.customer_level}`}>{c.customer_level}</span>}{!route.pool && c.customer_status && <span className={`sales-status ${c.customer_status === "won" ? "won" : ""}`}>{statusLabels[c.customer_status] || c.customer_status}</span>}{!route.pool && c.claims.length > 1 && <small>共同认养：{c.claims.map(x => x.display_name).join("、")}</small>}</td>
+                <td><strong>{c.customer_name}</strong>{!route.pool && c.customer_level && <span className="sales-level" aria-label={`客户等级 ${c.customer_level}`}>{c.customer_level}</span>}{!route.pool && c.lifecycle_status === "lost" && <span className="sales-status lost">流失</span>}{!route.pool && c.claims.length > 1 && <small>共同认养：{c.claims.map(x => x.display_name).join("、")}</small>}</td>
                 {route.pool ? <><td>{c.customer_code || "CRM 潜客"}</td><td>{c.claims.map(x => x.display_name).join("、") || "暂无"}</td></> : <>
                   <td>{c.tags.length ? <>{c.tags.slice(0, 2).map(t => <span key={t} className="sales-tag-chip">{t}</span>)}{c.tags.length > 2 && <span className="sales-tag-chip more">+{c.tags.length - 2}</span>}</> : <span className="sales-dim">未打标签</span>}</td>
                   <td>{c.contact_name || "未填写"}</td>

@@ -240,7 +240,7 @@ def patch_customer(db, actor, cid, payload):
     role(actor, ALL_WORK_ROLES)
     obj = customer(db, actor, cid, True)
     data = payload.model_dump(exclude_unset=True)
-    if actor.role_code == ROLE_SALES and set(data) - {'remark', 'customer_name', 'customer_level', 'customer_status'}:
+    if actor.role_code == ROLE_SALES and set(data) - {'remark', 'customer_name', 'customer_level', 'company_address'}:
         raise HTTPException(403, '客户类型与归属状态由经理维护；销售可改备注、名称、A-D 等级和销售阶段')
     if 'customer_name' in data and (obj.source_system != 'crm' or obj.bound_customer_id):
         raise HTTPException(409, '精斗云客户名称只读')
@@ -413,10 +413,6 @@ def save_followup(db, actor, cid, payload, fid=None, *, commit=True, next_owner=
         raise HTTPException(409, '关联待办已结束，请新增跟进安排下一步')
     for k,v in payload.model_dump().items():
         setattr(obj,k,v if k != 'occurred_at' or v is not None else obj.occurred_at or utcnow())
-    # A recorded quotation is the strongest signal of the quoted stage; won/dormant are never auto-regressed.
-    stage_before = cust.customer_status
-    if payload.quotation_sent and cust.customer_status != 'won':
-        cust.customer_status = 'quoted'
     db.add(obj)
     db.flush()
     if payload.next_followup_at:
@@ -429,9 +425,6 @@ def save_followup(db, actor, cid, payload, fid=None, *, commit=True, next_owner=
             old_task.title, old_task.due_at = payload.next_action, payload.next_followup_at
     elif old_task and old_task.status == 'todo':
         old_task.status = 'cancelled'
-    if cust.customer_status != stage_before:
-        event(db, actor, 'customer_stage_update', cid, None,
-              before={'customer_status': stage_before}, after={'customer_status': cust.customer_status})
     event(db, actor, 'followup_update' if fid else 'followup_create', cid, obj.id, before, snapshot(obj))
     if commit:
         db.commit()

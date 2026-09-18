@@ -13,12 +13,6 @@ export const taskTypeLabels: Record<string, string> = { followup: "客户回访"
 /** 待办来源（source_type）。 */
 export const taskSourceLabels: Record<string, string> = { followup: "客户跟进", manual: "手工任务", manager: "经理指派" };
 
-// ---------- 客户状态 ----------
-
-/** 客户阶段（customer_status，无字典条目，按 CRM 端现行文案）。 */
-export const customerStatusLabels: Record<string, string> = { potential: "新客户", contacted: "已接触", demand: "有需求", quoted: "已报价", won: "已成交", dormant: "沉睡" };
-export const customerStatusOptions: [string, string][] = Object.entries(customerStatusLabels);
-
 /** 合作状态（lifecycle_status，字典 §736）。 */
 export const lifecycleLabels: Record<string, string> = { prospect: "潜客", active: "活跃", dormant: "沉睡", lost: "流失" };
 export const lifecycleOptions: [string, string][] = Object.entries(lifecycleLabels);
