@@ -11,7 +11,7 @@ const MAX_MB = 5;
 
 /** 快速记录跟进（docs/32 阶段②）：文字 + 图片粘贴（拍板：只做粘贴，不做文件上传）。 */
 export function QuickFollow({ saved }: { saved: (s: string) => void }) {
-  const [open, setOpen] = useState(true), [cid, setCid] = useState(""), [picked, setPicked] = useState(""), [q, setQ] = useState(""), [search, setSearch] = useState(""), [method, setMethod] = useState("phone"), [len, setLen] = useState(0), [busy, setBusy] = useState(false), [error, setError] = useState(""), [images, setImages] = useState<Pasted[]>([]);
+  const [open, setOpen] = useState(true), [cid, setCid] = useState(""), [picked, setPicked] = useState(""), [q, setQ] = useState(""), [search, setSearch] = useState(""), [method, setMethod] = useState("phone"), [len, setLen] = useState(0), [busy, setBusy] = useState(false), [error, setError] = useState(""), [images, setImages] = useState<Pasted[]>([]), [cbOpen, setCbOpen] = useState(false);
   const timer = useRef(0);
   const choices = useData<Page<Customer>>(open ? `/api/sales/customers?q=${encodeURIComponent(search)}&limit=8` : null);
   function addFiles(files: FileList | null) {
@@ -55,8 +55,9 @@ export function QuickFollow({ saved }: { saved: (s: string) => void }) {
     <section className="sales-panel wb-quick">
       <div className="wb-panel-head"><h2>快速记录跟进</h2><button onClick={() => setOpen(v => !v)}>{open ? "收起" : "展开"}</button></div>
       {open && <form onSubmit={submit} className="sales-form wb-quick-form" aria-label="快速记录跟进" onPaste={e => { if (e.clipboardData?.files?.length) { e.preventDefault(); addFiles(e.clipboardData.files); } }}>{error && <p className="sales-alert" role="alert">{error}</p>}
-        <label>客户<input value={cid ? picked : q} maxLength={100} placeholder="搜索客户名称、联系人或手机号…" required={!cid} onChange={e => { setPicked(""); setCid(""); setQ(e.target.value); clearTimeout(timer.current); timer.current = window.setTimeout(() => setSearch(e.target.value.trim()), 300); }} /></label>
-        {!cid && !!q && <>{choices.error && <p role="alert">{choices.error}</p>}<ul className="sales-typeahead">{choices.data?.rows.slice(0, 6).map(c => <li key={c.id}><button type="button" onClick={() => { setCid(c.id); setPicked(c.customer_name); }}>{c.customer_name}<small>{c.customer_code || ""}{c.contact_name ? ` · ${c.contact_name}` : ""}</small></button></li>)}</ul>{choices.data?.rows.length === 0 && <p className="sales-note">{search ? "没有匹配客户，换个关键字试试。" : "输入关键字联想客户。"}</p>}</>}
+        <label>客户<div className="sales-combobox"><input value={cid ? picked : q} maxLength={100} placeholder="输入关键字，从下拉里选客户" required={!cid} onChange={e => { setPicked(""); setCid(""); setQ(e.target.value); setCbOpen(true); clearTimeout(timer.current); timer.current = window.setTimeout(() => setSearch(e.target.value.trim()), 300); }} onFocus={() => setCbOpen(true)} onBlur={() => window.setTimeout(() => setCbOpen(false), 150)} />
+          {cbOpen && <ul className="sales-combobox-list">{choices.data?.rows.slice(0, 6).map(c => <li key={c.id}><button type="button" aria-pressed={cid === c.id} onMouseDown={e => { e.preventDefault(); setCid(c.id); setPicked(c.customer_name); setCbOpen(false); }}>{c.customer_name}<small>{c.customer_code || ""}{c.contact_name ? ` · ${c.contact_name}` : ""}</small></button></li>)}{!search && <li className="sales-combobox-empty">输入关键字联想客户。</li>}{search && choices.data?.rows.length === 0 && <li className="sales-combobox-empty">没有匹配客户，换个关键字试试。</li>}</ul>}
+        </div></label>
         <label>沟通方式</label>
         <div className="wb-methods" role="radiogroup" aria-label="沟通方式">{[["phone", "电话"], ["wechat", "微信"], ["meeting", "面谈"], ["other", "其他"]].map(([v, label]) => <button key={v} type="button" aria-pressed={method === v} onClick={() => setMethod(v)}>{label}</button>)}</div>
         <label>沟通内容（支持直接粘贴微信聊天截图）<textarea name="summary" rows={3} maxLength={500} placeholder="请填写本次沟通的主要内容，或直接 Ctrl+V 粘贴图片…" onChange={e => setLen(e.target.value.length)} /><small className="wb-counter">{len}/500</small></label>

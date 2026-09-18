@@ -224,3 +224,12 @@
 /* ==== 阶段⑤ 客户质量四指标 ==== */
 .perf-quality{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:12px 0 8px}
 @media(max-width:1150px){.perf-quality{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* ==== 客户选择下拉（悬浮不改变弹窗高度） ==== */
+.sales-combobox{position:relative}
+.sales-combobox-list{position:absolute;top:100%;left:0;right:0;z-index:40;margin-top:4px;padding:4px;display:grid;gap:2px;list-style:none;background:#fff;border:1px solid var(--sales-line);border-radius:6px;box-shadow:0 10px 28px #13243b22;max-height:260px;overflow:auto}
+.sales-combobox-list button{width:100%;display:flex;justify-content:space-between;gap:10px;align-items:center;text-align:left;border:0;background:none;border-radius:5px;padding:8px 10px;color:var(--sales-ink);min-height:34px;font:inherit}
+.sales-combobox-list button:hover{background:var(--sales-soft)}
+.sales-combobox-list button[aria-pressed=true]{background:var(--accent-soft,#eaf3ff);color:var(--sales-blue);font-weight:600}
+.sales-combobox-list small{color:var(--sales-muted);font-weight:400;font-size:11px}
+.sales-combobox-empty{padding:8px 10px;font-size:12px;color:var(--sales-muted)}
