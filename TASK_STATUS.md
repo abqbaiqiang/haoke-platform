@@ -1,5 +1,14 @@
 # Project Task Status
 
+## 2026-09-18 Sales-side refactor phase decisions locked (docs/32, planning only — no code yet)
+
+- [x] V1.1 requirements doc + 4 AI-generated reference screens cross-checked against codebase; gaps identified (workbench missing project panel, tasks screen kanban vs calendar conflict, missing image paste, missing address field)
+- [x] Owner decisions recorded in docs/32 §1 (10 items): workbench project panel visible to ALL colleagues (read-only for others, permission opening + abuse tests required); quick-follow image PASTE only (no file upload); tasks page = reference-image 3-column kanban with empty-column collapse (calendar rejected); customer tabs derived from "lifecycle + open project stage" cascade (docs/32 §3.2); customer gains company_address column; customer_status field retired entirely (test data, owner-authorized wipe); key customers = RFM 重要 layers; manually-lost customers only visible grayed in 全部; "报价中" follows project stage (bidding/negotiation) while funnel "报价客户数" stays quotation_sent-based; TOP5 self-only
+- [x] Unified caliber locked in docs/32 §3: 4 dimensions (project stage / lifecycle status / A-D level / tags), term locks (成交=精斗云订单; 沉睡=computed dormant_days; 疑似流失=warning only; funnel = 4 customer-count metrics CRM_NEW/FOLLOWUP/QUOTED/DEAL)
+- [x] Implementation plan: 6 phases (Layout → Workbench → Customers → Tasks kanban → Performance → final UI audit) in docs/32 §4; migrations 0012 (drop customer_status) + 0013 (followup attachments) declared with risk notes
+- [ ] Not started: any phase ①–⑥ implementation, migrations, code changes — awaiting owner go-ahead
+- [ ] Deferred: sales calendar view rejected; festival-cycle reminders (去年春节采购类) to be a separate backend task
+
 ## 2026-09-17 Admin console refactor Phase 0+1 (docs/31, awaiting owner acceptance)
 
 - [x] Phase 0 design baseline (commit 72f5ed1): globals.css design tokens (spacing 4-24, status colors success/warning/risk, type scale 24/16/14/12, KPI 28, table row 44, control 40; existing tokens untouched) + shared classes (page-head/filter-bar/kpi-card/panel-card/table-dense/status-tag/empty-hint); docs/31 Appendix B token mapping (keep existing palette, adopt rules only); no business/E2E changes

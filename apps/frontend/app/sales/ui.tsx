@@ -13,6 +13,7 @@ export function Icon({ name }: { name: string }) {
     tasks: "M9 4H5v17h14V4h-4M9 2h6v5H9ZM8 13l3 3 5-6",
     performance: "M4 20V12h3v8ZM10 20V7h3v13ZM16 20V3h3v17Z",
     search: "M16 16l5 5M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0",
+    bell: "M18 8a6 6 0 0 0-12 0c0 7-3 8-3 8h18s-3-1-3-8M13.7 20a2 2 0 0 1-3.4 0",
   };
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
