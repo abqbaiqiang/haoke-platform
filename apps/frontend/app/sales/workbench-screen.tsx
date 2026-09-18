@@ -93,6 +93,10 @@ export function WorkbenchScreen({ work, focusToday, focusOverdue, attention, sum
             })}</tbody></table></div>
             : <Empty>{focusToday.loading || focusOverdue.loading ? "正在加载今天的任务…" : "今天暂无待办。从右侧快速记录一次跟进，安排第一个下一步。"}</Empty>}
         </section>
+        {!busyDay && <section className="sales-panel wb-recent">
+          <div className="wb-panel-head"><h2>最近跟进</h2><button onClick={onShowRecent}>查看更多 →</button></div>
+          <RecentTable recent={recent} go={go} />
+        </section>}
         <div className="wb-side">
           <section className="sales-panel wb-risk">
             <div className="wb-panel-head"><h2>重点提醒</h2><button onClick={() => go({ screen: "customers" })}>查看全部 →</button></div>
@@ -100,22 +104,20 @@ export function WorkbenchScreen({ work, focusToday, focusOverdue, attention, sum
               : <Empty>{attention.loading ? "正在检查客户风险…" : attention.data?.warnings.length ? "销售口径未核实，暂不判定客户流失风险。" : "暂无风险提醒，客户跟进节奏良好。"}</Empty>}
           </section>
           <QuickFollow saved={onQuickSaved} />
+          <section className="sales-panel wb-dynamics-panel">
+            <div className="wb-panel-head"><h2>本周客户动态</h2><button onClick={() => go({ screen: "performance" })}>查看更多 →</button></div>
+            <div className="wb-dynamics">{[["新增客户", "CRM_NEW_CUSTOMERS"], ["已报价客户", "CRM_QUOTED_CUSTOMERS"], ["成交客户", "CRM_DEAL_CUSTOMERS"], ["7天未跟进", "CRM_STALE_CUSTOMERS"]].map(([label, code]) => {
+              const m = metricOf(code);
+              return <div key={code} className="wb-dyn"><span>{label}</span><strong>{m?.value != null ? m.value : "—"}<small> 家</small></strong></div>;
+            })}</div>
+            <p className="sales-note">按本月累计口径统计；成交客户仅统计已核实销售单。</p>
+          </section>
         </div>
       </div>
-      <div className="wb-bottom">
-        <section className="sales-panel wb-recent" style={{ order: busyDay ? 3 : 1 }}>
-          <div className="wb-panel-head"><h2>最近跟进</h2><button onClick={onShowRecent}>查看更多 →</button></div>
-          <RecentTable recent={recent} go={go} />
-        </section>
-        <section className="sales-panel wb-dynamics-panel" style={{ order: busyDay ? 1 : 2 }}>
-          <div className="wb-panel-head"><h2>本周客户动态</h2><button onClick={() => go({ screen: "performance" })}>查看更多 →</button></div>
-          <div className="wb-dynamics">{[["新增客户", "CRM_NEW_CUSTOMERS"], ["已报价客户", "CRM_QUOTED_CUSTOMERS"], ["成交客户", "CRM_DEAL_CUSTOMERS"], ["7天未跟进", "CRM_STALE_CUSTOMERS"]].map(([label, code]) => {
-            const m = metricOf(code);
-            return <div key={code} className="wb-dyn"><span>{label}</span><strong>{m?.value != null ? m.value : "—"}<small> 家</small></strong></div>;
-          })}</div>
-          <p className="sales-note">按本月累计口径统计；成交客户仅统计已核实销售单。</p>
-        </section>
-      </div>
+      {busyDay && <section className="sales-panel wb-recent">
+        <div className="wb-panel-head"><h2>最近跟进</h2><button onClick={onShowRecent}>查看更多 →</button></div>
+        <RecentTable recent={recent} go={go} />
+      </section>}
       <section className="sales-panel wb-board">
         <div className="wb-panel-head"><h2>项目面板（全员开放 {board.data?.total ?? "—"}）</h2><button onClick={() => { setBoardPage(null); setShowBoard(true); }}>查看全部 →</button></div>
         {board.loading ? <Empty>正在加载项目…</Empty> : rows.length ? <div className="sales-table-scroll"><table className="sales-table">
