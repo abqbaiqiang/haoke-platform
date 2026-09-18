@@ -233,3 +233,25 @@
 .sales-combobox-list button[aria-pressed=true]{background:var(--accent-soft,#eaf3ff);color:var(--sales-blue);font-weight:600}
 .sales-combobox-list small{color:var(--sales-muted);font-weight:400;font-size:11px}
 .sales-combobox-empty{padding:8px 10px;font-size:12px;color:var(--sales-muted)}
+
+/* ==== 待办看板视觉对齐参考图（彩色图标块/时间徽章分色/逾期列浅红底/按钮右置） ==== */
+.tk-stats .wb-kpi{flex-direction:row;align-items:flex-start;gap:10px}
+.wb-kpi-ico{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;flex:none}
+.wb-kpi-ico svg{width:17px;height:17px}
+.wb-kpi-ico.blue{background:#eaf2fd;color:var(--sales-blue)}
+.wb-kpi-ico.green{background:#e8f6ee;color:var(--sales-ok)}
+.wb-kpi-ico.red{background:#fdeaea;color:var(--sales-danger)}
+.wb-kpi-body{min-width:0}
+.wb-kpi-body strong{font-size:20px}
+.tk-col-ico{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:6px;margin-right:7px;vertical-align:-4px}
+.tk-col-ico svg{width:13px;height:13px}
+.tk-col-ico.today{background:#eaf2fd;color:var(--sales-blue)}
+.tk-col-ico.overdue{background:#fdeaea;color:var(--sales-danger)}
+.tk-col-ico.future{background:#eaf2fd;color:var(--sales-blue)}
+.tk-col.risk-col{background:#fffafa;border-color:#f3d8d8}
+.tk-col.risk-col .tk-card{border-color:#f0dcd7}
+.tk-due.today{background:#eaf2fd;color:var(--sales-blue);font-weight:600}
+.tk-actions{justify-content:flex-end;margin-top:4px}
+/* 下拉候选项：正常墨色（参考精斗云朴素列表），选中项蓝底 */
+.sales-shell .sales-combobox-list button{color:var(--sales-ink)!important}
+.sales-shell .sales-combobox-list button[aria-pressed=true]{color:var(--sales-blue)!important}

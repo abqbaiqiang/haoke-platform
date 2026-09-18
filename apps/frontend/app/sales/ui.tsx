@@ -14,6 +14,10 @@ export function Icon({ name }: { name: string }) {
     performance: "M4 20V12h3v8ZM10 20V7h3v13ZM16 20V3h3v17Z",
     search: "M16 16l5 5M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0",
     bell: "M18 8a6 6 0 0 0-12 0c0 7-3 8-3 8h18s-3-1-3-8M13.7 20a2 2 0 0 1-3.4 0",
+    clock: "M12 6v6l4 2M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0",
+    alert: "M12 3 2 20h20L12 3ZM12 9v5M12 17h.01",
+    calendar: "M8 2v4M16 2v4M3 8h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z",
+    checkcircle: "M20 6 9 17l-5-5M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0",
   };
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

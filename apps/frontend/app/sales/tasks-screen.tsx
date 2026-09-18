@@ -5,7 +5,7 @@ import { stamp } from "../lib/format";
 import { taskSourceLabels as sourceLabels, taskTypeLabels as taskTypes } from "../lib/labels";
 import type { CustomerRow as Customer, TaskPage, TaskRow as Task } from "../lib/types";
 import type { Data, Route } from "./types";
-import { Empty, Panel, Pager } from "./ui";
+import { Empty, Icon, Panel, Pager } from "./ui";
 
 const VIEWS: [string, string][] = [["all", "全部"], ["today", "今天"], ["overdue", "逾期"], ["week", "未来7天"], ["done", "已完成"]];
 
@@ -46,12 +46,13 @@ export function TasksScreen({ taskData, taskOffset, onOffsetChange, taskView, on
   }
   function card(t: Task, actions: "today" | "overdue" | "future") {
     const over = new Date(t.due_at) < new Date() && t.status === "todo";
+    const dueToday = new Date(t.due_at).toDateString() === new Date().toDateString();
     return (
       <div key={t.id} className="tk-card">
         <div className="tk-card-head">
           <button aria-label={`完成待办：${t.title}`} disabled={busy} className="tk-check" onClick={() => complete(t)} />
           <strong className="tk-title">{t.title}</strong>
-          <span className={`tk-due ${over ? "risk" : ""}`}>{stamp(t.due_at, false)}</span>
+          <span className={`tk-due ${over ? "risk" : dueToday ? "today" : ""}`}>{stamp(t.due_at, false)}</span>
         </div>
         <p className="tk-meta">{t.customer_id
           ? <button className="sales-customer-link tk-cust" onClick={() => go({ screen: "customers", customerId: t.customer_id! })}>{t.customer_name || "客户"}</button>
@@ -98,10 +99,10 @@ export function TasksScreen({ taskData, taskOffset, onOffsetChange, taskView, on
   return (
     <div className="tk-root">
       <div className="wb-kpis tk-stats">
-        <div className="wb-kpi"><span>今日应完成</span><strong>{todayN}</strong><small>个任务</small></div>
-        <div className="wb-kpi"><span>已完成</span><strong>{doneToday}</strong><small>{dayTotal ? `完成率 ${pct}%` : "今日尚无任务"}</small>{dayTotal > 0 && <div className="sales-progress tk-rate" role="img" aria-label={`今日完成率 ${pct}%`}><i style={{ width: `${pct}%` }} /></div>}</div>
-        <div className="wb-kpi"><span>已逾期</span><strong className={overdueN ? "sales-danger" : ""}>{overdueN}</strong><small>个任务</small></div>
-        <div className="wb-kpi"><span>本周新增</span><strong>{weekN}</strong><small>个任务</small></div>
+        <div className="wb-kpi"><span className="wb-kpi-ico blue"><Icon name="clock" /></span><div className="wb-kpi-body"><span>今日应完成</span><strong>{todayN}</strong><small>个任务</small></div></div>
+        <div className="wb-kpi"><span className="wb-kpi-ico green"><Icon name="checkcircle" /></span><div className="wb-kpi-body"><span>已完成</span><strong>{doneToday}</strong><small>{dayTotal ? `完成率 ${pct}%` : "今日尚无任务"}</small>{dayTotal > 0 && <div className="sales-progress tk-rate" role="img" aria-label={`今日完成率 ${pct}%`}><i style={{ width: `${pct}%` }} /></div>}</div></div>
+        <div className="wb-kpi"><span className="wb-kpi-ico red"><Icon name="alert" /></span><div className="wb-kpi-body"><span>已逾期</span><strong className={overdueN ? "sales-danger" : ""}>{overdueN}</strong><small>个任务</small></div></div>
+        <div className="wb-kpi"><span className="wb-kpi-ico blue"><Icon name="performance" /></span><div className="wb-kpi-body"><span>本周新增</span><strong>{weekN}</strong><small>个任务</small></div></div>
       </div>
       <div className="sales-tabs tk-tabs" aria-label="待办视图">
         {VIEWS.map(([key, label]) => <button key={key} aria-pressed={taskView === key} onClick={() => onViewChange(key)}>{label}{tabCount(key) !== "" && `（${tabCount(key)}）`}</button>)}
@@ -109,8 +110,8 @@ export function TasksScreen({ taskData, taskOffset, onOffsetChange, taskView, on
       {taskView === "all" ? (
         boardToday.loading || boardOverdue.loading || boardWeek.loading ? <Panel title="待办看板"><Empty>正在加载待办…</Empty></Panel> :
           visibleColumns.length ? <div className="tk-board" style={boardStyle}>
-            {visibleColumns.map(col => <section key={col.key} className="sales-panel tk-col">
-              <div className="wb-panel-head"><h2 className={col.tone === "overdue" ? "sales-danger" : ""}>{col.title}</h2></div>
+            {visibleColumns.map(col => <section key={col.key} className={`sales-panel tk-col ${col.tone === "overdue" ? "risk-col" : ""}`}>
+              <div className="wb-panel-head"><h2 className={col.tone === "overdue" ? "sales-danger" : ""}><span className={`tk-col-ico ${col.tone}`}><Icon name={col.tone === "today" ? "clock" : col.tone === "overdue" ? "alert" : "calendar"} /></span>{col.title}</h2></div>
               {col.data.data?.rows.length ? <div className="tk-cards">{col.data.data.rows.map(t => card(t, col.mode))}</div>
                 : <Empty>暂无待办。</Empty>}
             </section>)}
