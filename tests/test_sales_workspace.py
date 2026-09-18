@@ -251,7 +251,8 @@ def test_performance_role_gate_and_aggregates(db, client, accounts, sign_in):
     assert data['top_customers'][0]['name'] == 'Perf客户'
     assert data['top_customers'][0]['amount'] == '12200.00'
     assert data['structure']['new_deals'] == 1
-    assert data['funnel'][0]['stage'] == '跟进客户'
+    assert data['funnel'][0]['stage'] == '新增客户'  # docs/32 §3.5 漏斗：新增客户→有效沟通→报价→成交
+    assert data['quality']['active'] == 1
     assert data['risks'] == [] or all(r['count'] >= 0 for r in data['risks'])
     sign_in('S2')
     other = client.get('/api/sales/performance', params={'source_id': str(src.id), 'from': '2026-09-01', 'to': '2026-09-01'})

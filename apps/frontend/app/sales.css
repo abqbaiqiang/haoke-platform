@@ -217,3 +217,7 @@
 .tk-actions button{min-height:30px;padding:4px 12px;font-size:12px}
 .tk-rate{height:6px;margin-top:6px}
 @media(max-width:1150px){.tk-board,.tk-board.two{grid-template-columns:minmax(0,1fr)}}
+
+/* ==== 阶段⑤ 客户质量四指标 ==== */
+.perf-quality{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:12px 0 8px}
+@media(max-width:1150px){.perf-quality{grid-template-columns:repeat(2,minmax(0,1fr))}}

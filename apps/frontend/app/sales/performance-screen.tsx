@@ -79,7 +79,9 @@ export function PerformanceScreen({ perf, sources, currentSource, onSourceChange
       </div>
       <div className="perf-bottom">
         <section className="sales-panel perf-structure">
-          <h2>客户结构</h2>
+          <h2>客户质量</h2>
+          <div className="perf-quality">{[["新增客户", p?.quality?.new], ["活跃客户", p?.quality?.active], ["沉睡客户", p?.quality?.dormant], ["复购客户", p?.quality?.repeat]].map(([label, v]) => <div key={label as string} className="wb-dyn"><span>{label}</span><strong>{v ?? "—"}</strong><small>家</small></div>)}</div>
+          <p className="sales-note">活跃＝本期有成交客户；沉睡＝超沉睡阈值未成交；避免单个大客户影响判断（docs/32 §3.5）。</p>
           {st ? <><div className="perf-structure-bar" role="img" aria-label={oldRatio != null || newRatio != null ? `老客户销售额占比 ${st.old_ratio ?? "—"}%，新客户销售额占比 ${st.new_ratio ?? "—"}%` : "客户结构暂无数据"}>{oldRatio == null && newRatio == null ? <i style={{ width: "100%", background: "#d8dee7" }} /> : <>{oldRatio != null && <i style={{ width: `${oldRatio}%`, background: "#0b62d8" }}><span>{st.old_ratio}%</span></i>}{newRatio != null && <i style={{ width: `${newRatio}%`, background: "#2fa46a" }}><span>{st.new_ratio}%</span></i>}{(oldRatio == null || newRatio == null) && <i style={{ width: `${100 - (oldRatio ?? 0) - (newRatio ?? 0)}%`, background: "#d8dee7" }} />}</>}</div>
             <div className="perf-structure-legend"><span><i style={{ background: "#0b62d8" }} aria-hidden />老客户销售额</span><span><i style={{ background: "#2fa46a" }} aria-hidden />新客户销售额</span></div>
             <div className="perf-structure-stats"><div><span>新增客户</span><strong>{st.new_customers ?? "—"}</strong></div><div><span>新客户成交</span><strong>{st.new_deals ?? "—"}</strong></div><div><span>老客户复购</span><strong>{st.repeat_customers ?? "—"}</strong></div><div><span>TOP5客户贡献</span><strong>{st.top5_share != null ? `${st.top5_share}%` : "—"}</strong></div></div></> : <Empty>{perf.loading ? "正在加载客户结构…" : "暂无客户结构数据。"}</Empty>}
@@ -91,7 +93,7 @@ export function PerformanceScreen({ perf, sources, currentSource, onSourceChange
         <section className="sales-panel perf-funnel">
           <div className="wb-panel-head"><h2>{perfRangeValue.label}销售动作转化</h2></div>
           {p?.funnel.length ? <div className="perf-funnel-flow">{p.funnel.map((f, i) => <Fragment key={f.stage}>{i > 0 && <span className="perf-funnel-arrow" aria-hidden>→</span>}<div className="perf-funnel-stage"><span>{f.stage}</span><strong>{f.current ?? "—"}</strong>{f.prev != null && f.prev > 0 && f.current != null ? <small>较上月 {f.current >= f.prev ? "+" : ""}{f.current - f.prev}</small> : null}</div></Fragment>)}</div> : <Empty>{perf.loading ? "正在加载转化数据…" : "暂无转化数据。"}</Empty>}
-          <p className="sales-note">有需求＝本月沟通结果为“沟通顺利”的去重客户数。</p>
+          <p className="sales-note">均为去重客户数：新增客户＝本月新建档；有效沟通＝本月有效跟进；报价＝发送过报价；成交＝已核实销售单（docs/32 §3.5）。</p>
         </section>
       </div>
       <details className="sales-definition perf-orders"><summary>精斗云交易记录（原始单据）</summary><p className="sales-note">原始单据金额与状态，不等于核实后的业绩；跟进记录在工作台单独查看。</p>{orders.loading ? <Empty>正在加载交易记录…</Empty> : orders.data?.rows.length ? <div className="sales-table-scroll"><table className="sales-table"><thead><tr><th>日期</th><th>单号</th><th>原始金额</th><th>来源状态</th><th>操作</th></tr></thead><tbody>{orders.data.rows.map(o => <tr key={o.id}><td>{o.date}</td><td>{o.number}</td><td>{money(o.amount)}</td><td>{o.status}</td><td><button className="sales-customer-link" onClick={() => onOrderDetail(o.id)}>查看明细</button></td></tr>)}</tbody></table></div> : <Empty>该期间暂无可见交易记录。</Empty>}<Pager offset={orderOffset} total={orders.data?.total || 0} size={30} onChange={onOrderOffsetChange} /></details>

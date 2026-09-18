@@ -112,6 +112,8 @@ class Performance(dto.DTO):
     key_metrics: dict[str, str | None]
     top_customers: list[TopCustomerRow]
     structure: dict[str, str | int | None]
+    # 客户质量四指标（docs/32 §3.5）：新增/活跃/沉睡/复购，避免单个大客户影响判断。
+    quality: dict[str, int | None] | None = None
     products: list[ProductRow]
     funnel: list[FunnelStage]
 
@@ -437,15 +439,23 @@ def performance(db: DB, actor: Actor, source_id: UUID, from_month: date, to_mont
         trend.append(TrendPoint(date=ms,
             value=bi.money(monthly[ms]) if sales_ready and ms <= current and monthly[ms] else None,
             last_year=bi.money(monthly[lys]) if sales_ready and covered_ly and lys <= current and monthly[lys] else None))
-    def funnel_counts(win_start: datetime, win_end: datetime):
+    def funnel_counts(win_start: datetime, win_end: datetime, new_created: bool = False):
         base = [Followup.owner_user_id == uid, Followup.is_active, Followup.occurred_at >= win_start, Followup.occurred_at <= win_end]
+        if new_created:
+            # 新增客户=建档口径（docs/32 §3.5：CRM_NEW_CUSTOMERS），取权限范围内 created_at 落在窗口的客户。
+            return (db.scalar(select(func.count()).select_from(
+                select(Customer.id).where(Customer.id.in_(visible(db, actor)),
+                                          Customer.created_at >= win_start, Customer.created_at <= win_end).subquery())), None, None, None)
         return (db.scalar(select(func.count(func.distinct(Followup.customer_id))).where(*base)),
-                db.scalar(select(func.count(func.distinct(Followup.customer_id))).where(*base, Followup.contact_result == 'good')),
+                db.scalar(select(func.count(func.distinct(Followup.customer_id))).where(*base, Followup.is_effective.is_(True))),
                 db.scalar(select(func.count(func.distinct(Followup.customer_id))).where(*base, Followup.quotation_sent.is_(True))),
-                db.scalar(select(func.count()).select_from(Followup).where(*base, Followup.is_effective.is_(True))))
-    followed, good, quoted, effective = funnel_counts(
+                None)
+    created, _, _, _ = funnel_counts(datetime.combine(from_month, time.min, bi.TZ), datetime.combine(to_end, time.max, bi.TZ), new_created=True)
+    p_created, _, _, _ = funnel_counts(datetime.combine(bi.shift_month(from_month, -1), time.min, bi.TZ),
+                                       datetime.combine(bi.month_end(bi.shift_month(to_month, -1)), time.max, bi.TZ), new_created=True)
+    followed, effective, quoted, _ = funnel_counts(
         datetime.combine(from_month, time.min, bi.TZ), datetime.combine(to_end, time.max, bi.TZ))
-    p_followed, p_good, p_quoted, _ = funnel_counts(
+    p_followed, _p_eff, p_quoted, _ = funnel_counts(
         datetime.combine(bi.shift_month(from_month, -1), time.min, bi.TZ),
         datetime.combine(bi.month_end(bi.shift_month(to_month, -1)), time.max, bi.TZ))
     deal_n = len(deal) if sales_ready else None
@@ -514,9 +524,12 @@ def performance(db: DB, actor: Actor, source_id: UUID, from_month: date, to_mont
                      'repeat_customers': str(repeat) if repeat is not None else None},
         top_customers=top_rows,
         structure=structure,
+        quality={'new': created, 'active': deal_n,
+                 'dormant': risk_total.get('沉睡') or 0 if sales_ready else None,
+                 'repeat': repeat},
         products=product_rows,
         funnel=[FunnelStage(stage=s, current=c, prev=p) for s, c, p in
-                [('跟进客户', followed, p_followed), ('有需求', good, p_good), ('报价', quoted, p_quoted), ('成交', deal_n, None)]])
+                [('新增客户', created, p_created), ('有效沟通', effective, p_followed if p_followed else None), ('报价', quoted, p_quoted), ('成交', deal_n, None)]])
 
 
 def recent_opportunities(db: DB, actor: Actor, days: int = 30, limit: int = 10):
