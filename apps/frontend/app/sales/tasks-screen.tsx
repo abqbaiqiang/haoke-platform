@@ -94,8 +94,8 @@ export function TasksScreen({ taskData, taskOffset, onOffsetChange, taskView, on
     { key: "week", title: `未来计划（${weekN}）`, tone: "future", count: weekN, data: boardWeek, mode: "future" },
   ];
   // 空列收纳 + 列宽按任务数自动分配（docs/32 阶段④迭代，老板反馈两栏等宽不协调）。
-  const visibleColumns = columns.filter(col => col.count > 0 || col.data.data?.rows.length);
-  const boardStyle = visibleColumns.length ? { gridTemplateColumns: visibleColumns.map(col => `minmax(260px, ${Math.max(col.count, 1)}fr)`).join(" ") } : undefined;
+  // 对照参考图：三栏永远等宽渲染；空栏显示柔和的“已处理完”状态（逾期栏保留浅红底），不再挤压其他栏。
+  const visibleColumns = columns;
   return (
     <div className="tk-root">
       <div className="wb-kpis tk-stats">
@@ -109,13 +109,13 @@ export function TasksScreen({ taskData, taskOffset, onOffsetChange, taskView, on
       </div>
       {taskView === "all" ? (
         boardToday.loading || boardOverdue.loading || boardWeek.loading ? <Panel title="待办看板"><Empty>正在加载待办…</Empty></Panel> :
-          visibleColumns.length ? <div className="tk-board" style={boardStyle}>
+          <div className="tk-board">
             {visibleColumns.map(col => <section key={col.key} className={`sales-panel tk-col ${col.tone === "overdue" ? "risk-col" : ""}`}>
               <div className="wb-panel-head"><h2 className={col.tone === "overdue" ? "sales-danger" : ""}><span className={`tk-col-ico ${col.tone}`}><Icon name={col.tone === "today" ? "clock" : col.tone === "overdue" ? "alert" : "calendar"} /></span>{col.title}</h2></div>
               {col.data.data?.rows.length ? <div className="tk-cards">{col.data.data.rows.map(t => card(t, col.mode))}</div>
-                : <Empty>暂无待办。</Empty>}
+                : <Empty>{col.key === "today" ? "今天暂无待办，可点右上角新建。" : col.key === "overdue" ? "没有逾期任务，节奏很好。" : "未来 7 天暂无安排。"}</Empty>}
             </section>)}
-          </div> : <Panel title="待办看板"><Empty>暂无任何待办，点右上角「新建待办」安排第一件事。</Empty></Panel>
+          </div>
       ) : (
         <Panel title={`${VIEWS.find(v => v[0] === taskView)?.[1] || "待办"}列表`} action={taskView !== "all" ? <button onClick={() => onViewChange("all")}>← 返回看板</button> : undefined}>
           <p className="sales-note">今天包含当日全部未完成待办；逾期按当前时间判断。未来 7 天从明天起算。</p>

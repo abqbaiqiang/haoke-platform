@@ -202,7 +202,7 @@
 /* ==== 阶段④ 待办三栏看板（docs/32：参考图三栏 + 空列收纳） ==== */
 .tk-root{display:grid;gap:var(--space-4)}
 .tk-tabs{margin:0}
-.tk-board{display:grid;grid-template-columns:repeat(3,minmax(260px,1fr));gap:var(--space-4);align-items:start}
+.tk-board{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--space-4);align-items:start}
 .tk-board.one{grid-template-columns:minmax(0,1fr)}
 .tk-col{min-width:0}
 .tk-cards{display:grid;gap:var(--space-3)}
@@ -235,7 +235,10 @@
 .sales-combobox-empty{padding:8px 10px;font-size:12px;color:var(--sales-muted)}
 
 /* ==== 待办看板视觉对齐参考图（彩色图标块/时间徽章分色/逾期列浅红底/按钮右置） ==== */
-.tk-stats .wb-kpi{flex-direction:row;align-items:flex-start;gap:10px}
+.tk-stats .wb-kpi{flex-direction:row;align-items:center;gap:12px}
+.wb-kpi-body{display:grid;gap:1px;justify-items:start}
+.wb-kpi-body strong{line-height:1.2}
+.wb-kpi-body small{font-size:11px}
 .wb-kpi-ico{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;flex:none}
 .wb-kpi-ico svg{width:17px;height:17px}
 .wb-kpi-ico.blue{background:#eaf2fd;color:var(--sales-blue)}
