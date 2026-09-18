@@ -117,3 +117,43 @@ def test_null_fields_are_422_and_password_reset_is_audited(db, client, accounts,
     assert any(e.details.get('password_reset') and e.details.get('sessions_revoked') for e in events)
     # mobile may be explicitly cleared to null (nullable column).
     assert client.patch(f'/api/staff/{uid}', json={'mobile': None}).status_code == 200
+
+
+@pytest.mark.integration
+def test_unused_staff_account_can_be_deleted(db, client, accounts, sign_in):
+    """老板 2026-09-18：不用的账号可删除；仅有业务数据的账号必须 409 引导停用。"""
+    from app.models import ActivityLog, LoginSession
+
+    sign_in('Owner')
+    created = client.post('/api/staff', json=create_payload('colleague_del')).json()
+    uid = created['id']
+    # 登录一次产生会话；本人建号留痕存在。
+    assert client.post('/api/auth/login', json={'username': 'colleague_del', 'password': create_payload('x')['password']}).status_code == 200
+    assert db.scalar(select(LoginSession.user_id).where(LoginSession.user_id == uid)) is not None
+    # 销售不能删除任何账号。
+    sign_in('S1')
+    assert client.delete(f'/api/staff/{uid}').status_code == 403
+    # 有业务数据的账号拒绝删除并给出去向（S1 名下有客户归属，用现成 fixtures 不便；直接给 demo 账号造一条归属）。
+    from app.data_models import Customer
+    held = Customer(source_system='crm', customer_name='被持有客户', normalized_name='被持有客户',
+                    owner_user_id=accounts['S1'].id, ownership_status='owned')
+    db.add(held)
+    db.commit()
+    sign_in('Owner')
+    r = client.delete(f"/api/staff/{accounts['S1'].id}")
+    assert r.status_code == 409
+    body = r.json()['error']['message'] if 'error' in r.json() else r.json().get('detail', '')
+    assert '停用' in body and '客户归属' in body
+    # 闲置账号删除成功：列表/会话/权限范围/本人留痕消失，老板留痕一次删除动作。
+    assert client.delete(f'/api/staff/{uid}').status_code == 204
+    assert all(u['id'] != uid for u in client.get('/api/staff').json())
+    assert db.scalar(select(LoginSession.user_id).where(LoginSession.user_id == uid)) is None
+    assert db.scalar(select(ActivityLog.user_id).where(ActivityLog.user_id == uid)) is None
+    kinds = [e.activity_type for e in db.scalars(select(ActivityLog).where(ActivityLog.user_id == accounts['Owner'].id))]
+    assert 'staff_account_delete' in kinds
+    # 已删账号不可再登录，用户名可复用重建。
+    assert client.post('/api/auth/login', json={'username': 'colleague_del', 'password': create_payload('x')['password']}).status_code in {401, 403}
+    assert client.post('/api/staff', json=create_payload('colleague_del')).status_code == 201
+    # 非销售角色（老板/管理员）不在可删范围。
+    assert client.delete(f"/api/staff/{accounts['Owner'].id}").status_code == 404
+    assert client.delete(f"/api/staff/{accounts['Admin'].id}").status_code == 404

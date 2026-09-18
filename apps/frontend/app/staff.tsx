@@ -79,7 +79,9 @@ export default function Staff() {
       {list.map(s => <tr key={s.id}><td>{s.display_name}</td><td>{s.username}</td><td>{roles[s.role_code] || s.role_code}</td><td>{s.mobile || "—"}</td><td>{s.is_active ? "启用" : "已停用"}</td><td>{fmt(s.last_login_at)}</td><td>
         {s.role_code === "sales" && <>{editing !== s && <button onClick={() => { setEditing(s); setNotice(""); }}>编辑</button>}
           {!passwordFor && <button onClick={() => { setPasswordFor(s); setNotice(""); }}>重置密码</button>}
-          <button disabled={busy} onClick={() => act(() => api(`/${s.id}`, "PATCH", { is_active: !s.is_active }), s.is_active ? "账号已停用，同事立即无法登录" : "账号已重新启用")}>{s.is_active ? "停用" : "启用"}</button></>}
+          <button disabled={busy} onClick={() => act(() => api(`/${s.id}`, "PATCH", { is_active: !s.is_active }), s.is_active ? "账号已停用，同事立即无法登录" : "账号已重新启用")}>{s.is_active ? "停用" : "启用"}</button>
+          <button disabled={busy} onClick={() => { if (window.confirm(`确定删除账号「${s.display_name}（${s.username}）」吗？
+仅可删除名下没有任何客户/订单/跟进/待办等业务数据的账号；有数据会被拒绝并提示改用停用。`)) act(async () => { await api(`/${s.id}`, "DELETE"); }, "账号已删除，审计日志保留删除记录"); }} style={{ color: "#dc2626" }}>删除</button></>}
       </td></tr>)}
     </tbody></table></div>{!list.length && <p>还没有同事账号，点击上方按钮创建。</p>}</section>
     {editing && editing !== "new" && <section className="card" key={`edit-${(editing as Staff).id}`}><h2>编辑：{(editing as Staff).display_name}</h2><form onSubmit={saveEdit} key={`edit-form-${(editing as Staff).id}`}><div className="bi-form-grid">
