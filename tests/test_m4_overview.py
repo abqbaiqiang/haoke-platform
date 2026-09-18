@@ -290,3 +290,19 @@ def test_workbench_counts_claimed_pool_customer_process_data(db, client, account
     other = client.get(f"/api/bi/workbench/{accounts['S2'].id}", params={'month': '2026-09-01'}).json()
     om = {x['code']: x['value'] for x in other['metrics']}
     assert other['today_tasks'] == 0 and om['CRM_FOLLOWUP_COUNT'] == '0'
+
+
+@pytest.mark.integration
+def test_finance_reports_page_lists_months_with_status(db, client, accounts, sign_in, sample):  # noqa: F811
+    """老板 2026-09-18：财务报表独立成页——按月列出关键数与确认状态；销售不可见。"""
+    src = sample[0]
+    sign_in('S1')
+    assert client.get(f'/api/bi/finance-reports?source_id={src.id}').status_code == 403
+    sign_in('Owner')
+    body = client.get(f'/api/bi/finance-reports?source_id={src.id}').json()
+    assert body['source_id'] == str(src.id)
+    # m1 夹具若导入过财务月则逐月校验关键数字段存在且状态自洽。
+    for m in body['months']:
+        assert {'month', 'confirmed', 'revenue', 'net_profit', 'cash', 'ar', 'inventory'} <= set(m)
+        if m['confirmed']:
+            assert m['profit_uploaded'] or m['balance_uploaded']

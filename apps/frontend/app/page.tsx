@@ -5,6 +5,7 @@ import DataCenter from "./data-center";
 import CRM from "./crm";
 import BI from "./bi";
 import Overview from "./overview";
+import FinanceReports from "./finance-reports";
 import Staff from "./staff";
 import SalesWorkspace from "./sales";
 import LoginIllustration from "./login-illustration";
@@ -162,7 +163,7 @@ export default function Home() {
   }
   return <div className={`workspace dash-root${view === "home" && user.role_code === "owner" ? " cockpit-shell" : ""}${menuOpen ? " navigation-open" : ""}`}><aside>
     <div className="brand"><div className="brand-mark small">齐</div><div><strong>好客齐鲁</strong><small>经营管理平台</small></div><button className="mobile-menu" aria-label="展开主导航" aria-expanded={menuOpen} onClick={() => setMenuOpen(v => !v)}>菜单</button></div>
-    <nav aria-label="主导航"><p className="nav-label">经营中心</p>{nav("驾驶舱", "home")}{nav("销售分析", "bi", "sales")}{nav("客户分析", "bi", "customers")}{["owner","manager"].includes(user.role_code) && nav("团队执行", "bi", "team")}
+    <nav aria-label="主导航"><p className="nav-label">经营中心</p>{nav("驾驶舱", "home")}{nav("销售分析", "bi", "sales")}{nav("客户分析", "bi", "customers")}{["owner","manager"].includes(user.role_code) && nav("团队执行", "bi", "team")}{["owner","finance"].includes(user.role_code) && nav("财务报表", "fin")}
       <p className="nav-label">客户经营</p>{nav("客户管理", "crm")}{nav("客户公海", "crm", "", {tab:"pool"})}{nav("项目管理", "crm", "", {tab:"opportunities"})}{nav("待办与跟进", "crm", "", {tab:"tasks"})}
       <p className="nav-label">管理后台</p>{["owner","admin","finance"].includes(user.role_code) && nav("数据中心", "data")}{user.role_code === "owner" && nav("人员管理", "staff")}{["owner","admin"].includes(user.role_code) && nav("目标与日历", "bi", "settings")}{["owner","admin"].includes(user.role_code) && nav("CRM 设置", "crm", "", {tab:"settings"})}
       <p className="nav-label">系统</p>{nav("我的账号", "account")}{["owner","admin"].includes(user.role_code) && nav("系统状态", "system")}
@@ -175,6 +176,7 @@ export default function Home() {
       {view === "system" && <SystemStatus />}{view === "data" && <DataCenter role={user.role_code} />}
       {view === "staff" && user.role_code === "owner" && <Staff />}
       {view === "bi" && <BI entryTab={biEntry} onTabChange={openBI} role={user.role_code} userId={user.id} openCRM={openCRM} />}
+      {view === "fin" && ["owner", "finance"].includes(user.role_code) && <FinanceReports />}
       {view === "crm" && <CRM key={JSON.stringify(crmEntry)} role={user.role_code} userId={user.id} entry={crmEntry} />}
     </main><footer>好客齐鲁经营管理平台 · v1.1</footer></div></div>;
 }

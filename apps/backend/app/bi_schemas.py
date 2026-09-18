@@ -329,3 +329,28 @@ class CustomerProfile(BaseModel):
     is_repeat: bool = False
     convert_days: int | None = None
     warnings: list[str] = []
+
+
+class FinanceReportMonth(BaseModel):
+    """财务报表单月关键数（独立财务报表页用，老板 2026-09-18）。"""
+    month: date
+    confirmed: bool
+    profit_uploaded: bool
+    balance_uploaded: bool
+    revenue: str | None = None
+    cost: str | None = None
+    gross_profit: str | None = None
+    net_profit: str | None = None
+    net_margin: str | None = None
+    cash: str | None = None
+    ar: str | None = None
+    inventory: str | None = None
+    assets: str | None = None
+    equity: str | None = None
+
+
+class FinanceReports(BaseModel):
+    source_id: UUID
+    source_name: str
+    months: list[FinanceReportMonth]
+    latest_confirmed: date | None = None

@@ -103,6 +103,12 @@ def customer_profile(customer_id: UUID, db: DB, actor: Actor):
     return svc.customer_profile(db, actor, customer_id)
 
 
+@router.get('/finance-reports', response_model=dto.FinanceReports)
+def finance_reports(source_id: UUID, db: DB, actor: Actor):
+    """财务报表月度总览（独立界面；未确认月同样展示并标注）。"""
+    return svc.finance_reports(db, actor, source_id)
+
+
 @router.get('/overview', response_model=dto.Overview)
 def overview(source_id: UUID, db: DB, actor: Actor):
     return svc.overview(db, actor, source_id)

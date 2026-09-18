@@ -701,6 +701,43 @@ def _finance_metrics(db, src_id, months):
     return periods, values
 
 
+def finance_reports(db, actor, source_id):
+    """财务报表月度总览（独立界面，老板 2026-09-18：驾驶舱看实时经营，报表按月独立查看）。
+
+    只读：未确认月同样展示（标注待确认），金额取该月已导入批次的期末/本期数。
+    """
+    require(actor, {ROLE_OWNER, ROLE_FINANCE, ROLE_ADMIN})
+    src = source(db, actor, source_id)
+    periods = {p.period_month: p for p in db.scalars(select(FinancialPeriod).where(
+        FinancialPeriod.data_source_id == src.id).order_by(FinancialPeriod.period_month))}
+    values = defaultdict(dict)
+    batch_ids = [b for p in periods.values() for b in (p.profit_import_batch_id, p.balance_import_batch_id) if b]
+    if batch_ids:
+        for row in db.scalars(select(FinancialMetric).where(FinancialMetric.import_batch_id.in_(batch_ids))):
+            key = 'period_value' if row.statement_type == 'profit' else 'end_value'
+            values[(row.statement_type, row.period_month)][row.metric_code] = getattr(row, key)
+    months = []
+    for m in sorted(periods):
+        p_row = periods[m]
+        profit = values.get(('profit', m), {})
+        balance = values.get(('balance_sheet', m), {})
+        revenue, cost, net = profit.get('revenue'), profit.get('cost'), profit.get('net_profit')
+        gross = revenue - cost if revenue is not None and cost is not None else None
+        months.append(dto.FinanceReportMonth(
+            month=m, confirmed=bool(p_row.is_closed),
+            profit_uploaded=p_row.profit_import_batch_id is not None,
+            balance_uploaded=p_row.balance_import_batch_id is not None,
+            revenue=money(revenue), cost=money(cost), gross_profit=money(gross),
+            net_profit=money(net),
+            net_margin=str((ratio(net, revenue) * 100).quantize(Decimal('0.1'))) if net is not None and revenue not in (None, ZERO) else None,
+            cash=money(balance.get('cash')), ar=money(balance.get('ar')),
+            inventory=money(balance.get('inventory')), assets=money(balance.get('assets')),
+            equity=money(balance.get('equity'))))
+    confirmed = [m.month for m in months if m.confirmed]
+    return dto.FinanceReports(source_id=src.id, source_name=src.source_name, months=months,
+                              latest_confirmed=max(confirmed, default=None))
+
+
 def overview(db, actor, source_id):
     """Owner first screen: business facts, financial results and balances side by side, never merged."""
     require(actor, {ROLE_OWNER, ROLE_FINANCE, ROLE_MANAGER, ROLE_SALES})

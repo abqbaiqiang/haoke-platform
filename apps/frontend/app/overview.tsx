@@ -174,7 +174,6 @@ export default function Overview({ role, userId, openBI, openCRM }: {
           <p className="dc-kpi-note">{margins.loading ? "正在加载…" : margins.error ? "毛利加载失败" : margins.data?.total_profit == null ? "尚无可用成本数据" : <>最近一次采购价口径<br />成本覆盖 {margins.data.cost_coverage === null ? "—" : `${Number(margins.data.cost_coverage).toFixed(1)}%`}</>}</p>
           {margins.error && headingAction("重试", margins.retry)}
         </Kpi>
-        <Kpi title="应收账款" icon="document" metric={metric("EXEC_AR_BAL")}><p className="dc-kpi-note">财务报表月末余额<br />{metric("EXEC_AR_BAL")?.value == null ? "本月报表尚未就绪" : "资产负债表口径"}</p></Kpi>
         <Kpi title="成交客户数" icon="people" metric={metric("SALE_CUSTOMER_COUNT")} onClick={() => openBI("customers")}><p className="dc-kpi-note">本月有效销售去重客户<br />截至 {data.through}</p></Kpi>
         <Kpi title="首次成交客户数" icon="person" metric={metric("CUS_NEW_TRANSACT")} onClick={() => openBI("customers")}><p className="dc-kpi-note">{analysis.loading ? "正在加载…" : analysis.error ? "客户指标加载失败" : metric("CUS_NEW_TRANSACT")?.value == null ? metric("CUS_NEW_TRANSACT")?.reason || "暂无可用数据" : "本月首次成交 · 非新建档"}</p>{analysis.error && headingAction("重试", analysis.retry)}</Kpi>
       </div>
@@ -218,19 +217,11 @@ export default function Overview({ role, userId, openBI, openCRM }: {
           </section>
         </div>
       </>}
-      {owner && <div className="dc-row dc-secondary-row">
-        <section className="dc-panel dc-compact" aria-label="财务视图"><Heading icon="money" title="财务视图（利润表 + 资产负债表）" action={headingAction("上传/确认报表", () => window.location.assign("#data"))} />
-          {data.finance_metrics.length ? <>
-            <div className="dc-finance-values">{data.finance_metrics.map(m => <div key={m.code}><span>{m.label}</span><strong>{m.value === null ? "—" : m.unit === "元" ? money(m.value) : m.value} {m.value !== null && m.unit}</strong><p>{m.value === null && m.reason ? m.reason : m.definition}</p></div>)}</div>
-            <p className="dc-finance-note">{data.finance_through ? `最近已确认财务月：${data.finance_through.slice(0, 7)}。` : "尚无已确认的财务月。"}本月利润表与资产负债表导入并确认后，这里自动显示当月数值；1–7 月回头上传后可在销售分析按月对比。</p>
-          </> : <p className="dc-empty">当前无可见财务指标。</p>}
-        </section>
-      </div>}
       <details className="dc-disclosure"><summary><span className={data.verified ? "status-ready" : "status-pending"}>{data.verified ? "销售口径已核实" : "待业务核实"}</span> 截至 {data.through} · 指标口径与数据状态{data.updated_at && <span> · 更新 {dateTime(data.updated_at)}</span>}</summary>
         <p>销售趋势按当前所选数据源展示；当月为未完月，环比基期为上月完整月。项目为全公司当前开放项目，待办为当前登录人。缺失数据以“—”展示。</p>
         {[...data.warnings, ...data.finance_warnings, ...(margins.data?.warnings ?? [])].map((w, i) => <p key={i}>{w}</p>)}
         {[...data.sales_metrics, ...(analysis.data?.metrics ?? []), ...(margins.data?.metrics ?? [])].map((m, i) => <p key={`${m.code}-${i}`}><b>{m.label}</b> · {m.code}：{m.definition}（{m.source}）{m.value === null && m.reason ? `；${m.reason}` : ""}</p>)}
-        <p>财务视图数值见上方"财务视图"面板；口径与代码：{data.finance_metrics.map(m => `${m.label}(${m.code}）`).join("、") || "无"}</p>
+        <p>财务报表已独立成左侧「财务报表」页（按月查看，含未确认月份）；口径与代码：{data.finance_metrics.map(m => `${m.label}(${m.code}）`).join("、") || "无"}</p>
       </details>
     </>}
   </section>;
