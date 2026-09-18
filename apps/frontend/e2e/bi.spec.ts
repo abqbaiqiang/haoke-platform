@@ -151,7 +151,7 @@ test("M3 admin calendar persists and sales request retries", async ({ page }) =>
   await page.getByRole("button", { name: "重试", exact: true }).click();
   // 工作台已重构为"今日行动页"（2026-09-16）：只保留行动与任务内容，业绩 KPI 移至我的业绩页。
   await expect(page.locator(".wb-root")).toBeVisible();
-  await expect(page.locator(".wb-overview")).toBeVisible();
+  await expect(page.locator(".wb-kpis")).toBeVisible();
   await expect(page.locator(".sales-kpis")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "保存月目标" })).toHaveCount(0);
   await expect(page.getByRole("link", { name: "团队执行" })).toHaveCount(0);
