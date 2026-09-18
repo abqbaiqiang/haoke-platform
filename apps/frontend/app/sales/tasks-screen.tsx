@@ -53,10 +53,10 @@ export function TasksScreen({ taskData, taskOffset, onOffsetChange, taskView, on
           <strong className="tk-title">{t.title}</strong>
           <span className={`tk-due ${over ? "risk" : ""}`}>{stamp(t.due_at, false)}</span>
         </div>
-        {t.customer_id
+        <p className="tk-meta">{t.customer_id
           ? <button className="sales-customer-link tk-cust" onClick={() => go({ screen: "customers", customerId: t.customer_id! })}>{t.customer_name || "客户"}</button>
           : <span className="sales-dim tk-cust">个人待办</span>}
-        <p className="tk-note">{taskTypes[t.task_type] || "其他"} · {sourceLabels[t.source_type] || "系统"}{over ? " · 已逾期" : ""}</p>
+          <span className="tk-note">{taskTypes[t.task_type] || "其他"} · {sourceLabels[t.source_type] || "系统"}{over ? " · 已逾期" : ""}</span></p>
         <div className="tk-actions">
           {t.customer_id && <button disabled={busy} onClick={() => record(t)}>{actions === "future" ? "记录跟进" : "记录跟进"}</button>}
           {actions === "future" && <button disabled={busy} onClick={() => setToday(t)}>设为今天</button>}
@@ -87,12 +87,14 @@ export function TasksScreen({ taskData, taskOffset, onOffsetChange, taskView, on
       </div>
     ) : <Empty>{taskView === "done" ? "还没有已完成待办。" : taskView === "today" ? "今天暂无待办。可以新建待办，或从客户开始记录跟进。" : "此视图暂无待办。"}</Empty>;
   }
-  const columns: { key: string; title: string; tone: string; data: Data<TaskPage>; mode: "today" | "overdue" | "future" }[] = [
-    { key: "today", title: `今天必须完成（${todayN}）`, tone: "today", data: boardToday, mode: "today" },
-    { key: "overdue", title: `已逾期（${overdueN}）`, tone: "overdue", data: boardOverdue, mode: "overdue" },
-    { key: "week", title: `未来计划（${weekN}）`, tone: "future", data: boardWeek, mode: "future" },
+  const columns: { key: string; title: string; tone: string; count: number; data: Data<TaskPage>; mode: "today" | "overdue" | "future" }[] = [
+    { key: "today", title: `今天必须完成（${todayN}）`, tone: "today", count: todayN, data: boardToday, mode: "today" },
+    { key: "overdue", title: `已逾期（${overdueN}）`, tone: "overdue", count: overdueN, data: boardOverdue, mode: "overdue" },
+    { key: "week", title: `未来计划（${weekN}）`, tone: "future", count: weekN, data: boardWeek, mode: "future" },
   ];
-  const visibleColumns = columns.filter(col => col.key !== "overdue" || overdueN > 0); // 空列收纳：逾期清空后两栏放大
+  // 空列收纳 + 列宽按任务数自动分配（docs/32 阶段④迭代，老板反馈两栏等宽不协调）。
+  const visibleColumns = columns.filter(col => col.count > 0 || col.data.data?.rows.length);
+  const boardStyle = visibleColumns.length ? { gridTemplateColumns: visibleColumns.map(col => `minmax(260px, ${Math.max(col.count, 1)}fr)`).join(" ") } : undefined;
   return (
     <div className="tk-root">
       <div className="wb-kpis tk-stats">
@@ -106,11 +108,11 @@ export function TasksScreen({ taskData, taskOffset, onOffsetChange, taskView, on
       </div>
       {taskView === "all" ? (
         boardToday.loading || boardOverdue.loading || boardWeek.loading ? <Panel title="待办看板"><Empty>正在加载待办…</Empty></Panel> :
-          visibleColumns.length ? <div className={`tk-board ${visibleColumns.length === 2 ? "two" : ""}`}>
+          visibleColumns.length ? <div className="tk-board" style={boardStyle}>
             {visibleColumns.map(col => <section key={col.key} className="sales-panel tk-col">
               <div className="wb-panel-head"><h2 className={col.tone === "overdue" ? "sales-danger" : ""}>{col.title}</h2></div>
               {col.data.data?.rows.length ? <div className="tk-cards">{col.data.data.rows.map(t => card(t, col.mode))}</div>
-                : <Empty>{col.key === "today" ? "今天暂无待办。" : col.key === "overdue" ? "没有逾期任务，节奏很好。" : "未来 7 天暂无安排。"}</Empty>}
+                : <Empty>暂无待办。</Empty>}
             </section>)}
           </div> : <Panel title="待办看板"><Empty>暂无任何待办，点右上角「新建待办」安排第一件事。</Empty></Panel>
       ) : (

@@ -202,12 +202,11 @@
 /* ==== 阶段④ 待办三栏看板（docs/32：参考图三栏 + 空列收纳） ==== */
 .tk-root{display:grid;gap:var(--space-4)}
 .tk-tabs{margin:0}
-.tk-board{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--space-4);align-items:start}
-.tk-board.two{grid-template-columns:repeat(2,minmax(0,1fr))}
+.tk-board{display:grid;grid-template-columns:repeat(3,minmax(260px,1fr));gap:var(--space-4);align-items:start}
 .tk-board.one{grid-template-columns:minmax(0,1fr)}
 .tk-col{min-width:0}
 .tk-cards{display:grid;gap:var(--space-3)}
-.tk-card{border:1px solid var(--sales-line);border-radius:var(--radius-ctl,8px);padding:var(--space-3) var(--space-4);background:#fff;display:grid;gap:6px}
+.tk-card{border:1px solid var(--sales-line);border-radius:var(--radius-ctl,8px);padding:var(--space-3) var(--space-4);background:#fff;display:grid;gap:6px;justify-items:start;text-align:left}
 .tk-card-head{display:flex;align-items:flex-start;gap:var(--space-2);min-width:0}
 .tk-check{flex:none;width:18px;height:18px;margin:2px 0 0;border:1.5px solid var(--sales-line-strong,#d4d4d8);border-radius:5px;background:#fff;padding:0}
 .tk-check:hover:not(:disabled){border-color:var(--sales-green)}
@@ -215,11 +214,12 @@
 .tk-due{flex:none;font-size:var(--fs-aux);color:var(--sales-muted);white-space:nowrap;background:var(--sales-soft);border-radius:5px;padding:2px 7px}
 .tk-due.risk{color:var(--sales-danger);background:var(--risk-soft,#fef2f2)}
 .tk-cust{font-size:13px}
+.tk-meta{margin:0;display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
 .tk-note{margin:0;font-size:var(--fs-aux);color:var(--sales-muted)}
 .tk-actions{display:flex;gap:var(--space-2);flex-wrap:wrap;margin-top:2px}
 .tk-actions button{min-height:30px;padding:4px 12px;font-size:12px}
 .tk-rate{height:6px;margin-top:6px}
-@media(max-width:1150px){.tk-board,.tk-board.two{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:1150px){.tk-board{grid-template-columns:minmax(0,1fr)!important}}
 
 /* ==== 阶段⑤ 客户质量四指标 ==== */
 .perf-quality{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:12px 0 8px}
