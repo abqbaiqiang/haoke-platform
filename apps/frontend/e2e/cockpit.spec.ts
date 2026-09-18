@@ -95,7 +95,7 @@ test("Cockpit reference layout keeps truthful missing values and owner-scoped wo
   await page.route("**/api/bi/product-margins?**", route => route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ error: { message: "测试成本服务不可用" } }) }));
   await page.route("**/api/crm/tasks?**", route => route.fulfill({ json: Array.from({ length: 100 }, (_, i) => ({ id: `task-${i}` })) }));
   await login(page);
-  await expect(page.locator(".dc-kpis > section")).toHaveCount(6);
+  await expect(page.locator(".dc-kpis > section")).toHaveCount(5);
   await expect(page.locator(".dc-kpi").filter({ hasText: "销售毛利" })).toContainText("毛利加载失败");
   await expect(page.locator(".dc-kpi").filter({ hasText: "销售毛利" }).locator(".dc-kpi-number")).toHaveText("—");
   await expect(page.locator(".dc-chart svg")).toBeVisible();
