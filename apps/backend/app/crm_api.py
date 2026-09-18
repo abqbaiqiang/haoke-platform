@@ -2,7 +2,7 @@ from typing import Literal
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query
-from sqlalchemy import or_, select
+from sqlalchemy import delete as sa_delete, func, or_, select
 from sqlalchemy.exc import IntegrityError
 
 from app import crm_schemas as dto, crm_service as svc
@@ -223,6 +223,24 @@ def create_tag(payload: dto.TagInput, db: DB, actor: Actor):
 @router.put('/tags/{tid}', response_model=dto.TagView)
 def update_tag(tid: UUID, payload: dto.TagInput, db: DB, actor: Actor):
     return save_tag(db,actor,payload,tid)
+
+
+@router.delete('/tags/{tid}', status_code=204)
+def delete_tag(tid: UUID, db: DB, actor: Actor):
+    """彻底删除标签（老板 2026-09-18 要求）：同时从所有客户上移除该标签，留痕一次删除动作。
+
+    与“停用”（软隐藏、可恢复）互补；删除不可恢复。仅老板/管理员可删。
+    """
+    svc.role(actor, {ROLE_ADMIN, ROLE_OWNER})
+    tag = db.get(Tag, tid)
+    if not tag:
+        raise HTTPException(404, '标签不存在')
+    affected = db.scalar(select(func.count()).select_from(CustomerTag).where(CustomerTag.tag_id == tid)) or 0
+    db.execute(sa_delete(CustomerTag).where(CustomerTag.tag_id == tid))
+    svc.event(db, actor, 'tag_delete', None, tid, None,
+              {'tag_name': tag.tag_name, 'removed_from_customers': int(affected)})
+    db.delete(tag)
+    db.commit()
 
 
 @router.put('/customers/{cid}/tags', response_model=list[dto.TagView])

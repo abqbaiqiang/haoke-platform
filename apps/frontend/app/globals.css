@@ -405,3 +405,12 @@ table{font-variant-numeric:tabular-nums}
   --dc-month-width:196px;--dc-source-width:208px;--dc-top-row-h:340px;
   --dc-radius-sm:4px;--dc-pill:999px;--dc-border:1px;
 }
+
+/* 标签管理（CRM 设置）：紧凑标签组 */
+.tag-manage-list{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+.tag-manage-chip{display:inline-flex;align-items:center;gap:6px;border:1px solid #bfdbfe;border-radius:999px;padding:4px 6px 4px 12px;background:var(--accent-soft);font-size:12px}
+.tag-manage-chip small{color:var(--muted)}
+.tag-manage-chip.off{border-color:var(--line);background:#f4f4f5;color:var(--muted)}
+.tag-manage-chip button{border:0;background:none;padding:2px 7px;font-size:12px;border-radius:999px;min-height:22px;color:var(--accent)}
+.tag-manage-chip button.danger{color:var(--danger)}
+.tag-manage-chip button:hover:not(:disabled){background:#ffffff88}

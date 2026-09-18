@@ -322,3 +322,28 @@ def test_task_assignment_denies_customer_without_access_and_date_boundaries(db,c
     assert client.get('/api/crm/tasks?view=overdue').json()
     assert client.get('/api/crm/tasks?view=future').json()==[]
     assert client.get('/api/crm/tasks?offset=100').json()==[]
+
+
+@pytest.mark.integration
+def test_tag_hard_delete_removes_mappings_and_audits(db, client, accounts, sign_in):
+    """老板 2026-09-18：标签可彻底删除；从所有客户移除并留痕；仅老板/管理员可删。"""
+    from sqlalchemy import func, select
+    from app.crm_models import CustomerTag, Tag
+    sign_in('Owner')
+    tag = client.post('/api/crm/tags', json={'tag_name': '待删除标签', 'tag_group': '测试'}).json()
+    from app.data_models import Customer
+    cust = Customer(source_system='crm', customer_name='标签测试客户', normalized_name='标签测试客户',
+                    owner_user_id=None, ownership_status='public_pool')
+    db.add(cust)
+    db.commit()
+    assert client.put(f"/api/crm/customers/{cust.id}/tags", json={'tag_ids': [tag['id']]}).status_code == 200
+    assert db.scalar(select(func.count()).select_from(CustomerTag).where(CustomerTag.tag_id == tag['id'])) == 1
+    # 销售不能删。
+    sign_in('S1')
+    assert client.delete(f"/api/crm/tags/{tag['id']}").status_code == 403
+    # 老板删除：映射清空、标签消失。
+    sign_in('Owner')
+    assert client.delete(f"/api/crm/tags/{tag['id']}").status_code == 204
+    assert db.get(Tag, tag['id']) is None
+    assert db.scalar(select(func.count()).select_from(CustomerTag).where(CustomerTag.tag_id == tag['id'])) == 0
+    assert client.delete(f"/api/crm/tags/{tag['id']}").status_code == 404
