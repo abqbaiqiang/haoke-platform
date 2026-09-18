@@ -478,6 +478,19 @@ def attention(db, actor, sid, offset=0):
     return dto.AttentionPage(rows=result[offset:offset+30], total=len(result), warnings=warnings, counts=counts)
 
 
+def rfm_key_customers(db, actor, sid):
+    """重点客户 = RFM“重要”层（docs/32 §3.4：重要价值/保持/发展/挽留，即 M 高四层）。
+
+    返回 (customer_id 集合, 提示)；无已导入订单时集合为空并给出原因，不伪造 0。
+    """
+    src = source(db, actor, sid)
+    stats, _verified, _warnings, today, _visible, _cfg = _source_customer_stats(db, actor, src)
+    if not stats:
+        return set(), '该来源暂无已导入销售订单，暂无法判定重点客户'
+    enriched, _ = _rfm_stats(stats, settings(db), today)
+    return {cid for cid, s in enriched.items() if s['layer'].startswith('重要')}, None
+
+
 RFM_SEGMENTS = [
     ('重要价值客户', 'R高F高M高', '重点维护，防止被竞争对手挖走'),
     ('重要保持客户', 'R低F高M高', '高频高额但久未成交，优先唤回'),

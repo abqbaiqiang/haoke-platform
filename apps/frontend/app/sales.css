@@ -171,3 +171,25 @@
 .perf-funnel-stage small.down{color:#e5484d}
 .perf-funnel-arrow{color:#b3c2d4;font-size:18px;flex:none}
 .perf-orders{margin-top:4px}
+
+/* ==== 阶段② 工作台改版（docs/32）：KPI 行 / 作战区 / 提醒 / 项目面板 / 粘贴图片 ==== */
+.wb-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--space-3)}
+.wb-kpi{display:flex;flex-direction:column;align-items:flex-start;gap:var(--space-1);text-align:left;background:var(--card,#fff);border:1px solid var(--sales-line);border-radius:var(--sales-radius);padding:var(--space-4);min-width:0;box-shadow:0 1px 2px #13243b0a}
+.wb-kpi:hover:not(:disabled){border-color:var(--sales-blue)}
+.wb-kpi>span{font-size:var(--fs-aux);color:var(--sales-muted)}
+.wb-kpi strong{font-size:24px;line-height:1.25;font-weight:700;color:var(--sales-ink);font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.wb-kpi small{font-size:var(--fs-aux);color:var(--sales-muted);font-weight:400}
+.wb-kpi .wb-kpi-bar{height:8px;margin:2px 0 4px;width:100%}
+.wb-risk-tag{display:inline-block;flex:none;width:20px;height:20px;border-radius:6px;text-align:center;line-height:20px;font-size:12px;font-weight:700}
+.wb-risk-tag.high{background:var(--risk-soft,#fef2f2);color:var(--risk,#b91c1c)}
+.wb-risk-tag.med{background:var(--warning-soft,#fffbeb);color:var(--warning,#b45309)}
+.wb-risk-label{flex:1;min-width:0}
+.wb-risk-list strong{color:var(--sales-danger)}
+.wb-bottom{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(320px,1fr);gap:var(--space-4);align-items:start}
+.wb-recent,.wb-dynamics-panel{min-width:0}
+.wb-paste-thumbs{display:flex;flex-wrap:wrap;gap:var(--space-2);margin:0 0 var(--space-3)}
+.wb-paste-thumb{position:relative;display:inline-block;width:64px;height:64px;border:1px solid var(--sales-line);border-radius:var(--radius-ctl,8px);overflow:hidden}
+.wb-paste-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.wb-paste-thumb button{position:absolute;top:0;right:0;width:18px;height:18px;border:0;border-radius:0 0 0 6px;background:#13243bcc;color:#fff;font-size:12px;line-height:18px;padding:0}
+@media(max-width:1150px){.wb-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.wb-bottom{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:700px){.wb-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.wb-kpi strong{font-size:20px}.wb-paste-thumb{width:52px;height:52px}}

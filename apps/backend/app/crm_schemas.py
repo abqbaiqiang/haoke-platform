@@ -139,12 +139,27 @@ class FollowupInput(DTO):
         return self
 
 
+class FollowupAttachmentView(DTO):
+    id: UUID
+    filename: str
+    content_type: str
+    size_bytes: int
+    created_at: datetime
+
+
 class FollowupView(FollowupInput):
     id: UUID
     customer_id: UUID
     owner_user_id: UUID
     created_at: datetime
     is_active: bool
+    attachments: list[FollowupAttachmentView] = []
+
+
+class FollowupAttachmentInput(DTO):
+    filename: Annotated[str, Field(min_length=1, max_length=255)]
+    content_type: Literal['image/png', 'image/jpeg', 'image/webp']
+    data_base64: str
 
 
 class TaskInput(DTO):
@@ -257,6 +272,8 @@ class Settings(DTO):
     # 停滞阈值：无下一步且超 N 天未更新 → 标黄 / 标红。
     stagnant_warn_days: int = Field(default=7, ge=1, le=365)
     stagnant_risk_days: int = Field(default=14, ge=1, le=365)
+    # 跟进粘贴图片单张大小上限（MB）；铁律 9：上限可配置不写死。
+    followup_image_max_mb: int = Field(default=5, ge=1, le=50)
 
 
 class Person(DTO):

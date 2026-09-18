@@ -7,7 +7,7 @@ import type { CustomerRow as Customer, Metric, TaskRow as Task } from "../lib/ty
 export type Screen = "workbench" | "customers" | "tasks" | "performance";
 
 /** #sales 哈希路由状态。 */
-export type Route = { screen: Screen; pool?: boolean; customerId?: string; q?: string; taskView?: string };
+export type Route = { screen: Screen; pool?: boolean; customerId?: string; q?: string; taskView?: string; status?: string };
 
 /** 销售员端弹窗状态：记录跟进 / 新建待办 / 调整待办 / 直接完成待办。 */
 export type DialogState = { kind: "follow" | "task" | "defer" | "complete"; customer?: Customer; task?: Task };
@@ -43,3 +43,38 @@ export type Performance = { through: string | null; verified: boolean; warnings:
 
 /** 精斗云原始单据明细（/api/data/sales/orders/:id）。 */
 export type OrderDetail = { order_no: string; customer: string; amount: string; lines: { line_no: number; quantity: string; amount: string }[] };
+
+/** 工作台顶部 4 指标卡（/api/sales/workbench-summary，docs/32 阶段②）。 */
+export type WorkbenchSummary = {
+  month: string;
+  target_amount: string | null;
+  actual_amount: string | null;
+  completion: string | null;
+  verified: boolean;
+  today_tasks: number;
+  overdue_tasks: number;
+  open_projects: number;
+  key_customers: number | null;
+  warnings: string[];
+};
+
+/** 全员开放项目看板行（/api/sales/opportunities/board，docs/32 阶段②拍板：全员可见、他人只读）。 */
+export type BoardRow = {
+  id: string;
+  customer_id: string;
+  customer_name: string;
+  opportunity_name: string;
+  project_name: string | null;
+  owner_user_id: string;
+  owner_name: string;
+  stage: string;
+  probability: string | null;
+  estimated_amount: string | null;
+  expected_close_date: string | null;
+  next_promotion: string | null;
+  products: { id: string; name: string }[];
+};
+export type ProjectBoard = { rows: BoardRow[]; total: number };
+
+/** 跟进图片附件（/api/sales/followups/:id/attachments）。 */
+export type FollowupAttachment = { id: string; filename: string; content_type: string; size_bytes: number; created_at: string };

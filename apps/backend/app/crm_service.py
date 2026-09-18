@@ -1,5 +1,6 @@
 from collections import defaultdict
 from datetime import datetime, time, timedelta
+from uuid import UUID
 from decimal import Decimal, ROUND_HALF_UP
 from zoneinfo import ZoneInfo
 
@@ -10,7 +11,7 @@ from sqlalchemy.exc import IntegrityError
 
 from app import crm_schemas as dto, services
 from app.config import get_settings
-from app.crm_models import Assignment, Contact, CRMSetting, CustomerClaim, CustomerTag, Followup, Opportunity, \
+from app.crm_models import Assignment, Contact, CRMSetting, CustomerClaim, CustomerTag, Followup, FollowupAttachment, Opportunity, \
     OpportunityProduct, Project, Tag, Task
 from app.data_models import Customer, Product, SalesOrder, SalesOrderLine
 from app.models import ActivityLog, User, utcnow
@@ -744,3 +745,21 @@ def void_followup(db, actor, cid, fid, reason):
         event(db, actor, 'followup_void', cid, obj.id, before, {'is_active':False, 'reason':reason})
         db.commit()
     return obj
+
+
+def attach_followup_images(db, views):
+    """按页填充跟进附件（跟进列表展示图片缩略图用，docs/32 阶段②）。"""
+    """按页填充跟进附件（跟进列表展示图片缩略图用）。"""
+    ids = [v.id for v in views]
+    if not ids:
+        return
+    rows = db.execute(select(FollowupAttachment.followup_id, FollowupAttachment.id, FollowupAttachment.filename,
+                             FollowupAttachment.content_type, FollowupAttachment.size_bytes, FollowupAttachment.created_at)
+                      .where(FollowupAttachment.followup_id.in_(ids), FollowupAttachment.is_active)
+                      .order_by(FollowupAttachment.created_at)).all()
+    grouped: dict[UUID, list] = {}
+    for fid, aid, filename, ctype, size, created in rows:
+        grouped.setdefault(fid, []).append(dto.FollowupAttachmentView(
+            id=aid, filename=filename, content_type=ctype, size_bytes=size, created_at=created))
+    for v in views:
+        v.attachments = grouped.get(v.id, [])

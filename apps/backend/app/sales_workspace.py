@@ -1,7 +1,11 @@
 """Sales-only presentation queries; existing CRM ownership and metric definitions remain authoritative."""
+import base64
+import binascii
+import hashlib
 from collections import defaultdict
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal
+from pathlib import Path
 from typing import Literal
 from uuid import UUID
 
@@ -9,10 +13,11 @@ from fastapi import HTTPException
 from sqlalchemy import case, exists, func, or_, select
 
 from app import bi_service as bi, crm_schemas as dto, crm_service as crm
-from app.crm_models import Contact, CustomerClaim, CustomerTag, Followup, Opportunity, Tag, Task
+from app.config import get_settings
+from app.crm_models import Contact, CustomerClaim, CustomerTag, Followup, FollowupAttachment, Opportunity, Project, Tag, Task
 from app.data_models import Customer, Product, SalesOrder, SalesOrderLine
 from app.deps import Actor, DB
-from app.models import utcnow
+from app.models import User, utcnow
 from app.constants import OWNERSHIP_PUBLIC_POOL, ROLE_SALES
 
 
@@ -33,6 +38,7 @@ class Customers(dto.DTO):
 class TaskRow(dto.TaskView):
     customer_name: str | None = None
     customer_level: str | None = None
+    opp_stage: str | None = None
 
 
 class Tasks(dto.DTO):
@@ -234,11 +240,20 @@ def tasks(db: DB, actor: Actor, view: Literal['today', 'overdue', 'week', 'futur
         base.where(Task.status == 'done', Task.completed_at >= start, Task.completed_at < end).subquery()))
     order = [Task.completed_at.desc(), Task.id] if view == 'done' else [Task.due_at, Task.id]
     rows = list(db.scalars(base.where(*conditions[view]).order_by(*order).offset(offset).limit(limit)))
+    page_customers = [t.customer_id for t in rows if t.customer_id]
     info = {cid: (name, level) for cid, name, level in db.execute(select(Customer.id, Customer.customer_name, Customer.customer_level)
-                           .where(Customer.id.in_([t.customer_id for t in rows if t.customer_id]))).all()}
+                           .where(Customer.id.in_(page_customers))).all()}
+    # 今日作战区的“当前阶段”：该客户开放项目的最高阶段（docs/32 §3.1 项目阶段是推进的唯一口径）。
+    stage_rank = case({'contact': 0, 'recommend': 1, 'selection': 2, 'bidding': 3, 'negotiation': 4, 'delivery': 5},
+                      value=Opportunity.stage, else_=-1)
+    opp_stage = {cid: stage for cid, stage in db.execute(
+        select(Opportunity.customer_id, Opportunity.stage).where(
+            Opportunity.customer_id.in_(page_customers), Opportunity.status == 'open', Opportunity.is_active)
+        .order_by(Opportunity.customer_id, stage_rank.desc())).all()}
     return Tasks(rows=[TaskRow(**dto.TaskView.model_validate(t).model_dump(),
                                customer_name=info.get(t.customer_id, (None, None))[0],
-                               customer_level=info.get(t.customer_id, (None, None))[1]) for t in rows],
+                               customer_level=info.get(t.customer_id, (None, None))[1],
+                               opp_stage=opp_stage.get(t.customer_id)) for t in rows],
                  total=counts[view], counts=counts)
 
 
@@ -248,7 +263,9 @@ def recent(db: DB, actor: Actor, offset: int = 0, limit: int = 5):
         Followup.customer_id.in_(ids), Followup.owner_user_id == actor.id, Followup.is_active)
     total = db.scalar(select(func.count()).select_from(query.subquery()))
     rows = db.execute(query.order_by(Followup.occurred_at.desc(), Followup.id).offset(offset).limit(limit)).all()
-    return Recent(rows=[RecentRow(**dto.FollowupView.model_validate(f).model_dump(), customer_name=name) for f, name in rows], total=total)
+    views = [RecentRow(**dto.FollowupView.model_validate(f).model_dump(), customer_name=name) for f, name in rows]
+    crm.attach_followup_images(db, views)
+    return Recent(rows=views, total=total)
 
 
 def followup(cid: UUID, payload: FollowupAction, db: DB, actor: Actor):
@@ -452,3 +469,184 @@ def recent_opportunities(db: DB, actor: Actor, days: int = 30, limit: int = 10):
                                 created_at=o.created_at, products=v.products)
            for v, (o, name) in zip(views, rows)]
     return RecentOpportunities(rows=out, total=total)
+
+
+class ProjectBoardRow(dto.DTO):
+    id: UUID
+    customer_id: UUID
+    customer_name: str
+    opportunity_name: str
+    project_name: str | None
+    owner_user_id: UUID
+    owner_name: str
+    stage: str
+    probability: str | None
+    estimated_amount: str | None
+    expected_close_date: date | None
+    next_promotion: str | None
+    products: list[dto.ProductRef]
+
+
+class ProjectBoard(dto.DTO):
+    rows: list[ProjectBoardRow]
+    total: int
+
+
+def project_board(db: DB, actor: Actor, offset: int = 0, limit: int = 20):
+    """全员开放项目看板（docs/32 阶段②，老板拍板：销售端可见所有同事的项目）。
+
+    只读放行：所有销售可见全部同事的开放项目（含负责人姓名/产品提报）；
+    写入仍受 crm_service 归属校验约束，他人项目不可改（越权测试覆盖）。
+    """
+    crm.role(actor, {ROLE_SALES})
+    base = select(Opportunity).where(Opportunity.status == 'open', Opportunity.is_active)
+    total = db.scalar(select(func.count()).select_from(base.subquery()))
+    rows = db.execute(
+        select(Opportunity, Customer.customer_name, User.display_name)
+        .join(Customer, Customer.id == Opportunity.customer_id)
+        .join(User, User.id == Opportunity.owner_user_id)
+        .where(Opportunity.status == 'open', Opportunity.is_active)
+        .order_by(Opportunity.expected_close_date.asc().nulls_last(), Opportunity.created_at.desc(), Opportunity.id)
+        .offset(offset).limit(limit)).all()
+    views = [dto.OpportunityView.model_validate(o) for o, _, _ in rows]
+    crm.attach_products(db, views)
+    out = []
+    for v, (o, customer_name, owner_name) in zip(views, rows):
+        project_name = None
+        if o.project_id:
+            project_name = db.scalar(select(Project.project_name).where(Project.id == o.project_id))
+        out.append(ProjectBoardRow(
+            id=v.id, customer_id=v.customer_id, customer_name=customer_name,
+            opportunity_name=v.opportunity_name, project_name=project_name,
+            owner_user_id=v.owner_user_id, owner_name=owner_name,
+            stage=v.stage,
+            probability=str((Decimal(v.probability) * 100).quantize(Decimal('0.1'))) if v.probability is not None else None,
+            estimated_amount=bi.money(v.estimated_amount) if v.estimated_amount is not None else None,
+            expected_close_date=v.expected_close_date,
+            next_promotion=o.next_promotion, products=v.products))
+    return ProjectBoard(rows=out, total=total)
+
+
+class WorkbenchSummary(dto.DTO):
+    month: date
+    target_amount: str | None
+    actual_amount: str | None
+    completion: str | None
+    verified: bool
+    today_tasks: int
+    overdue_tasks: int
+    open_projects: int
+    key_customers: int | None
+    warnings: list[str]
+
+
+def workbench_summary(db: DB, actor: Actor, source_id: UUID):
+    """工作台顶部 4 指标卡（docs/32 阶段②）：本月目标/今日待办/待跟进项目/重点客户。"""
+    crm.role(actor, {ROLE_SALES})
+    today = bi.utcnow().astimezone(bi.TZ).date()
+    current = bi.month_start(today)
+    warnings: list[str] = []
+    analysis = bi.analysis(db, actor, source_id, current, 'customer', 0, 1, 'verified')
+    actual = next((m.value for m in analysis.metrics if m.code == 'EXEC_SALES_AMT'), None)
+    verified = analysis.verified
+    if not verified:
+        warnings.append('销售口径未核实，本月完成金额暂不显示')
+    target_row = bi.get_target(db, actor, actor.id, current)
+    target = target_row.amount
+    completion = str((Decimal(actual) / Decimal(target) * 100).quantize(Decimal('0.1'))) \
+        if actual is not None and target else None
+    ids = visible(db, actor)
+    now = utcnow()
+    task_base = select(Task).where(Task.assignee_user_id == actor.id,
+                                   or_(Task.customer_id.is_(None), Task.customer_id.in_(ids)))
+    today_tasks = db.scalar(select(func.count()).select_from(task_base.where(
+        Task.status == 'todo', Task.due_at >= datetime.combine(today, time.min, bi.TZ),
+        Task.due_at < datetime.combine(today + timedelta(days=1), time.min, bi.TZ)).subquery()))
+    overdue_tasks = db.scalar(select(func.count()).select_from(task_base.where(
+        Task.status == 'todo', Task.due_at < now).subquery()))
+    open_projects = db.scalar(select(func.count()).select_from(
+        select(Opportunity.id).where(Opportunity.status == 'open', Opportunity.is_active).subquery()))
+    key_ids, key_warning = bi.rfm_key_customers(db, actor, source_id)
+    if key_warning:
+        warnings.append(key_warning)
+    return WorkbenchSummary(
+        month=current, target_amount=str(target) if target else None,
+        actual_amount=actual if verified else None, completion=completion, verified=verified,
+        today_tasks=today_tasks or 0, overdue_tasks=overdue_tasks or 0,
+        open_projects=open_projects or 0,
+        key_customers=len(key_ids) if not key_warning else None,
+        warnings=warnings)
+
+
+class AttachmentSaved(dto.DTO):
+    id: UUID
+    filename: str
+    content_type: str
+    size_bytes: int
+    created_at: datetime
+
+
+_IMAGE_EXT = {'image/png': '.png', 'image/jpeg': '.jpg', 'image/webp': '.webp'}
+
+
+def _own_followup(db, actor, fid):
+    follow = db.get(Followup, fid)
+    if not follow or not follow.is_active or follow.owner_user_id != actor.id:
+        raise HTTPException(404, '跟进不存在或无权访问')
+    return follow
+
+
+def add_followup_attachment(fid: UUID, payload: dto.FollowupAttachmentInput, db: DB, actor: Actor):
+    """跟进图片粘贴上传（base64）。仅本人跟进；类型/大小受 CRM 设置上限约束（铁律 9）。"""
+    crm.role(actor, {ROLE_SALES})
+    _own_followup(db, actor, fid)
+    try:
+        data = base64.b64decode(payload.data_base64, validate=True)
+    except (binascii.Error, ValueError):
+        raise HTTPException(422, '图片数据不是有效的 base64')
+    if not data:
+        raise HTTPException(422, '图片内容为空')
+    limit_mb = crm.settings(db).followup_image_max_mb
+    if len(data) > limit_mb * 1024 * 1024:
+        raise HTTPException(413, f'图片超过单张上限 {limit_mb}MB（CRM 设置可调）')
+    digest = hashlib.sha256(data).hexdigest()
+    root = Path(get_settings().upload_root).resolve() / 'followups' / str(fid)
+    root.mkdir(parents=True, exist_ok=True)
+    target = root / f'{digest}{_IMAGE_EXT[payload.content_type]}'
+    if not target.exists():
+        target.write_bytes(data)
+    row = FollowupAttachment(followup_id=fid, filename=payload.filename, content_type=payload.content_type,
+                             size_bytes=len(data), sha256=digest, storage_path=str(target), created_by=actor.id)
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    return AttachmentSaved(id=row.id, filename=row.filename, content_type=row.content_type,
+                           size_bytes=row.size_bytes, created_at=row.created_at)
+
+
+def followup_attachments(db: DB, actor: Actor, fid: UUID):
+    crm.role(actor, {ROLE_SALES})
+    follow = db.get(Followup, fid)
+    if not follow or not follow.is_active:
+        raise HTTPException(404, '跟进不存在或无权访问')
+    if actor.id != follow.owner_user_id:
+        crm.customer(db, actor, follow.customer_id, False)
+    rows = db.scalars(select(FollowupAttachment).where(FollowupAttachment.followup_id == fid,
+                                                       FollowupAttachment.is_active).order_by(FollowupAttachment.created_at))
+    return [AttachmentSaved(id=r.id, filename=r.filename, content_type=r.content_type,
+                            size_bytes=r.size_bytes, created_at=r.created_at) for r in rows]
+
+
+def attachment_image(aid: UUID, db: DB, actor: Actor) -> tuple[FollowupAttachment, bytes]:
+    row = db.get(FollowupAttachment, aid)
+    if not row or not row.is_active:
+        raise HTTPException(404, '附件不存在或无权访问')
+    follow = db.get(Followup, row.followup_id)
+    allowed = follow and actor.id in {row.created_by, follow.owner_user_id}
+    if not allowed:
+        # 其他角色/非本人：按客户可见性走既有权限（老板全量、销售按认养范围）。
+        crm.customer(db, actor, follow.customer_id, False)
+    path = Path(row.storage_path)
+    if not path.exists():
+        raise HTTPException(404, '附件文件已丢失')
+    return row, path.read_bytes()

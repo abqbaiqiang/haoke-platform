@@ -112,7 +112,9 @@ export type Followup = {
 };
 
 /** 销售工作台最近跟进行（sales_workspace.RecentRow = FollowupView + customer_name）。 */
-export type FollowupRow = Followup & { customer_name: string };
+/** 跟进图片附件（docs/32 阶段②：仅支持粘贴图片）。 */
+export type FollowupAttachmentMeta = { id: string; filename: string; content_type: string; size_bytes: number; created_at: string };
+export type FollowupRow = Followup & { customer_name: string; attachments?: FollowupAttachmentMeta[] };
 
 export type TaskPriority = "low" | "normal" | "high" | "urgent";
 export type TaskType = "followup" | "quote" | "collection" | "material" | "meeting" | "other";
@@ -136,7 +138,7 @@ export type Task = {
 };
 
 /** 销售工作台待办行（sales_workspace.TaskRow = TaskView + customer_name/customer_level）。 */
-export type TaskRow = Task & { customer_name: string | null; customer_level: string | null };
+export type TaskRow = Task & { customer_name: string | null; customer_level: string | null; opp_stage: string | null };
 
 /** 销售工作台待办分页（sales_workspace.Tasks，含视图计数）。 */
 export type TaskPage = Page<TaskRow> & { counts: Record<string, number> };

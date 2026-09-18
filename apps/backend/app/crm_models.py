@@ -134,6 +134,21 @@ class Opportunity(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
 
 
+class FollowupAttachment(Base):
+    """跟进图片附件（docs/32 阶段②：快速记录仅支持粘贴图片，不做文件上传）。"""
+    __tablename__ = 'crm_followup_attachment'
+    id: Mapped[uuid.UUID] = mapped_column(UUID, primary_key=True, default=uuid.uuid4)
+    followup_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('crm_followup.id'), index=True)
+    filename: Mapped[str] = mapped_column(String(255))
+    content_type: Mapped[str] = mapped_column(String(100))
+    size_bytes: Mapped[int] = mapped_column(Integer)
+    sha256: Mapped[str] = mapped_column(String(64))
+    storage_path: Mapped[str] = mapped_column(Text)
+    created_by: Mapped[uuid.UUID] = mapped_column(ForeignKey('sys_user.id'))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+
+
 class Task(Base):
     __tablename__ = 'crm_task'
     id: Mapped[uuid.UUID] = mapped_column(UUID, primary_key=True, default=uuid.uuid4)

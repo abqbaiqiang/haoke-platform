@@ -2,7 +2,7 @@ from datetime import date
 from typing import Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Response
 
 from app import crm_schemas as dto, sales_workspace as svc
 from app.deps import Actor, DB
@@ -34,6 +34,34 @@ def customers(db: DB, actor: Actor, q: str = Query('', max_length=100), pool: bo
 def recent_opportunities(db: DB, actor: Actor, days: int = Query(30, ge=1, le=180),
                          limit: int = Query(10, ge=1, le=50)):
     return svc.recent_opportunities(db, actor, days, limit)
+
+
+@router.get('/opportunities/board', response_model=svc.ProjectBoard)
+def project_board(db: DB, actor: Actor, offset: int = Query(0, ge=0), limit: int = Query(20, ge=1, le=100)):
+    """全员开放项目看板（docs/32 阶段②拍板：销售可见所有同事的项目，只读）。"""
+    return svc.project_board(db, actor, offset, limit)
+
+
+@router.get('/workbench-summary', response_model=svc.WorkbenchSummary)
+def workbench_summary(source_id: UUID, db: DB, actor: Actor):
+    return svc.workbench_summary(db, actor, source_id)
+
+
+@router.post('/followups/{fid}/attachments', response_model=svc.AttachmentSaved, status_code=201)
+def followup_attachment_create(fid: UUID, payload: dto.FollowupAttachmentInput, db: DB, actor: Actor):
+    return svc.add_followup_attachment(fid, payload, db, actor)
+
+
+@router.get('/followups/{fid}/attachments', response_model=list[svc.AttachmentSaved])
+def followup_attachment_list(fid: UUID, db: DB, actor: Actor):
+    return svc.followup_attachments(db, actor, fid)
+
+
+@router.get('/attachments/{aid}/image')
+def attachment_image(aid: UUID, db: DB, actor: Actor):
+    row, data = svc.attachment_image(aid, db, actor)
+    return Response(content=data, media_type=row.content_type,
+                    headers={'Cache-Control': 'private, max-age=86400'})
 
 
 @router.get('/tasks', response_model=svc.Tasks)

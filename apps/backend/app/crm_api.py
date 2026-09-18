@@ -73,9 +73,12 @@ def binding_candidates(db: DB, actor: Actor, q: str = Query(min_length=1,max_len
 @router.get('/followups', response_model=list[dto.FollowupView])
 def followups(db: DB, actor: Actor, offset: int = Query(0,ge=0)):
     svc.role(actor,ALL_WORK_ROLES)
-    return db.scalars(select(Followup).join(Customer,Customer.id == Followup.customer_id)
+    rows=list(db.scalars(select(Followup).join(Customer,Customer.id == Followup.customer_id)
         .where(Customer.is_active,svc.customer_scope(db,actor,Customer.owner_user_id))
-        .order_by(Followup.occurred_at.desc(),Followup.id).offset(offset).limit(100)).all()
+        .order_by(Followup.occurred_at.desc(),Followup.id).offset(offset).limit(100)).all())
+    views=[dto.FollowupView.model_validate(f) for f in rows]
+    svc.attach_followup_images(db,views)
+    return views
 
 
 @router.get('/projects/suggest', response_model=list[dto.ProjectSuggest])
