@@ -10,7 +10,7 @@ type Point = { date: string; value: string };
 type Ranking = { user_id: string; name: string; amount: string; target: string | null; completion: string | null };
 type Contribution = { customer_id: string; name: string; amount: string; orders: number };
 type OverviewData = {
-  month: string; through: string; verified: boolean; warnings: string[]; finance_warnings: string[];
+  month: string; through: string; verified: boolean; warnings: string[]; finance_warnings: string[]; finance_through?: string | null;
   sales_metrics: Metric[]; finance_metrics: Metric[]; trend: Point[]; customer_trend: Point[]; updated_at: string | null;
   person_ranking: Ranking[]; customer_contributions: Contribution[];
   attention_items: Attention[]; attention_total: number; project_pipeline: ProjectPipeline | null;
@@ -218,11 +218,19 @@ export default function Overview({ role, userId, openBI, openCRM }: {
           </section>
         </div>
       </>}
+      {owner && <div className="dc-row dc-secondary-row">
+        <section className="dc-panel dc-compact" aria-label="财务视图"><Heading icon="money" title="财务视图（利润表 + 资产负债表）" action={headingAction("上传/确认报表", () => window.location.assign("#data"))} />
+          {data.finance_metrics.length ? <>
+            <div className="dc-finance-values">{data.finance_metrics.map(m => <div key={m.code}><span>{m.label}</span><strong>{m.value === null ? "—" : m.unit === "元" ? money(m.value) : m.value} {m.value !== null && m.unit}</strong><p>{m.value === null && m.reason ? m.reason : m.definition}</p></div>)}</div>
+            <p className="dc-finance-note">{data.finance_through ? `最近已确认财务月：${data.finance_through.slice(0, 7)}。` : "尚无已确认的财务月。"}本月利润表与资产负债表导入并确认后，这里自动显示当月数值；1–7 月回头上传后可在销售分析按月对比。</p>
+          </> : <p className="dc-empty">当前无可见财务指标。</p>}
+        </section>
+      </div>}
       <details className="dc-disclosure"><summary><span className={data.verified ? "status-ready" : "status-pending"}>{data.verified ? "销售口径已核实" : "待业务核实"}</span> 截至 {data.through} · 指标口径与数据状态{data.updated_at && <span> · 更新 {dateTime(data.updated_at)}</span>}</summary>
         <p>销售趋势按当前所选数据源展示；当月为未完月，环比基期为上月完整月。项目为全公司当前开放项目，待办为当前登录人。缺失数据以“—”展示。</p>
         {[...data.warnings, ...data.finance_warnings, ...(margins.data?.warnings ?? [])].map((w, i) => <p key={i}>{w}</p>)}
         {[...data.sales_metrics, ...(analysis.data?.metrics ?? []), ...(margins.data?.metrics ?? [])].map((m, i) => <p key={`${m.code}-${i}`}><b>{m.label}</b> · {m.code}：{m.definition}（{m.source}）{m.value === null && m.reason ? `；${m.reason}` : ""}</p>)}
-        <h2>财务视图</h2>{data.finance_metrics.length ? <div className="dc-finance-values">{data.finance_metrics.map(m => <div key={m.code}><span>{m.label}</span><strong>{m.value === null ? "—" : m.unit === "元" ? money(m.value) : m.value} {m.value !== null && m.unit}</strong><p>{m.definition} · {m.code}{m.value === null && m.reason ? ` · ${m.reason}` : ""}</p></div>)}</div> : <p>当前无可见财务指标。</p>}
+        <p>财务视图数值见上方"财务视图"面板；口径与代码：{data.finance_metrics.map(m => `${m.label}(${m.code}）`).join("、") || "无"}</p>
       </details>
     </>}
   </section>;

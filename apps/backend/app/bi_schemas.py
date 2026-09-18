@@ -253,6 +253,8 @@ class Overview(BaseModel):
     verified: bool
     warnings: list[str]
     finance_warnings: list[str]
+    # 最近已确认（is_closed）的财务报表月；用于驾驶舱财务视图的空态说明。
+    finance_through: date | None = None
     sales_metrics: list[Metric]
     finance_metrics: list[Metric]
     trend: list[Point]

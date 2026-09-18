@@ -869,7 +869,11 @@ def overview(db, actor, source_id):
             attention_items.append(dto.AttentionItem(name=f'{overdue} 条逾期待办', kind='逾期任务',
                 action='进入待办与跟进，优先处理逾期事项', entry='tasks'))
 
+    finance_through = db.scalar(select(FinancialPeriod.period_month).where(
+        FinancialPeriod.data_source_id == src.id, FinancialPeriod.is_closed.is_(True))
+        .order_by(FinancialPeriod.period_month.desc()).limit(1))
     return dto.Overview(month=period, through=today, verified=verified, warnings=warnings,
+                        finance_through=finance_through,
                         finance_warnings=finance_warnings, sales_metrics=sales_metrics,
                         finance_metrics=finance_metrics, trend=trend, customer_trend=customer_trend,
                         customer_contributions=customer_contributions[:5],
