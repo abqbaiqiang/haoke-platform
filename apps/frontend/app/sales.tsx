@@ -39,7 +39,7 @@ export default function SalesWorkspace({user,onSignOut}:{user:User;onSignOut:()=
  const focusToday=useData<TaskPage>(screen==="workbench"?"/api/sales/tasks?view=today&limit=10":null,revision);
  const focusOverdue=useData<TaskPage>(screen==="workbench"?"/api/sales/tasks?view=overdue&limit=10":null,revision);
  const customers=useData<CustomersPage>(screen==="customers"&&!route.customerId?`/api/sales/customers?pool=${!!route.pool}&q=${encodeURIComponent(route.q||"")}&offset=${offset}&limit=${pageSize}${route.pool&&claimFilter?`&claim=${claimFilter}`:""}${!route.pool&&levelFilter?`&level=${levelFilter}`:""}${!route.pool&&tagFilter?`&tag_id=${tagFilter}`:""}${!route.pool&&route.status?`&status=${route.status}`:""}`:null,revision);
- const recent=useData<Page<Follow>>(screen==="workbench"||showRecent?`/api/sales/recent?limit=${showRecent?20:3}&offset=${showRecent?recentOffset:0}`:null,revision);
+ const recent=useData<Page<Follow>>(screen==="workbench"||showRecent?`/api/sales/recent?limit=${showRecent?20:6}&offset=${showRecent?recentOffset:0}`:null,revision);
  const sources=useData<Source[]>(["workbench","performance"].includes(screen)?"/api/bi/sources":null,revision);
  const overdue=useData<TaskPage>("/api/sales/tasks?view=overdue&limit=1",revision);
  const overdueCount=overdue.data?.counts?.overdue ?? 0;

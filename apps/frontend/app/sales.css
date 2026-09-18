@@ -50,7 +50,8 @@
 .wb-top{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(320px,1fr);gap:16px;align-items:start}
 .wb-core{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(370px,1fr);gap:16px;align-items:start}
 /* 阶段②迭代（老板反馈）：左列=作战区+最近跟进栈式补位（无大块空白），右列=提醒+快速记录+客户动态；今日待办多时最近跟进整体下移为通栏 */
-.wb-core>.wb-side{grid-column:2;grid-row:1/span 2;display:grid;gap:16px;align-content:start}
+.wb-col-main{display:grid;gap:16px;min-width:0;grid-column:1;grid-row:1;align-content:start}
+.wb-core>.wb-side{grid-column:2;grid-row:1;display:grid;gap:16px;align-content:start}
 .wb-bottom{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(320px,1fr);gap:16px;align-items:start}
 .wb-panel-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:10px}
 .wb-panel-head h2{margin:0;font-size:18px}
