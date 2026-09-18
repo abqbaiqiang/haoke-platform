@@ -160,7 +160,7 @@ export default function Home() {
     if (entry) params.set("crm", JSON.stringify(entry));
     return <a href={`#${next}${params.size ? "?" + params : ""}`} aria-label={["销售分析","客户分析","团队执行","目标与日历","CRM 设置"].includes(label) ? "打开" + label : undefined} aria-current={active ? "page" : undefined} onClick={e => { e.preventDefault(); navigate(next, tab, entry); }}><NavIcon label={label} />{label}</a>;
   }
-  return <div className={`workspace dash-root${menuOpen ? " navigation-open" : ""}`}><aside>
+  return <div className={`workspace dash-root${view === "home" && user.role_code === "owner" ? " cockpit-shell" : ""}${menuOpen ? " navigation-open" : ""}`}><aside>
     <div className="brand"><div className="brand-mark small">齐</div><div><strong>好客齐鲁</strong><small>经营管理平台</small></div><button className="mobile-menu" aria-label="展开主导航" aria-expanded={menuOpen} onClick={() => setMenuOpen(v => !v)}>菜单</button></div>
     <nav aria-label="主导航"><p className="nav-label">经营中心</p>{nav("驾驶舱", "home")}{nav("销售分析", "bi", "sales")}{nav("客户分析", "bi", "customers")}{["owner","manager"].includes(user.role_code) && nav("团队执行", "bi", "team")}
       <p className="nav-label">客户经营</p>{nav("客户管理", "crm")}{nav("客户公海", "crm", "", {tab:"pool"})}{nav("项目管理", "crm", "", {tab:"opportunities"})}{nav("待办与跟进", "crm", "", {tab:"tasks"})}
@@ -170,7 +170,7 @@ export default function Home() {
     <div className="content"><header><span>{roles[user.role_code]}工作空间</span><div><span>{user.display_name}</span><button onClick={signOut} disabled={busy}>退出登录</button></div></header><main className="dashboard">{error && <p role="alert" className="error">{error}</p>}
       {view === "home" && (user.role_code === "admin"
         ? <><p className="eyebrow">工作空间 / 首页</p><h1>欢迎，{user.display_name}</h1><p className="muted">系统管理员不直接查看经营数据；请从下方进入管理功能。</p><div className="cards"><section className="card"><span>当前身份</span><h2>{roles[user.role_code]}</h2><p>权限由服务器校验</p></section><section className="card"><span>数据导入</span><h2>数据中心</h2><p>数据源、人员映射、导入历史</p><button onClick={() => navigate("data")}>进入数据中心 →</button></section><section className="card"><span>系统状态</span><h2>运行状况</h2><p>服务与数据库健康检查</p><button onClick={() => navigate("system")}>查看系统状态 →</button></section></div></>
-        : <Overview role={user.role_code} openBI={openBI} openCRM={openCRM} />)}
+        : <Overview role={user.role_code} userId={user.id} openBI={openBI} openCRM={openCRM} />)}
       {view === "account" && <><p className="eyebrow">工作空间 / 我的账号</p><h1>我的账号</h1><section className="card account"><dl><dt>登录账号</dt><dd>{user.username}</dd><dt>姓名</dt><dd>{user.display_name}</dd><dt>角色</dt><dd>{roles[user.role_code]}</dd><dt>最近登录</dt><dd>{dateTime(user.last_login_at, "—", "medium")}</dd><dt>显示时区</dt><dd>Asia/Shanghai</dd></dl></section></>}
       {view === "system" && <SystemStatus />}{view === "data" && <DataCenter role={user.role_code} />}
       {view === "staff" && user.role_code === "owner" && <Staff />}

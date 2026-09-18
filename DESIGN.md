@@ -1,6 +1,6 @@
 ---
 name: 好客齐鲁经营管理平台
-description: 山东食品/礼品批发公司的内部经营管理平台：晨会大屏式经营驾驶舱 + 轻量 CRM。中性灰白界面 + 品牌蓝交互色（蓝白 SaaS 风）。
+description: 山东食品/礼品批发公司的内部经营管理平台：经营驾驶舱 + 轻量 CRM。统一品牌蓝视觉，按角色分别组织业务布局。
 colors:
   accent: "#2563eb"
   accent-strong: "#1d4ed8"
@@ -15,7 +15,35 @@ colors:
   warn-bg: "#fffaea"
   warn-ink: "#7a5a17"
   sidebar: "#1e2a38"
+  dc-paper: "#f2f5fa"
+  dc-line: "#e8edf4"
+  dc-track: "#edf0f5"
+  dc-chart-soft: "#93c5fd"
+  dc-chart-mid: "#6699ff"
+  dc-feature-line: "#80a8ff"
+  dc-wave: "#d9e6ff"
+  dc-rank-warm: "#b45309"
 typography:
+  cockpit-title:
+    fontSize: "28px"
+    fontWeight: 700
+    lineHeight: 1.2
+    letterSpacing: "-.025em"
+  cockpit-kpi:
+    fontSize: "clamp(22px,1.95vw,30px)"
+    fontWeight: 700
+    lineHeight: 1.2
+    letterSpacing: "-.025em"
+  cockpit-heading:
+    fontSize: "16px"
+    fontWeight: 700
+    lineHeight: 1.45
+  cockpit-body:
+    fontSize: "13px"
+    lineHeight: 1.45
+  cockpit-label:
+    fontSize: "12px"
+    fontWeight: 600
   display-hero:
     fontFamily: "system-ui, -apple-system, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif"
     fontSize: "clamp(44px, 6vw, 84px)"
@@ -80,7 +108,9 @@ components:
 
 ## Overview
 
-内部经营平台，Mode 以 Operate 为主。视觉世界（2026-09 全站换皮，参考 Twenty/Linear 的中性风）：纸白偏中性的 zinc 灰底、近黑正文、极细灰线、品牌蓝唯一交互色。公司当前没有品牌色——品牌蓝是当前唯一强调色，未来若定品牌色只需替换 `--accent*` 三个 token。驾驶舱首页是"晨会大屏"：一位主角数字统治首屏，其余信息折叠退后。
+内部经营平台，Mode 以 Operate 为主。视觉世界保留中性灰白、近黑正文、极细灰线和品牌蓝交互色。销售端与管理端共用视觉语言，按角色分别组织布局。2026-09-18 用户指定的管理端驾驶舱参考图局部替换旧晨会大数字构图；旧构图不再约束驾驶舱，不扩展为全项目最终 UI 重构。
+
+本次文档以 `apps/frontend/app/globals.css` 的新增令牌与 `cockpit.css` 的驾驶舱规则为依据；实现审查为 pending，记录不代表验收通过。页面策略、参考图来源和验证状态见 `.impeccable/surfaces/apps-frontend-app-overview-tsx.md`。
 
 ## Colors
 
@@ -94,6 +124,7 @@ components:
 
 ### Named Rules
 
+- 驾驶舱局部浅蓝灰纸面、细边线、轨道和图表层次分别映射到 `--dc-paper`、`--dc-line`、`--dc-track`、`--dc-chart-soft` / `--dc-chart-mid`；首指标边线与波形使用 `--dc-feature-line` / `--dc-wave`。这些扩展不覆盖原有全局或销售端令牌。
 - 琥珀（`#fffaea` 底 / `#7a5a17` 字）**只**用于"待核实/未就绪"警示，不作装饰。
 - 红色 `#dc2626` 用于负增长、错误与危险操作。
 - 全站禁止绿色系品牌色（历史森林绿已废弃）；绿色只允许作为语义"成功"极少量出现，默认用 indigo 表达肯定。
@@ -104,7 +135,7 @@ components:
 系统字体栈（system-ui/PingFang SC/Microsoft YaHei）。正文 14px/1.55；H1 30px；面板标题 17px/650。
 ### Hierarchy
 
-驾驶舱英雄数字为全站唯一超大字号层：`clamp(44px, 6vw, 84px)`、700、-2.5px 字距、tabular-nums、不换行；单位与注释小号弱化。
+旧 `display-hero` 仅保留为历史记录，不再作为驾驶舱标题或 KPI 规则。驾驶舱使用 frontmatter 中 `cockpit-*` 层级，依次对应 `--dc-title`、`--dc-kpi`、`--dc-heading`、`--dc-body`、`--dc-small`；辅助汇总使用 `--dc-number`，数字保留 tabular-nums。移动端沿用共享 `--fs-title` / `--fs-kpi` / `--fs-heading`。
 
 ### Named Rules
 
@@ -113,6 +144,8 @@ components:
 ## Layout
 
 工作区为 `208–248px 浅色侧栏 + 内容` 网格；内容区最大 1600px、左右 28px。网格子项一律 `minmax(0,1fr)` 防溢出；表格横向滚动限定在卡片内。≤640px 单列、侧栏转顶部横滑导航。
+
+上段为未涉及页面的历史记录。驾驶舱局部以 `--dc-sidebar` 控制侧栏（178px），`--dc-header` 控制顶栏（48px），内容区不设最大宽度，内距复用 `--space-6`。模块内距复用 `--space-4` / `--space-5`，间距复用 `--space-2` / `--space-3`，补充 `--space-half` / `--space-8`。1250px、980px、640px 断点分别压缩指标列、转单列面板、转移动导航；具体面板顺序属于页面契约。
 
 ## Elevation & Depth
 
@@ -129,6 +162,7 @@ components:
 - 折叠面板 `.fold`：1px 边卡，summary 含计数与"展开/收起"，无卡中卡。
 - 侧栏：深蓝色块 `#1e2a38`（参照精斗云），每项配 15px 手绘线性 SVG 图标（stroke 1.8、圆角端点、currentColor），选中项品牌蓝底白字；导航为真实链接。
 - 指标口径以 `<details>` 就近折叠，含 definition + source + metric code。
+- 驾驶舱指标与面板共用 `--radius-card`，筛选控件共用 `--radius-ctl` / `--ctl-h`；小图形使用 `--dc-radius-sm` / `--dc-pill`。月份是只读当前月，不能伪装为可操作的日期选择器；数据源保留真实选择控件。
 
 ## Do's and Don'ts
 

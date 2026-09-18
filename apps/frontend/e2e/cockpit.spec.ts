@@ -89,3 +89,48 @@ test("Owner can maintain RFM parameters and CRM settings through real navigation
   await expect(page.getByRole("form", { name: "维护公共标签" })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBeTruthy();
 });
+
+test("Cockpit reference layout keeps truthful missing values and owner-scoped work links", async ({ page }) => {
+  test.setTimeout(90000);
+  await page.route("**/api/bi/product-margins?**", route => route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ error: { message: "测试成本服务不可用" } }) }));
+  await page.route("**/api/crm/tasks?**", route => route.fulfill({ json: Array.from({ length: 100 }, (_, i) => ({ id: `task-${i}` })) }));
+  await login(page);
+  await expect(page.locator(".dc-kpis > section")).toHaveCount(6);
+  await expect(page.locator(".dc-kpi").filter({ hasText: "销售毛利" })).toContainText("毛利加载失败");
+  await expect(page.locator(".dc-kpi").filter({ hasText: "销售毛利" }).locator(".dc-kpi-number")).toHaveText("—");
+  await expect(page.locator(".dc-chart svg")).toBeVisible();
+  const work = page.getByRole("region", { name: "我的待办", exact: true });
+  await expect(work.getByRole("button", { name: /100\+.*逾期待办/ })).toBeVisible();
+  await expect(work).toContainText("100+ 表示至少 100 条");
+  const me = await (await page.request.get("/api/auth/me")).json();
+  await work.getByRole("button", { name: /100\+.*逾期待办/ }).click();
+  const entry = JSON.parse(new URLSearchParams(new URL(page.url()).hash.split("?")[1]).get("crm")!);
+  expect(entry).toMatchObject({ tab: "tasks", personId: me.user.id, taskView: "overdue" });
+});
+
+test("Cockpit source changes clear supplementary KPIs and allow independent retry", async ({ page }) => {
+  test.setTimeout(90000);
+  let marginCalls = 0;
+  await page.route("**/api/bi/product-margins?**", route => {
+    marginCalls++;
+    if (marginCalls === 1) return route.fulfill({ status: 503, json: { error: { message: "暂时不可用" } } });
+    return route.fulfill({ json: { metrics: [{ code: "SALE_GROSS_PROFIT", label: "销售毛利", value: "1234.56", unit: "元", reason: null, definition: "测试口径", source: "固定样本" }], total_profit: "1234.56", cost_coverage: "50", warnings: [] } });
+  });
+  await login(page);
+  const gross = page.locator(".dc-kpi").filter({ hasText: "销售毛利" });
+  await expect(gross).toContainText("毛利加载失败");
+  await gross.getByRole("button", { name: "重试 →" }).click();
+  await expect(gross).toContainText("1,234.56");
+  await expect(gross).toContainText("成本覆盖 50.0%");
+  expect(marginCalls).toBe(2);
+  // A newly selected source must never retain a previous source's successfully loaded profit.
+  const select = page.getByRole("combobox", { name: "数据源", exact: true });
+  const next = await select.locator("option").evaluateAll(options => options.map(o => (o as HTMLOptionElement).value));
+  if (next.length > 1) {
+    await page.unroute("**/api/bi/product-margins?**");
+    await page.route("**/api/bi/product-margins?**", route => route.fulfill({ status: 503, json: { error: { message: "新来源不可用" } } }));
+    await select.selectOption(next[1]);
+    await expect(gross).toContainText("毛利加载失败");
+    await expect(gross.locator(".dc-kpi-number")).toHaveText("—");
+  }
+});
