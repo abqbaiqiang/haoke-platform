@@ -42,10 +42,11 @@ SW${suffix},销售工作台验收 ${suffix}
  await page.reload();
  await expect(page.locator('.sales-main')).not.toContainText('请求失败');
  await nav.getByRole('link',{name:'待办',exact:true}).click();
- if (!dueToday) await page.getByRole('button',{name:'全部未来',exact:true}).click();
- const row=page.getByRole('row').filter({hasText:'确认礼盒数量 '+suffix});
- await expect(row).toBeVisible();
- await row.getByRole('button',{name:'记录跟进',exact:true}).click();
+ if (!dueToday) await page.getByRole('button',{name:'未来7天',exact:true}).click();
+ // 看板（阶段④）为卡片布局，视图 Tab 后为表格；两种容器都按文本定位。
+ const target=page.locator('.tk-card, .sales-table tbody tr').filter({hasText:'确认礼盒数量 '+suffix}).first();
+ await expect(target).toBeVisible();
+ await target.getByRole('button',{name:'记录跟进',exact:true}).click();
  const dialog=page.getByRole('dialog',{name:'记录跟进',exact:true});
  await expect(dialog).toContainText(customer.customer_name);
  await dialog.getByLabel('沟通摘要',{exact:true}).fill('已确认数量，明天发送最终方案');
