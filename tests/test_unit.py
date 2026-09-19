@@ -63,6 +63,8 @@ def test_admin_system_scope_and_sales_write_isolation():
     [
         {"app_secret_key": "CHANGE_ME"},
         {"app_env": "production", "app_base_url": "http://example.com"},
+        {"app_env": "production", "app_base_url": "http://8.8.8.8"},
+        {"app_env": "production", "app_base_url": "http://nas.local"},
         {"app_base_url": "http://example.com/path"},
         {"database_url": "sqlite://"},
     ],
@@ -77,6 +79,18 @@ def test_configuration_fails_closed(override):
     with pytest.raises(ValidationError) as error:
         Settings(_env_file=None, **values)
     assert "input_value" not in str(error.value)
+
+
+def test_production_lan_http_allowed_and_cookie_secure_follows_scheme():
+    """docs/10：局域网试用允许内网 IP 走 HTTP；Cookie Secure 跟实际协议，而非环境名。"""
+    values = {
+        "app_secret_key": "test-secret-" + "x" * 32,
+        "database_url": "postgresql+psycopg://test:test@localhost/test",
+    }
+    lan = Settings(_env_file=None, app_env="production", app_base_url="http://192.168.1.107:8080", **values)
+    assert lan.cookie_secure is False
+    public = Settings(_env_file=None, app_base_url="https://example.com", **values)
+    assert public.cookie_secure is True
 
 
 def test_storage_init_prepares_configured_directories(tmp_path, monkeypatch):

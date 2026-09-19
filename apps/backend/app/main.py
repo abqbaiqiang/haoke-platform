@@ -130,7 +130,7 @@ def login(payload: LoginInput, response: Response, db: DB, request: Request):
         COOKIE,
         token,
         httponly=True,
-        secure=settings.app_env == "production",
+        secure=settings.cookie_secure,
         samesite="lax",
         max_age=settings.session_hours * 3600,
         path="/",
@@ -144,7 +144,7 @@ def logout(response: Response, db: DB, identity: Current):
     session.revoked_at = utcnow()
     services.audit(db, user.id, "user_logout", user.id)
     db.commit()
-    response.delete_cookie(COOKIE, path="/", httponly=True, secure=settings.app_env == "production", samesite="lax")
+    response.delete_cookie(COOKIE, path="/", httponly=True, secure=settings.cookie_secure, samesite="lax")
 
 
 @app.get("/api/auth/me", response_model=SessionView)
