@@ -1,0 +1,68 @@
+.task-row {
+  display: flex;
+  align-items: center;
+  padding: var(--space-3) 0;
+  border-bottom: 1rpx solid var(--line);
+
+  &:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+
+  &:first-of-type {
+    padding-top: 0;
+  }
+
+  &__checkbox {
+    width: 40rpx;
+    height: 40rpx;
+    border-radius: 50%;
+    border: 3rpx solid var(--line-strong);
+    flex-shrink: 0;
+    margin-right: var(--space-3);
+  }
+
+  &__body {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6rpx;
+  }
+
+  &__customer {
+    font-size: var(--font-md);
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  &__content {
+    font-size: var(--font-sm);
+    color: var(--muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__side {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+    margin-left: var(--space-2);
+  }
+
+  &__due {
+    font-size: var(--font-sm);
+    color: var(--muted);
+
+    &--urgent {
+      color: var(--danger);
+    }
+  }
+
+  &__chevron {
+    font-size: var(--font-lg);
+    color: var(--line-strong);
+    margin-left: var(--space-1);
+  }
+}

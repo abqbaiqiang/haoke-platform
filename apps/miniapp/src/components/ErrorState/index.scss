@@ -1,0 +1,28 @@
+.error-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--space-6);
+  gap: var(--space-3);
+
+  &__message {
+    font-size: var(--font-md);
+    color: var(--text-secondary);
+    text-align: center;
+  }
+
+  &__retry {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: var(--touch-min);
+    padding: 0 var(--space-5);
+    border-radius: var(--radius-ctl);
+    background: var(--brand-soft);
+  }
+
+  &__retry-text {
+    font-size: var(--font-md);
+    color: var(--brand-strong);
+  }
+}

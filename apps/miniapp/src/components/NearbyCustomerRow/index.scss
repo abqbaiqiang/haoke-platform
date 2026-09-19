@@ -1,0 +1,102 @@
+.nearby-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+  border-bottom: 1rpx solid var(--line);
+
+  &:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+
+  &__info {
+    flex: 1;
+    min-width: 0;
+  }
+
+  &__name {
+    font-size: 30rpx;
+    font-weight: 600;
+    color: var(--text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__tags {
+    display: flex;
+    gap: var(--space-1);
+    margin-top: 6rpx;
+    flex-wrap: wrap;
+  }
+
+  &__meta {
+    display: flex;
+    align-items: center;
+    gap: 8rpx;
+    margin-top: 6rpx;
+  }
+
+  &__pin {
+    width: 26rpx;
+    height: 26rpx;
+  }
+
+  &__distance {
+    font-size: var(--font-xs);
+    color: var(--text-secondary);
+  }
+
+  &__divider {
+    color: var(--line);
+  }
+
+  &__hint {
+    font-size: var(--font-xs);
+    color: var(--danger);
+  }
+
+  &__actions {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    flex-shrink: 0;
+  }
+
+  &__btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6rpx;
+    height: 56rpx;
+    border-radius: 999rpx;
+    padding: 0 var(--space-3);
+
+    &--view {
+      border: 1rpx solid var(--brand);
+      background: var(--card);
+    }
+
+    &--nav {
+      background: var(--brand);
+    }
+  }
+
+  &__btn-icon {
+    width: 26rpx;
+    height: 26rpx;
+  }
+
+  &__btn-text {
+    font-size: var(--font-sm);
+
+    &--view {
+      color: var(--brand);
+    }
+
+    &--nav {
+      color: #ffffff;
+    }
+  }
+}

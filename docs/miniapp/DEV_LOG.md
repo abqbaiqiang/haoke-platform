@@ -54,3 +54,32 @@
 ### 后续阶段
 
 Phase 1（工程骨架+Design System+六页 Mock）→ 2（移动认证）→ 3（只读闭环）→ 4（跟进写入）→ 5（媒体）→ 6（ASR+AI）→ 7（地图）→ 8（视觉精修）→ 9（全量回归+真机），每阶段独立测试、提交。
+
+---
+
+## Phase 1：Miniapp 工程骨架 + UI Design System（2026-09-19）
+
+### 产出
+
+- `apps/miniapp/`：Taro **4.2.1** + **React 18.3.1**（独立于 PC 的 React 19——Taro 4 官方兼容 18，符合开发包"先兼容性 POC"结论，19 待 Taro 官方支持后再评估）+ TypeScript 5.6 + SCSS，webpack5 runner，`designWidth 750`。
+- Design Tokens：`src/styles/tokens.scss`（挂在 `page` 选择器——weapp 不支持 `:root`），值与 PC `DESIGN.md`/开发包 04 文档一致；新增语义浅底 `--danger-soft/--warn-bg/--warn-ink`（与 PC 状态章同源）。所有页面/组件零写死视觉值。
+- 公共组件（15 个，位于 `src/components/`）：Avatar、Tag、SectionCard（含 SectionHeader）、TaskRow、CustomerRow、CustomerHeader、VisitBrief、AISummaryCard、FollowupTimelineCard、OrderTimelineCard、TimelineItem、NearbyCustomerRow、BrandHeader、EmptyState、LoadingState、ErrorState。
+- 页面（7 个）：`login / workbench / customers / customer-detail / followup-edit / nearby / mine`，模块层级对照 6 张参考图；原生 TabBar 四项（图标为 PIL 生成的线性风格 PNG，`src/assets/`）。
+- Mock：全部集中在 `src/services/mock.ts`（类型即未来 Mobile DTO 契约，`src/types/`），业务组件零 mock 硬编码；Phase 3 起替换。
+- 命令：`npm run build:weapp` / `dev:weapp` / `typecheck`（仓库无 eslint 配置，按"跟仓库能力统一"用 tsc）。
+
+### 验收（对照 06 文档 Phase 1 标准）
+
+- [x] 七页都能打开（TabBar 四页 + 详情/跟进/登录 push）；
+- [x] 与 UI 图模块结构一致（模块顺序未改，视觉精修留 Phase 8）；
+- [x] 没有 BI；没有新增客户入口（客户列表空态文案明确"客户请先在现有系统/精斗云流程中建立"）；
+- [x] 不接后端展示 Mock；
+- [x] `build:weapp` 通过、`tsc --noEmit` 通过；
+- [x] 组件无大面积复制；
+- [x] PC 端回归：`scripts/run_tests.py` 全套（ruff + pytest + 前端 tsc/build）通过（本次未改后端任何文件）。
+
+### 已知事项
+
+- `npm run build:weapp` 有 1 条 mini-css-extract-plugin 组件样式顺序 warning（chunk common），不影响产物；Phase 8 视觉精修时顺手收敛。
+- `VoiceRecorder / MediaPicker / UploadStrip` 属交互组件，按 06 文档顺序推迟到 Phase 4/5（避免死代码），未违反 04 文档强制复用表（届时建立）。
+- 依赖安装需注意：`@tarojs/webpack5-runner@4.2.1` 精确 peer webpack 5.91.0，**不要**在 devDependencies 里另声明 webpack。

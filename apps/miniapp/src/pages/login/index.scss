@@ -1,0 +1,73 @@
+.login {
+  min-height: 100vh;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+
+  &__head {
+    padding: 120rpx var(--page-x) var(--space-5);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+
+  &__brand {
+    font-size: 44rpx;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  &__slogan {
+    font-size: var(--font-md);
+    color: var(--muted);
+  }
+
+  &__form {
+    margin: var(--space-4) var(--page-x);
+    background: var(--card);
+    border: 1rpx solid rgba(24, 24, 27, 0.05);
+    border-radius: var(--radius-lg);
+    padding: var(--space-5) var(--space-4);
+    box-shadow: var(--shadow-card);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+  }
+
+  &__field {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+
+  &__label {
+    font-size: var(--font-sm);
+    color: var(--text-secondary);
+  }
+
+  &__input {
+    height: var(--touch-min);
+    background: var(--bg);
+    border-radius: var(--radius-ctl);
+    padding: 0 var(--space-3);
+    font-size: var(--font-md);
+  }
+
+  &__submit {
+    height: var(--touch-min);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--brand);
+    border-radius: var(--radius-ctl);
+    color: #ffffff;
+    font-size: var(--font-lg);
+    font-weight: 600;
+  }
+
+  &__hint {
+    font-size: var(--font-xs);
+    color: var(--muted);
+    text-align: center;
+  }
+}

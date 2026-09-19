@@ -1,0 +1,60 @@
+// Design Tokens —— docs/miniapp/04_UI设计系统与Zcode强约束.md 第三节
+// 值与 PC 端 DESIGN.md 品牌体系对齐；所有页面/组件只允许引用这里的变量。
+// 小程序环境 CSS 变量挂在 page 选择器上（:root 在 weapp 不生效）。
+
+page {
+  // 品牌色（与 PC 端一致，禁止新造主题色）
+  --brand: #2563eb;
+  --brand-strong: #1d4ed8;
+  --brand-soft: #eff6ff;
+
+  // 中性色
+  --text: #18181b;
+  --text-secondary: #52525b;
+  --muted: #71717a;
+  --line: #e4e4e7;
+  --line-strong: #d4d4d8;
+  --bg: #f7f7f8;
+  --card: #ffffff;
+
+  // 状态色（success 仅作状态，不作第二主题色）
+  --danger: #dc2626;
+  --warning: #d97706;
+  --success: #16a34a;
+
+  // 语义浅底（标签/警示用，与 PC 端 DESIGN.md 状态章同源）
+  --danger-soft: #fee2e2;
+  --warn-bg: #fffaea;
+  --warn-ink: #7a5a17;
+
+  // 圆角
+  --radius-sm: 12rpx;
+  --radius-md: 20rpx;
+  --radius-lg: 28rpx;
+  --radius-ctl: 16rpx;
+
+  // 间距
+  --space-1: 8rpx;
+  --space-2: 16rpx;
+  --space-3: 24rpx;
+  --space-4: 32rpx;
+  --space-5: 40rpx;
+  --space-6: 48rpx;
+
+  // 页面与卡片
+  --page-x: 28rpx;
+  --card-padding: 28rpx;
+
+  // 字号
+  --font-xs: 22rpx;
+  --font-sm: 24rpx;
+  --font-md: 28rpx;
+  --font-lg: 32rpx;
+  --font-xl: 40rpx;
+
+  // 触控
+  --touch-min: 88rpx;
+
+  // 轻阴影（克制）
+  --shadow-card: 0 2rpx 6rpx rgba(0, 0, 0, 0.025);
+}

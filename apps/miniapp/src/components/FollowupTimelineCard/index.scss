@@ -1,0 +1,140 @@
+.followup-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+
+  &__head {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  &__title {
+    font-size: var(--font-md);
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  &__who {
+    font-size: var(--font-xs);
+    color: var(--brand-strong);
+    background: var(--brand-soft);
+    border-radius: 6rpx;
+    padding: 2rpx 10rpx;
+  }
+
+  &__location {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 4rpx;
+    min-width: 0;
+  }
+
+  &__location-icon {
+    width: 26rpx;
+    height: 26rpx;
+    flex-shrink: 0;
+  }
+
+  &__location-text {
+    font-size: var(--font-xs);
+    color: var(--muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__summary {
+    font-size: var(--font-md);
+    color: var(--text);
+    line-height: 1.6;
+  }
+
+  &__media {
+    display: flex;
+    gap: var(--space-2);
+  }
+
+  // Phase 1 骨架：缩略图占位块；Phase 5 接真实媒体后替换为 Image
+  &__thumb {
+    width: 160rpx;
+    height: 160rpx;
+    border-radius: var(--radius-sm);
+    background: var(--bg);
+    border: 1rpx solid var(--line);
+  }
+
+  &__audio {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    background: var(--brand-soft);
+    border-radius: var(--radius-sm);
+    padding: var(--space-2) var(--space-3);
+  }
+
+  &__audio-icon {
+    width: 36rpx;
+    height: 36rpx;
+  }
+
+  &__wave {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 6rpx;
+  }
+
+  &__bar {
+    width: 6rpx;
+    border-radius: 3rpx;
+    background: var(--brand);
+    opacity: 0.55;
+  }
+
+  &__audio-duration {
+    font-size: var(--font-sm);
+    color: var(--brand-strong);
+  }
+
+  &__next {
+    display: flex;
+    align-items: center;
+    gap: 8rpx;
+    padding-top: var(--space-2);
+    border-top: 1rpx solid var(--line);
+  }
+
+  &__next-icon {
+    width: 30rpx;
+    height: 30rpx;
+    flex-shrink: 0;
+  }
+
+  &__next-label {
+    font-size: var(--font-sm);
+    color: var(--muted);
+    flex-shrink: 0;
+  }
+
+  &__next-text {
+    flex: 1;
+    min-width: 0;
+    font-size: var(--font-sm);
+    font-weight: 600;
+    color: var(--brand-strong);
+  }
+
+  &__next-btn {
+    flex-shrink: 0;
+    border: 1rpx solid var(--brand);
+    border-radius: 999rpx;
+    padding: 6rpx 18rpx;
+  }
+
+  &__next-btn-text {
+    font-size: var(--font-xs);
+    color: var(--brand);
+  }
+}

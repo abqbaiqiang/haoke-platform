@@ -1,0 +1,80 @@
+.customer-row {
+  background: var(--card);
+  border: 1rpx solid rgba(24, 24, 27, 0.05);
+  border-radius: var(--radius-md);
+  padding: var(--card-padding);
+  box-shadow: var(--shadow-card);
+
+  &__main {
+    display: flex;
+    gap: var(--space-3);
+  }
+
+  &__info {
+    flex: 1;
+    min-width: 0;
+  }
+
+  &__title-line {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+  }
+
+  &__name {
+    font-size: 30rpx;
+    font-weight: 600;
+    color: var(--text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__tags {
+    display: flex;
+    gap: var(--space-1);
+    margin-top: var(--space-1);
+    flex-wrap: wrap;
+  }
+
+  &__contact {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin-top: var(--space-2);
+  }
+
+  &__contact-icon {
+    width: 28rpx;
+    height: 28rpx;
+  }
+
+  &__contact-name {
+    font-size: var(--font-sm);
+    color: var(--text-secondary);
+  }
+
+  &__contact-mobile {
+    font-size: var(--font-sm);
+    color: var(--muted);
+  }
+
+  &__footer {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin-top: var(--space-3);
+    padding-top: var(--space-2);
+    border-top: 1rpx solid var(--line);
+  }
+
+  &__footer-item {
+    font-size: var(--font-xs);
+    color: var(--muted);
+
+    &--urgent {
+      color: var(--danger);
+    }
+  }
+}

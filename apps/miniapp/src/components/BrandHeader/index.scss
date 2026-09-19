@@ -1,0 +1,35 @@
+.brand-header {
+  position: relative;
+  padding: var(--space-4) var(--page-x) var(--space-3);
+  overflow: hidden;
+
+  &__body {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 6rpx;
+  }
+
+  &__title {
+    font-size: var(--font-xl);
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  &__subtitle {
+    font-size: var(--font-sm);
+    color: var(--muted);
+  }
+
+  // 品牌装饰：极淡蓝灰抽象纹理（04 文档：实现山水素材困难时用淡蓝灰留白替代）
+  &__deco {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 320rpx;
+    height: 100%;
+    background: linear-gradient(220deg, rgba(37, 99, 235, 0.06) 0%, rgba(37, 99, 235, 0.02) 60%, transparent 100%);
+    border-bottom-left-radius: 60rpx;
+  }
+}

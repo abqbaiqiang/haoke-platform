@@ -1,0 +1,10 @@
+@import './styles/tokens.scss';
+
+// 小程序全局基础样式；Token 全部来自 styles/tokens.scss，禁止页面写死视觉值
+page {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  font-size: var(--font-md);
+  color: var(--text);
+  background: var(--bg);
+  line-height: 1.5;
+}

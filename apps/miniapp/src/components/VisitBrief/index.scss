@@ -1,0 +1,51 @@
+.visit-brief {
+  display: flex;
+
+  &__item {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8rpx;
+    padding: 0 var(--space-1);
+
+    & + & {
+      border-left: 1rpx solid var(--line);
+      padding-left: var(--space-2);
+    }
+  }
+
+  &__label-line {
+    display: flex;
+    align-items: center;
+    gap: 6rpx;
+  }
+
+  &__icon {
+    width: 32rpx;
+    height: 32rpx;
+    flex-shrink: 0;
+  }
+
+  &__label {
+    font-size: var(--font-xs);
+    color: var(--muted);
+  }
+
+  &__value {
+    font-size: var(--font-sm);
+    font-weight: 600;
+    color: var(--text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__note {
+    font-size: var(--font-xs);
+    color: var(--muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}

@@ -1,0 +1,126 @@
+.timeline-item {
+  display: flex;
+
+  &__meta {
+    width: 110rpx;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4rpx;
+    padding-top: 4rpx;
+  }
+
+  &__date {
+    font-size: var(--font-sm);
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  &__time {
+    font-size: var(--font-xs);
+    color: var(--muted);
+  }
+
+  &__axis {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 0 var(--space-2);
+    flex-shrink: 0;
+  }
+
+  &__dot {
+    width: 48rpx;
+    height: 48rpx;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+
+    &--followup { background: var(--brand); }
+    &--order { background: var(--warning); }
+    &--opportunity { background: var(--brand-strong); }
+    &--material { background: var(--muted); }
+  }
+
+  &__dot-icon {
+    width: 28rpx;
+    height: 28rpx;
+  }
+
+  &__line {
+    width: 2rpx;
+    flex: 1;
+    background: var(--line);
+    margin: 8rpx 0;
+  }
+
+  &__card {
+    flex: 1;
+    min-width: 0;
+    background: var(--card);
+    border: 1rpx solid rgba(24, 24, 27, 0.05);
+    border-radius: var(--radius-md);
+    padding: var(--card-padding);
+    box-shadow: var(--shadow-card);
+    margin-bottom: var(--space-3);
+  }
+
+  &__material {
+    display: flex;
+    flex-direction: column;
+    gap: 8rpx;
+  }
+
+  &__material-title {
+    font-size: var(--font-md);
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  &__material-summary {
+    font-size: var(--font-sm);
+    color: var(--text-secondary);
+  }
+
+  &__files {
+    display: flex;
+    gap: var(--space-2);
+    flex-wrap: wrap;
+  }
+
+  &__file {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    background: var(--bg);
+    border-radius: var(--radius-sm);
+    padding: var(--space-2);
+  }
+
+  &__file-icon {
+    width: 40rpx;
+    height: 40rpx;
+  }
+
+  &__file-info {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  &__file-name {
+    font-size: var(--font-xs);
+    color: var(--text);
+    max-width: 240rpx;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__file-size {
+    font-size: var(--font-xs);
+    color: var(--muted);
+  }
+}
