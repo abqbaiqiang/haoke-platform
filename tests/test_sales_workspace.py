@@ -240,9 +240,11 @@ def test_performance_role_gate_and_aggregates(db, client, accounts, sign_in):
     from datetime import datetime
     from app.crm_service import TZ
     now = datetime.now(TZ)
+    # 查询窗口必须与种子数据同月（接口把 from/to 规整为整月窗口）；此前硬编码 2026-09，跨月即假失败。
+    month_first = now.date().replace(day=1)
     src, c = _perf_source(db, accounts, [(now.date(), 8000), (now.date(), 5200), (now.date(), -1000)])
     sign_in('S1')
-    r = client.get('/api/sales/performance', params={'source_id': str(src.id), 'from': '2026-09-01', 'to': '2026-09-01'})
+    r = client.get('/api/sales/performance', params={'source_id': str(src.id), 'from': str(month_first), 'to': str(month_first)})
     assert r.status_code == 200, r.text
     data = r.json()
     assert data['verified'] is True
@@ -255,10 +257,10 @@ def test_performance_role_gate_and_aggregates(db, client, accounts, sign_in):
     assert data['quality']['active'] == 1
     assert data['risks'] == [] or all(r['count'] >= 0 for r in data['risks'])
     sign_in('S2')
-    other = client.get('/api/sales/performance', params={'source_id': str(src.id), 'from': '2026-09-01', 'to': '2026-09-01'})
+    other = client.get('/api/sales/performance', params={'source_id': str(src.id), 'from': str(month_first), 'to': str(month_first)})
     assert other.status_code == 404
     sign_in('Owner')
-    assert client.get('/api/sales/performance', params={'source_id': str(src.id), 'from': '2026-09-01', 'to': '2026-09-01'}).status_code == 403
+    assert client.get('/api/sales/performance', params={'source_id': str(src.id), 'from': str(month_first), 'to': str(month_first)}).status_code == 403
 
 
 def bi_shift(d, days):
@@ -269,12 +271,13 @@ def test_performance_last_year_yoy_gated_by_coverage(db, client, accounts, sign_
     from datetime import datetime, timedelta
     from app.crm_service import TZ
     now = datetime.now(TZ)
+    month_first = now.date().replace(day=1)  # 窗口随种子数据所在月，避免跨月假失败
     ly = now - timedelta(days=365)
     # 覆盖单固定放在去年同期窗口之前：若相对 ly 偏移，当“今天”落在每月 17—30 日时会漂进去年同期同月窗口。
     coverage = (bi_shift(ly.date().replace(day=1), -16))
     src, c = _perf_source(db, accounts, [(now.date(), 8000), (ly.date(), 10000), (coverage, 500)])
     sign_in('S1')
-    data = client.get('/api/sales/performance', params={'source_id': str(src.id), 'from': '2026-09-01', 'to': '2026-09-01'}).json()
+    data = client.get('/api/sales/performance', params={'source_id': str(src.id), 'from': str(month_first), 'to': str(month_first)}).json()
     # 订单历史覆盖到去年同期（auto-accept 全历史），同比可用
     assert data['month_amount'] == '8000.00'
     assert data['last_year_amount'] == '10000.00'
