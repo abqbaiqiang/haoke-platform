@@ -187,6 +187,25 @@ def test_followup_image_paste_end_to_end(db, client, accounts, sign_in):
                        json={**body, 'content_type': 'application/pdf'}).status_code == 422
 
 
+def test_followup_attachment_storage_failure_gives_clear_error(db, client, accounts, sign_in, monkeypatch, tmp_path):
+    """存储目录不可写（典型：外部迁入文件属主错误）时返回明确提示，前端能展示原因而非裸 500。"""
+    from app.config import get_settings
+
+    mine, _ = seed_customers(db, accounts)
+    f = Followup(customer_id=mine.id, owner_user_id=accounts['S1'].id,
+                 interaction_method='phone', contact_result='no_answer', occurred_at=now())
+    db.add(f)
+    db.commit()
+    blocker = tmp_path / 'not-a-dir'
+    blocker.write_bytes(b'')  # UPLOAD_ROOT 指向普通文件，其下建目录必然抛 OSError
+    monkeypatch.setattr(get_settings(), 'upload_root', str(blocker))
+    body = {'filename': '微信截图.png', 'content_type': 'image/png', 'data_base64': base64.b64encode(b'x').decode()}
+    sign_in('S1')
+    response = client.post(f'/api/sales/followups/{f.id}/attachments', json=body)
+    assert response.status_code == 500
+    assert '存储目录不可写' in response.json()['error']['message']
+
+
 def test_task_row_carries_customer_project_stage(db, client, accounts, sign_in):
     mine, _ = seed_customers(db, accounts)
     opp(db, accounts, mine, 'S1', '礼盒项目', 'selection')

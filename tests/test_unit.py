@@ -94,7 +94,8 @@ def test_production_lan_http_allowed_and_cookie_secure_follows_scheme():
 
 
 def test_storage_init_prepares_configured_directories(tmp_path, monkeypatch):
-    """审计 P1-15：storage_init 仅准备配置的目录，并逐一 chown 10001:10001 / chmod 0700。"""
+    """审计 P1-15：storage_init 仅准备配置的目录，并逐一 chown 10001:10001 / chmod 0700；
+    2026-09-19 扩展：对 UPLOAD_ROOT/BACKUP_ROOT 内的外部迁入内容递归自愈属主（不递归 chmod）。"""
     import os
     import runpy
     from pathlib import Path
@@ -104,12 +105,18 @@ def test_storage_init_prepares_configured_directories(tmp_path, monkeypatch):
     monkeypatch.setattr(os, 'chown', lambda path, uid, gid: chown_calls.append((path, uid, gid)), raising=False)
     monkeypatch.setattr(Path, 'chmod', lambda self, mode: chmod_calls.append((self, mode)))
     upload, backup = tmp_path / 'upload', tmp_path / 'backup'
+    # 模拟外部迁入的错误属主内容：嵌套目录与文件（属主值任意，断言只看被 chown 的路径全集）。
+    migrated_dir = upload / 'migrated-batch'
+    migrated_dir.mkdir(parents=True)
+    (migrated_dir / 'img.png').write_bytes(b'x')
     monkeypatch.setenv('UPLOAD_ROOT', str(upload))
     monkeypatch.setenv('BACKUP_ROOT', str(backup))
     script = Path(__file__).resolve().parents[1] / 'apps/backend/app/storage_init.py'
     runpy.run_path(str(script))
     assert (upload / 'raw').is_dir() and (upload / 'attachments').is_dir() and backup.is_dir()
-    expected = [upload, upload / 'raw', upload / 'attachments', backup]
-    assert [path for path, _, _ in chown_calls] == expected
+    assert (upload / 'followups').is_dir()
+    expected = [upload, upload / 'raw', upload / 'attachments', upload / 'followups', backup]
+    chowned = {path for path, _, _ in chown_calls}
+    assert chowned == set(expected) | {migrated_dir, migrated_dir / 'img.png'}
     assert {uid for _, uid, _ in chown_calls} == {10001} and {gid for _, _, gid in chown_calls} == {10001}
     assert [path for path, _ in chmod_calls] == expected and {mode for _, mode in chmod_calls} == {0o700}

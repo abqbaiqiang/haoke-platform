@@ -699,10 +699,14 @@ def add_followup_attachment(fid: UUID, payload: dto.FollowupAttachmentInput, db:
         raise HTTPException(413, f'图片超过单张上限 {limit_mb}MB（CRM 设置可调）')
     digest = hashlib.sha256(data).hexdigest()
     root = Path(get_settings().upload_root).resolve() / 'followups' / str(fid)
-    root.mkdir(parents=True, exist_ok=True)
-    target = root / f'{digest}{_IMAGE_EXT[payload.content_type]}'
-    if not target.exists():
-        target.write_bytes(data)
+    try:
+        root.mkdir(parents=True, exist_ok=True)
+        target = root / f'{digest}{_IMAGE_EXT[payload.content_type]}'
+        if not target.exists():
+            target.write_bytes(data)
+    except OSError:
+        # 典型场景：uploads 目录属主不对（外部迁入文件后未跑 storage-init 自愈）
+        raise HTTPException(500, '附件保存失败：存储目录不可写，请联系管理员（重新部署可自动修复权限）')
     row = FollowupAttachment(followup_id=fid, filename=payload.filename, content_type=payload.content_type,
                              size_bytes=len(data), sha256=digest, storage_path=str(target), created_by=actor.id)
     db.add(row)
