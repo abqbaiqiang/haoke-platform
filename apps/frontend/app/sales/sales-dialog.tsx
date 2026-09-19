@@ -7,8 +7,11 @@ import type { Contact, CustomerRow as Customer, Page, TaskRow as Task, User } fr
 import type { DialogState } from "./types";
 import { Modal } from "./ui";
 
+// 沟通结果为已沟通/沟通顺利时，业务规则要求必须安排下一步（前后端同此校验）。
+const skipConflict = (result: string) => ["normal", "good"].includes(result);
+
 export function SalesDialog({ state, user, close, saved, switchToFollow }: { state: DialogState; user: User; close: () => void; saved: (s: string) => void; switchToFollow: (t: Task) => void }) {
-  const [cid, setCid] = useState(state.customer?.id || state.task?.customer_id || ""), [q, setQ] = useState(""), [search, setSearch] = useState(""), [busy, setBusy] = useState(false), [error, setError] = useState(""), [complete, setComplete] = useState(state.kind === "follow" && !!state.task), [nextPlan, setNextPlan] = useState<"need" | "skip">("need"), [cbOpen, setCbOpen] = useState(false);
+  const [cid, setCid] = useState(state.customer?.id || state.task?.customer_id || ""), [q, setQ] = useState(""), [search, setSearch] = useState(""), [busy, setBusy] = useState(false), [error, setError] = useState(""), [complete, setComplete] = useState(state.kind === "follow" && !!state.task), [nextPlan, setNextPlan] = useState<"need" | "skip">("need"), [cbOpen, setCbOpen] = useState(false), [resultVal, setResultVal] = useState("normal");
   const timer = useRef(0);
   const choices = useData<Page<Customer>>(!state.customer && !state.task && ["follow", "task"].includes(state.kind) ? `/api/sales/customers?q=${encodeURIComponent(search)}&limit=100` : null);
   const detail = useData<{ customer: { customer_name: string }; contacts: Contact[] }>(cid ? `/api/crm/customers/${cid}` : null);
@@ -22,11 +25,11 @@ export function SalesDialog({ state, user, close, saved, switchToFollow }: { sta
   }
   return <Modal title={title} close={close} locked={busy}>
     {state.kind === "complete" ? <><p>待办「{state.task?.title}」即将完成。建议把和客户的实际沟通记录下来，下次跟进有依据。</p>
+      {error && <p className="sales-alert" role="alert">{error}</p>}
       <div className="sales-form-footer">
         <button type="button" disabled={busy} onClick={() => switchToFollow(state.task!)}>记录跟进并完成</button>
         <button className="sales-primary" disabled={busy} onClick={async () => { setBusy(true); try { await api(`/api/crm/tasks/${state.task!.id}`, { method: "PATCH", json: { status: "done" } }); saved("待办已完成，未记录跟进"); } catch (e) { setError((e as Error).message); } finally { setBusy(false); } }}>{busy ? "正在保存…" : "直接完成"}</button>
       </div></> : <form onSubmit={submit} className="sales-form" aria-label={title}>
-      {error && <p className="sales-alert" role="alert">{error}</p>}
       {detail.error && <p role="alert">{detail.error}</p>}
       {["follow", "task"].includes(state.kind) && <>{state.customer || state.task ? <p className="sales-context">{detail.data?.customer.customer_name || state.customer?.customer_name || state.task?.customer_name}{state.task && <small>当前待办：{state.task.title}</small>}</p> : <>
         <div className="sales-picker"><label>查找客户（输入关键字从下拉中选择）<div className="sales-combobox"><input value={q} maxLength={100} placeholder="例如输入“冠”，从下拉里选客户" onChange={e => { setQ(e.target.value); setCbOpen(true); clearTimeout(timer.current); timer.current = window.setTimeout(() => setSearch(e.target.value.trim()), 300); }} onFocus={() => setCbOpen(true)} onBlur={() => window.setTimeout(() => setCbOpen(false), 150)} />
@@ -35,14 +38,14 @@ export function SalesDialog({ state, user, close, saved, switchToFollow }: { sta
         <p className="sales-note">已选择：{cid ? (choices.data?.rows.find(x => x.id === cid)?.customer_name || "当前客户") : "未选择"}{cid && <> <button type="button" onClick={() => { setCid(""); setQ(""); setSearch(""); }}>重选</button></>}</p>
       </>}</>}
       {state.kind === "follow" && <>
-        <div className="sales-form-grid"><label>跟进方式<select name="method"><option value="phone">电话</option><option value="wechat">微信</option><option value="visit">拜访</option><option value="meeting">面谈</option><option value="quote">报价</option><option value="other">其他</option></select></label><label>沟通结果<select name="result"><option value="normal">已沟通</option><option value="good">沟通顺利</option><option value="waiting">等待反馈</option><option value="no_answer">未接通</option><option value="no_need">暂无需求</option><option value="rejected">明确拒绝</option><option value="won">已成交（不计入实际业绩）</option></select></label><label>沟通有效性<select name="effective" defaultValue="yes"><option value="yes">有效沟通</option><option value="no">未联系上</option></select></label></div>
+        <div className="sales-form-grid"><label>跟进方式<select name="method"><option value="phone">电话</option><option value="wechat">微信</option><option value="visit">拜访</option><option value="meeting">面谈</option><option value="quote">报价</option><option value="other">其他</option></select></label><label>沟通结果<select name="result" onChange={e => setResultVal(e.target.value)}><option value="normal">已沟通</option><option value="good">沟通顺利</option><option value="waiting">等待反馈</option><option value="no_answer">未接通</option><option value="no_need">暂无需求</option><option value="rejected">明确拒绝</option><option value="won">已成交（不计入实际业绩）</option></select></label><label>沟通有效性<select name="effective" defaultValue="yes"><option value="yes">有效沟通</option><option value="no">未联系上</option></select></label></div>
         <label>联系人<select name="contact" key={cid}><option value="">未指定</option>{detail.data?.contacts.filter(c => c.is_active).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
         <label>沟通摘要<textarea name="summary" rows={3} maxLength={4000} required placeholder="客户反馈了什么，还需确认什么？" /></label>
         <label className="sales-check"><input name="quoted" type="checkbox" />本次已发送报价（客户将进入“已报价”阶段）</label>
         <div className="sales-next-step">
           <h3>下一步安排</h3>
           <div className="sales-plan-choice" role="radiogroup" aria-label="是否需要安排下一步"><button type="button" aria-pressed={nextPlan === "need"} onClick={() => setNextPlan("need")}>需要安排下一步</button><button type="button" aria-pressed={nextPlan === "skip"} onClick={() => setNextPlan("skip")}>暂不需要</button></div>
-          {nextPlan === "skip" ? <p className="sales-note">暂不安排时，请在上方“沟通结果”里注明原因（如暂无需求、等待反馈、未接通），避免客户被遗忘。</p> : <p>同时填写动作和时间，自动生成一条我的待办。</p>}
+          {nextPlan === "skip" ? (skipConflict(resultVal) ? <p className="sales-alert" role="alert">当前沟通结果是“已沟通/沟通顺利”，无法保存“暂不需要”——请先把上方“沟通结果”改为“暂无需求 / 等待反馈 / 未接通”等，再保存。</p> : <p className="sales-note">暂不安排时，已注明原因，可直接保存。</p>) : <p>同时填写动作和时间，自动生成一条我的待办。</p>}
           <label>下一步动作<input name="next_action" maxLength={255} disabled={nextPlan === "skip"} placeholder="例如：电话确认礼盒数量" /></label>
           <label>下次联系时间（北京时间）<input name="next_followup_at" type="datetime-local" disabled={nextPlan === "skip"} /></label>
         </div>
@@ -50,6 +53,7 @@ export function SalesDialog({ state, user, close, saved, switchToFollow }: { sta
       </>}
       {state.kind === "task" && <><label>待办内容<input name="title" required maxLength={255} /></label><div className="sales-form-grid"><label>类型<select name="type">{Object.entries(taskTypes).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></label><label>截止时间（北京时间）<input name="due" type="datetime-local" required /></label></div></>}
       {state.kind === "defer" && <><p>{state.task?.title}</p><label>调整方式<select name="status" onChange={e => setComplete(e.target.value === "cancelled")}><option value="todo">修改截止时间</option><option value="cancelled">取消待办</option></select></label><label>新的截止时间（北京时间）<input name="due" type="datetime-local" required={!complete} /></label><p className="sales-note">取消后保留历史，不删除记录。</p></>}
+      {error && <p className="sales-alert" role="alert">{error}</p>}
       <div className="sales-form-footer"><button type="button" disabled={busy} onClick={close}>取消</button><button className="sales-primary" disabled={busy || ((state.kind === "follow") && (!cid || detail.loading || !!detail.error))}>{busy ? "正在保存…" : state.kind === "follow" ? "保存跟进与下一步" : "保存"}</button></div>
     </form>}
   </Modal>;

@@ -92,3 +92,64 @@ SW${suffix},销售工作台验收 ${suffix}
  await page.getByRole('button',{name:'登录',exact:true}).click();
  await expect(page.getByRole('navigation',{name:'主导航'}).getByRole('link',{name:'人员管理',exact:true})).toBeVisible();
 });
+
+test("followup skip plan: conflict warning inline, save error near footer, saves after result fixed",async({page})=>{
+ test.setTimeout(90000);
+ const errors:string[]=[];page.on("pageerror",e=>errors.push(e.message));
+ await page.goto('/');
+ await page.getByLabel('账号',{exact:true}).fill('demo_sales');
+ await page.getByLabel('密码',{exact:true}).fill(process.env.DEMO_PASSWORD!);
+ await page.getByRole('button',{name:'登录',exact:true}).click();
+ const headers={origin:new URL(page.url()).origin};
+ const base=process.env.E2E_BASE_URL||"http://localhost:3000";
+ const tmp=await pwRequest.newContext({baseURL:base});
+ const suffix=Date.now().toString();
+ expect((await tmp.post('/api/auth/login',{headers:{Origin:base},data:{username:'demo_owner',password:process.env.DEMO_PASSWORD!}})).ok()).toBeTruthy();
+ const oh={Origin:base};
+ const source=await (await tmp.post('/api/data/sources',{headers:oh,data:{source_code:`skip_${suffix}`,source_name:`暂不需要验收源 ${suffix}`,entity_name:'人工销售工作台测试'}})).json();
+ const csv=`客户编码,客户名称
+SK${suffix},暂不需要验收 ${suffix}
+`;
+ const uploaded=await tmp.post(`/api/data/imports?source_id=${source.id}&kind=customer&filename=skip.csv`,{headers:{...oh,'Content-Type':'application/octet-stream'},data:Buffer.from(csv,'utf-8')});
+ expect(uploaded.status()).toBe(201);
+ const batch=await uploaded.json();
+ expect((await tmp.post(`/api/data/imports/${batch.id}/confirm`,{headers:oh,data:{acknowledge_warnings:true}})).ok()).toBeTruthy();
+ await tmp.dispose();
+ const pool=await (await page.request.get(`/api/crm/customers?pool=1&q=${encodeURIComponent('暂不需要验收 '+suffix)}`,{headers})).json();
+ const customer=pool.rows[0];
+ expect((await page.request.post(`/api/crm/customers/${customer.id}/claim`,{headers})).status()).toBe(200);
+ const me=(await (await page.request.get('/api/auth/me')).json()).user;
+ const due=new Date(Date.now()+3600000).toISOString();
+ const t=await page.request.post('/api/crm/tasks',{headers,data:{title:'暂不需要待办 '+suffix,customer_id:customer.id,assignee_user_id:me.id,due_at:due,task_type:'followup'}});
+ expect(t.status()).toBe(201);
+ // 到期时间按北京时间算：若 now+1h 跨天（23 点后运行），任务落入“全部未来”视图而非“今天”。
+ const bjDay=(d:Date)=>new Date(d.getTime()+8*3600000).toISOString().slice(0,10);
+ const dueToday=bjDay(new Date(due))===bjDay(new Date());
+ await page.reload();
+ const nav=page.getByRole('navigation',{name:'主导航'});
+ await nav.getByRole('link',{name:'待办',exact:true}).click();
+ if (!dueToday) await page.getByRole('button',{name:'未来7天',exact:true}).click();
+ const target=page.locator('.tk-card, .sales-table tbody tr').filter({hasText:'暂不需要待办 '+suffix}).first();
+ await expect(target).toBeVisible();
+ await target.getByRole('button',{name:'记录跟进',exact:true}).click();
+ const dialog=page.getByRole('dialog',{name:'记录跟进',exact:true});
+ await expect(dialog).toContainText(customer.customer_name);
+ await dialog.getByLabel('沟通摘要',{exact:true}).fill('已沟通，客户暂不需要安排下一步');
+ // 沟通结果仍为“已沟通”时点“暂不需要”：选择处立即红条警示，说明为何无法保存。
+ await dialog.getByRole('button',{name:'暂不需要',exact:true}).click();
+ const inline=dialog.getByText('无法保存“暂不需要”');
+ await expect(inline).toBeVisible();
+ await dialog.getByRole('button',{name:'保存跟进与下一步'}).click();
+ // 保存失败的提示出现在底部（保存按钮上方），不再显示在弹窗顶部。
+ const saveAlert=dialog.getByText('已沟通或沟通顺利的客户请安排下一步');
+ await expect(saveAlert).toBeVisible();
+ const alertBox=await saveAlert.boundingBox(); const saveBox=await dialog.getByRole('button',{name:'保存跟进与下一步'}).boundingBox();
+ expect(alertBox && saveBox && alertBox.y! < saveBox.y!).toBeTruthy();
+ // 把沟通结果改为“等待反馈”后警示消失，可正常保存。
+ await dialog.getByRole('combobox',{name:'沟通结果',exact:true}).selectOption('waiting');
+ await expect(dialog.getByText('可直接保存')).toBeVisible();
+ await dialog.getByRole('button',{name:'保存跟进与下一步'}).click();
+ await expect(dialog).not.toBeVisible();
+ await expect(page.getByRole('status')).toContainText('跟进已保存');
+ expect(errors).toEqual([]);
+});
