@@ -1,5 +1,17 @@
 # Changelog
 
+## CI 恢复全绿（m0 workflow 首次通过）+ 双模型审计批次 A 修复 - 2026-09-19（审计整改清单 V2.0 批次 A）
+
+- **背景**：双模型联合代码审计清单 V2.0 批次 A（R0 发布阻断项）。master CI 连续红灯 7+ 次，本次逐项修复后 m0 workflow 全绿——经查该 workflow 此前从未通过（E2E 步骤存在自引入以来未暴露的宿主机依赖缺陷）。
+- **A1 sales.css token 自引用**（8d4fe54）：df6fd96 token 化时把 10 个 token 定义本身替换成了 `var(自身)` 循环（blue-strong/dim/line/line-soft/soft/head/danger/ok/green/warn），计算值无效致引用规则按 currentColor/initial 渲染；原始字面量从 df6fd96~1 逐规则对齐恢复（line-soft 原混用三种近似值，统一取软边框主值 #e6edf5）。
+- **A2 sales performance 测试跨月炸弹**（ad42894）：用 datetime.now 播种却硬编码查 2026-09 窗口，10 月起必假失败；改为随种子数据所在月推整月窗口。
+- **A3 推荐产品顺序不确定**（2dcb022）：save_opportunity 遍历 `set(product_ids)` 插入（顺序随 PYTHONHASHSEED 变化）且 attach_products 无 ORDER BY；改为按提交顺序去重遍历 + created_at 单调递增 + 查询侧 ORDER BY，API 从此按用户提交顺序返回。
+- **A5 公海并发认领 flake**（2dcb022）：测试断言 owner==ids[0] 是对线程调度的错误假设（barrier 下谁先拿行锁谁成 owner），改为断言 owner ∈ 两位认领人。
+- **A6 CI 容器存储不可写**（2dcb022）：CI 容器 WORKDIR 属主 root，upload_root 默认相对路径 app-data/uploads appuser 建不了目录致附件测试 500；conftest 将 UPLOAD_ROOT 指到临时目录（同时避免测试产物落进本地开发数据目录）。
+- **A7 任务视图跨午夜炸弹**（e0fad9b，全量回归 21 点档实测撞出）：test_task_row_carries 用 now+2h/+3h 定到期时间，21:00—22:00 运行时 +3h 跨午夜掉出 today 视口；改为固定今天 08:00/09:00。
+- **A8 CI E2E 步骤三连修**（7227d68/992869e/488f1fd）：①run_e2e 清登录节流直连 DATABASE_URL，CI 宿主机连不上 compose 内网 postgres（未发布端口，符合铁律 9），改为失败时经 `docker compose exec backend` 容器内清理，本地直连行为不变；②③requirements-test.lock 补 openpyxl==3.1.5 / xlrd==2.0.2 / defusedxml==0.7.1（m1_fixtures→import_parser 链路依赖，backend-tests 容器因 runtime 层已有未暴露）。
+- **验证**：本地 run_tests.py 全绿（ruff + pytest 291 + tsc + next build + bundle 扫描）；CI run 35446294577 全绿（首次），第二次 clean run 以 workflow_dispatch 触发验证（R0-01 验收标准：连续 2 次 clean run 后设为 merge gate）。
+
 ## 微信小程序 CRM Phase 1：工程骨架 + UI Design System + 六页 Mock - 2026-09-19（docs/miniapp/06）
 
 - **新增 `apps/miniapp/`**：Taro 4.2.1 + React 18.3.1（独立 package.json，Taro 4 官方兼容 React 18；PC 的 React 19 不动，等 Taro 支持后再评估）+ TypeScript 5.6 + SCSS + webpack5，`designWidth 750`；脚本 `build:weapp` / `dev:weapp` / `typecheck`。

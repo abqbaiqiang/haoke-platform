@@ -1,5 +1,17 @@
 # Project Task Status
 
+## 2026-09-19 Batch A of dual-model audit checklist done — CI green for the first time (audit doc V2.0)
+
+- [x] A1: sales.css 10 self-referencing tokens fixed (8d4fe54) — originals recovered from df6fd96~1; CSS custom-property cycles made every referencing rule render as currentColor/initial (table dividers, borders, warn text were visibly broken)
+- [x] A2: sales performance tests no longer break across months (ad42894) — query window derived from seed month instead of hardcoded 2026-09
+- [x] A3: opportunity products order deterministic (2dcb022) — insertion iterated a `set` (PYTHONHASHSEED-random) + no ORDER BY; now submitted-order dedup insert, monotonic created_at, read-side ORDER BY
+- [x] A5: concurrent pool-claim flake fixed (2dcb022) — owner assertion relaxed to "one of the two claimants" (row-lock winner is scheduler-dependent; the other claimant co-claims)
+- [x] A6: CI container storage fixed (2dcb022) — conftest points UPLOAD_ROOT at a temp dir (WORKDIR is root-owned in the image; also stops test artifacts landing in local dev uploads)
+- [x] A7: task-view test midnight bomb fixed (e0fad9b) — found live at 21:0x during full regression; due times anchored at today 08:00/09:00
+- [x] A8: CI E2E step fixed (7227d68, 992869e, 488f1fd) — login-throttle clear falls back to `docker compose exec backend` when the runner host cannot reach the internal postgres (port intentionally unpublished); requirements-test.lock gained openpyxl/xlrd/defusedxml used by the e2e fixture chain (masked in the test container by the runtime layer)
+- [x] Verification: local run_tests.py fully green (ruff + pytest 291 + tsc + next build + bundle scan); m0 workflow GREEN for the first time ever (run 35446294577) — E2E step had never passed; second clean run via workflow_dispatch per R0-01 acceptance (2 consecutive clean runs before making CI a merge gate)
+- [ ] Pending owner: none for this batch; next batch per audit doc = B (web map Marker/event/drag fixes + real-key acceptance)
+
 ## 2026-09-19 Web customer location management implemented (docs "Web端客户位置管理功能开发文档 V1.0")
 
 - [x] DB: migration 0014_customer_location — customer gains latitude/longitude DOUBLE PRECISION, coordinate_system, location_status (NOT NULL DEFAULT 'unset'), location_source, location_updated_at/by; back-compatible (all history NULL+unset), downgrade drops all
