@@ -1,5 +1,11 @@
 # Project Task Status
 
+## 2026-09-19 WeChat mini-program CRM started (docs/miniapp dev package, Phase 0 done)
+
+- [x] Phase 0 baseline (no business code touched): dev package 00-06 docs + 6 UI reference images archived into `docs/miniapp/`; baseline verified against code — reuse Customer/Contact/Followup/Task/Opportunity/FollowupAttachment models, `save_followup()` task linkage, `customer_scope`, cookie auth + Origin middleware, /api/map tencent proxy (web customer-location feature landed uncommitted by a parallel workstream); worker currently heartbeat-only (geocode/ASR polling jobs to be added); output `docs/miniapp/DEV_LOG.md` with 5 required sections + 8 risks (top: coordinate-field merge decision needed before Phase 7 since uncommitted 0014_customer_location already added latitude/longitude; /api/mobile Origin exemption design; Taro4+React POC)
+- [ ] Phase 1 next: apps/miniapp Taro 4 scaffold + Design Tokens + shared components + six-page mock skeleton, `build:weapp` green
+- [ ] Phases 2-9 queued per docs/miniapp/06 (auth → read-only → followup write → media → ASR/AI → map → visual polish → full regression); ASR/AI vendor selection needed before Phase 6; ui/05 "route banner" conflicts with PRD V1 scope (docs-first: degrade to plain hint, confirm with owner before Phase 7)
+
 ## 2026-09-18 Sales-side refactor phases 1-5 implemented (docs/32, awaiting owner acceptance)
 
 - [x] Phase 1 Layout (f401d27): sales.css semantic tokenization (--sales-* family, 31 literals replaced); topbar aligned to reference (overdue bell with badge → tasks?view=overdue, right-side time group); no business/API changes
