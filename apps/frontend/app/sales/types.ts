@@ -58,6 +58,9 @@ export type WorkbenchSummary = {
   overdue_tasks: number;
   open_projects: number;
   key_customers: number | null;
+  /** 沉睡/疑似流失提醒数：与客户页级联标签同口径（docs/32 §3.2），保证提醒点击直达后条数一致。 */
+  dormant_customers: number;
+  at_risk_customers: number;
   warnings: string[];
 };
 

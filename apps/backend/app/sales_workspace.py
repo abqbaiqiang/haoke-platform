@@ -618,6 +618,10 @@ class WorkbenchSummary(dto.DTO):
     overdue_tasks: int
     open_projects: int
     key_customers: int | None
+    # 沉睡/疑似流失提醒数：与客户页级联标签同一口径（docs/32 §3.2 拍板"标签页、重点提醒用同一个数"），
+    # 保证重点提醒点击直达后列表条数与提醒数一致。
+    dormant_customers: int
+    at_risk_customers: int
     warnings: list[str]
 
 
@@ -637,6 +641,8 @@ def workbench_summary(db: DB, actor: Actor, source_id: UUID):
     completion = str((Decimal(actual) / Decimal(target) * 100).quantize(Decimal('0.1'))) \
         if actual is not None and target else None
     ids = visible(db, actor)
+    id_list = list(db.scalars(ids))
+    _, caliber_tabs, _at_risk, _keys = customer_caliber(db, actor, id_list)
     now = utcnow()
     task_base = select(Task).where(Task.assignee_user_id == actor.id,
                                    or_(Task.customer_id.is_(None), Task.customer_id.in_(ids)))
@@ -656,6 +662,7 @@ def workbench_summary(db: DB, actor: Actor, source_id: UUID):
         today_tasks=today_tasks or 0, overdue_tasks=overdue_tasks or 0,
         open_projects=open_projects or 0,
         key_customers=len(key_ids) if not key_warning else None,
+        dormant_customers=caliber_tabs['dormant'], at_risk_customers=caliber_tabs['at_risk'],
         warnings=warnings)
 
 

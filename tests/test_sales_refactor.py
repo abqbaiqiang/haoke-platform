@@ -99,11 +99,11 @@ def test_workbench_summary_counts_and_rfm_key_customers(db, client, accounts, si
     db.add(product)
     db.commit()
 
-    def add_order(c, amount, day):
-        o = SalesOrder(source_system=source.source_code, order_no=uuid4().hex, order_date=date.fromisoformat(day),
+    def add_order(c, amount, day, ds=None, batch_=None):
+        o = SalesOrder(source_system=(ds or source).source_code, order_no=uuid4().hex, order_date=date.fromisoformat(day),
                        customer_id=c.id, sales_user_id=accounts['S1'].id, sales_amount=Decimal(amount),
                        source_status='valid', content_hash=uuid4().hex,
-                       updated_at=datetime(2026, 9, 14, tzinfo=crm.TZ), last_import_batch_id=batch.id)
+                       updated_at=datetime(2026, 9, 14, tzinfo=crm.TZ), last_import_batch_id=(batch_ or batch).id)
         db.add(o)
         db.flush()
         db.add(SalesOrderLine(sales_order_id=o.id, version=1, line_no=1, product_id=product.id,
@@ -111,6 +111,19 @@ def test_workbench_summary_counts_and_rfm_key_customers(db, client, accounts, si
                               last_import_batch_id=batch.id))
     add_order(mine, '0.10', '2026-09-01')
     add_order(other, '100.00', '2026-09-03')
+    # 沉睡+疑似流失样本：旧账套里的旧订单（距 monkeypatch 的 today(2026-09-15) 248 天，
+    # >90 沉睡且 ≥180 疑似流失；级联口径不按账套过滤，S1 本月金额与来源可见性不受影响）。
+    stale = Customer(source_system='crm', customer_name='S1休眠客户', normalized_name='S1休眠客户',
+                     owner_user_id=accounts['S1'].id, ownership_status='owned')
+    src_old = DataSource(source_code='sr_sum_old', source_name='旧账套', entity_name='测试公司')
+    db.add_all([stale, src_old])
+    db.flush()
+    batch_old = ImportBatch(data_source_id=src_old.id, business_type='sales', original_filename='fake-old.csv',
+                            storage_path='not-a-real-file', file_hash='c' * 64, imported_by=accounts['Admin'].id,
+                            status='succeeded')
+    db.add(batch_old)
+    db.commit()
+    add_order(stale, '30.00', '2026-01-10', ds=src_old, batch_=batch_old)
     db.commit()
     opp(db, accounts, mine, 'S1', '开放一')
     opp(db, accounts, other, 'S2', '开放二')
@@ -126,6 +139,10 @@ def test_workbench_summary_counts_and_rfm_key_customers(db, client, accounts, si
     assert data['actual_amount'] == '100.10'
     assert data['target_amount'] is None and data['completion'] is None
     assert data['key_customers'] == 1
+    # 重点提醒与客户页级联标签同一口径（docs/32 §3.2）：提醒数=点击直达后的列表条数。
+    assert data['dormant_customers'] == 1 and data['at_risk_customers'] == 1
+    assert client.get('/api/sales/customers?status=dormant&limit=50').json()['total'] == 1
+    assert client.get('/api/sales/customers?status=at_risk&limit=50').json()['total'] == 1
     # 数据源按销售订单 scope 把关：S2 在该来源无订单，汇总不可见（与既有一致）。
     sign_in('S2')
     assert client.get(f'/api/sales/workbench-summary?source_id={source.id}').status_code == 404

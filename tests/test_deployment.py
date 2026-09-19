@@ -30,8 +30,9 @@ def test_frontend_has_no_server_secrets():
     assert source.exists()
     for path in source.rglob("*"):
         if path.is_file():
-            content = path.read_text(encoding="utf-8")
-            assert "APP_SECRET_KEY" not in content
-            assert "DATABASE_URL" not in content
+            # app/ 下有二进制静态资源（如 icon.png），按字节扫描避免 UTF-8 解码失败。
+            content = path.read_bytes()
+            assert b"APP_SECRET_KEY" not in content
+            assert b"DATABASE_URL" not in content
             # 会话令牌名不得出现在前端源码中；“记住账号”仅持久化用户名，属允许范围。
-            assert "songmao_session" not in content
+            assert b"songmao_session" not in content

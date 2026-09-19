@@ -40,15 +40,15 @@ export function WorkbenchScreen({ work, focusToday, focusOverdue, attention, sum
   const merged = new Map<string, Task>();
   [...(focusOverdue.data?.rows || []), ...(focusToday.data?.rows || [])].forEach(t => merged.set(t.id, t));
   const battle = [...merged.values()].sort((a, b) => (a.due_at < b.due_at ? -1 : 1));
-  const riskN: Record<string, number> = {};
-  (attention.data?.rows || []).forEach(r => riskN[r.kind] = (riskN[r.kind] || 0) + 1);
+  // 重点提醒计数与客户页级联标签同一口径（docs/32 §3.2 拍板"标签页、重点提醒用同一个数"），
+  // 保证点击直达后列表条数与提醒数一致；不再用 attention 逐行计数（其口径与列表不一致）。
+  const s = summary.data;
   const risks: { label: string; n: number; unit: string; route: Route; tone: "high" | "med" }[] = [
-    { label: "沉睡客户", n: riskN["沉睡"] || 0, unit: "家", route: { screen: "customers", status: "dormant" }, tone: "high" },
-    { label: "疑似流失客户", n: riskN["疑似流失"] || 0, unit: "家", route: { screen: "customers", status: "at_risk" }, tone: "high" },
+    { label: "沉睡客户", n: s?.dormant_customers ?? 0, unit: "家", route: { screen: "customers", status: "dormant" }, tone: "high" },
+    { label: "疑似流失客户", n: s?.at_risk_customers ?? 0, unit: "家", route: { screen: "customers", status: "at_risk" }, tone: "high" },
   ];
   if (overdueN > 0) risks.push({ label: "逾期任务", n: overdueN, unit: "项", route: { screen: "tasks", taskView: "overdue" }, tone: "med" });
   const metricOf = (code: string) => work.data?.metrics.find(m => m.code === code);
-  const s = summary.data;
   const page: ProjectBoard | null = boardPage ?? (board.data ? { rows: board.data.rows, total: board.data.total } : null);
   const rows = page?.rows || [];
   async function openBoard(offset: number) {
