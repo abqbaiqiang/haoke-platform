@@ -388,6 +388,18 @@ table{font-variant-numeric:tabular-nums}
 .cd .cd-actions-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
 .cd .cd-primary{background:var(--cd-primary);border-color:var(--cd-primary);color:#fff;font-weight:600}
 .cd .cd-primary:hover:not(:disabled){background:var(--cd-primary-hover);border-color:var(--cd-primary-hover)}
+/* 客户位置卡与地图弹窗（Web 端客户位置功能）：复用 .cd 令牌，不新增视觉体系。 */
+.cd .cd-loc-actions{margin-left:auto;display:flex;gap:4px}
+.cd .cd-loc-actions button{font-size:13px;color:var(--cd-primary);background:none;border:0;min-height:32px}
+.cd .loc-modal-body{padding:20px 24px;display:flex;flex-direction:column;gap:12px}
+.cd .loc-map{width:100%;height:420px;border:1px solid var(--cd-line);border-radius:var(--cd-radius-ctl);background:var(--cd-bg)}
+.cd .loc-coords{font-size:12px;color:var(--cd-ink2);margin:0}
+.cd .loc-search{display:flex;gap:8px;align-items:flex-end}
+.cd .loc-search label{display:flex;flex-direction:column;gap:6px;flex:1;font-size:13px;color:var(--cd-ink2)}
+.cd .loc-search input{display:block;width:100%;font:inherit;height:var(--ctl-h);padding:0 12px;border:1px solid var(--cd-line);border-radius:var(--cd-radius-ctl);color:var(--cd-ink);background:#fff}
+.cd .loc-search button{height:var(--ctl-h)}
+.cd .loc-footer{display:flex;justify-content:flex-end;gap:12px;margin-top:4px}
+@media(max-width:700px){.cd .loc-map{height:320px}.cd .loc-search{flex-direction:column;align-items:stretch}}
 @media(max-width:1279px){.cd .cd-columns{grid-template-columns:minmax(0,64fr) minmax(320px,36fr)}}
 @media(max-width:1023px){.cd .cd-columns{grid-template-columns:1fr}.cd .cd-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.cd .cd-summary{grid-template-columns:1fr}.cd .cd-duo{grid-template-columns:1fr}}
 

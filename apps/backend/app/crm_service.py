@@ -257,6 +257,41 @@ def patch_customer(db, actor, cid, payload):
     return obj
 
 
+def customer_location_view(db, obj):
+    updater = None
+    if obj.location_updated_by:
+        user = db.get(User, obj.location_updated_by)
+        if user:
+            updater = dto.LocationUpdater(id=user.id, display_name=user.display_name)
+    return dto.CustomerLocationView(
+        customer_id=obj.id, company_address=obj.company_address, latitude=obj.latitude,
+        longitude=obj.longitude, coordinate_system=obj.coordinate_system,
+        location_status=obj.location_status, location_source=obj.location_source,
+        location_updated_at=obj.location_updated_at, location_updated_by=updater)
+
+
+def get_customer_location(db, actor, cid):
+    # 查看权限 = 现有客户查看权限（越权与不存在统一 404）；不新建地图权限。
+    return customer_location_view(db, customer(db, actor, cid))
+
+
+def update_customer_location(db, actor, cid, payload):
+    # 编辑权限 = 现有客户编辑口径（owner/admin/经理/客户负责人销售，finance 无客户编辑权）。
+    role(actor, ALL_WORK_ROLES)
+    obj = customer(db, actor, cid, True)
+    before = snapshot(obj)
+    obj.latitude = payload.latitude
+    obj.longitude = payload.longitude
+    obj.coordinate_system = payload.coordinate_system
+    obj.location_source = payload.location_source
+    obj.location_status = 'located'
+    obj.location_updated_at = utcnow()
+    obj.location_updated_by = actor.id
+    event(db, actor, 'customer_location_update', cid, before=before, after=snapshot(obj))
+    db.commit()
+    return customer_location_view(db, obj)
+
+
 def transfer(db, actor, cid, payload, claim=False, commit=True):
     role(actor, SALES_ACTOR_ROLES if claim else {ROLE_OWNER,ROLE_ADMIN,ROLE_MANAGER})
     if claim:

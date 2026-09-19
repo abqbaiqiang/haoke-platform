@@ -17,6 +17,7 @@ from app.constants import ROLE_ADMIN, ROLE_OWNER
 from app.crm_api import router as crm_router
 from app.deps import Current, DB
 from app.import_api import router as data_router
+from app.map_api import router as map_router
 from app.models import utcnow
 from app.sales_api import router as sales_router
 from app.schemas import LoginInput, ProfilePatch, SessionView, StatusView, UserView
@@ -38,6 +39,7 @@ COOKIE = "songmao_session"
 app.include_router(data_router)
 app.include_router(crm_router)
 app.include_router(bi_router)
+app.include_router(map_router)
 app.include_router(user_router)
 app.include_router(sales_router)
 

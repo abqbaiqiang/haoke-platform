@@ -1,5 +1,25 @@
 # Changelog
 
+## 微信小程序 CRM Phase 1：工程骨架 + UI Design System + 六页 Mock - 2026-09-19（docs/miniapp/06）
+
+- **新增 `apps/miniapp/`**：Taro 4.2.1 + React 18.3.1（独立 package.json，Taro 4 官方兼容 React 18；PC 的 React 19 不动，等 Taro 支持后再评估）+ TypeScript 5.6 + SCSS + webpack5，`designWidth 750`；脚本 `build:weapp` / `dev:weapp` / `typecheck`。
+- **Design System**：tokens.scss（CSS 变量挂 `page`，weapp 不支持 :root）与 PC 端 DESIGN.md 品牌体系对齐（品牌蓝/中性灰白/状态色/圆角/间距/字号/触控高度），新增语义浅底 --danger-soft/--warn-bg/--warn-ink 与 PC 状态章同源；页面/组件零写死视觉值（UI 规范化阶段约束 12.3 同样适用于小程序）。
+- **公共组件 15 个**：Avatar/Tag/SectionCard/TaskRow/CustomerRow/CustomerHeader/VisitBrief/AISummaryCard/FollowupTimelineCard/OrderTimelineCard/TimelineItem/NearbyCustomerRow/BrandHeader/EmptyState/LoadingState/ErrorState；时间线为"日期+节点圆点+卡片"结构，AI 整理区为 brand-soft 淡蓝底要点列表（04 文档第十一节）。
+- **七页 Mock 骨架**：登录 + 工作台（今日待办/快速操作/最近查看/行程建议）+ 客户（搜索/筛选 chips/重点提醒三数字/客户卡）+ 客户详情（头部三快捷/拜访前速览/动态时间线/记录跟进 FAB）+ 记录跟进（联系人/方式/时间/三输入入口/转写文字/AI 整理四块/附件/双保存按钮）+ 附近（Map 组件+半径+按距列表+openLocation）+ 我的（过程数量/待办/记录/常用功能/设置），模块层级对照 6 张参考图；原生 TabBar 四项，图标 PIL 线性风格生成。
+- **Mock 集中管理**：全部在 services/mock.ts 且类型即未来 Mobile DTO 契约（src/types 对齐 docs/miniapp/05），业务组件零 mock 硬编码；客户列表空态明确"客户请先在现有系统/精斗云流程中建立"，无任何新增客户入口；无 BI。
+- **验证**：`build:weapp` 与 `tsc --noEmit` 全绿（遗留 1 条组件样式顺序 warning，Phase 8 收敛）；PC 端全量回归 scripts/run_tests.py 通过（ruff + pytest 290 + 前端 tsc/next build + bundle 密钥扫描），本次未改后端任何文件。
+- **注意**：@tarojs/webpack5-runner@4.2.1 精确 peer webpack 5.91.0，勿在 devDependencies 另声明 webpack。
+
+## Web 客户位置管理：统一经纬度主数据 + 腾讯地图选点校正 - 2026-09-19（《Web 端客户位置管理功能开发文档 V1.0》）
+
+- **背景**：为微信小程序"附近客户地图"打数据地基——客户经纬度成为 CRM 客户主数据的一部分（单一数据源 Customer，Web 与未来小程序读写同一份，禁止第二套坐标表）。本次仅做 Web 端查看/设置/人工校正；不做附近客户、分布图、轨迹、打卡、批量猜位置、小程序代码。
+- **数据库**：迁移 0014_customer_location：customer 新增 latitude/longitude DOUBLE PRECISION、coordinate_system VARCHAR(20)、location_status VARCHAR(30) NOT NULL DEFAULT 'unset'、location_source、location_updated_at TIMESTAMPTZ、location_updated_by UUID；历史客户全部兼容（NULL+unset，不强制补位置），downgrade 可回滚。
+- **后端**：GET/PUT /api/crm/customers/{cid}/location（跟随仓库现有 /api/crm 前缀；权限完全复用现有客户查看/编辑口径：owner/admin/经理/客户负责人销售可改，finance GET 200 / PUT 403，越权与不存在统一 404）；PUT 由服务端写 location_status=located、location_updated_at/by（last write wins，不信前端传修改人）；修改留痕 ActivityLog event customer_location_update（含新旧经纬度与来源）；非法经纬度（±90/±180 外）与未知 location_source 422。地图代理：GET /api/map/geocode（服务端持 TENCENT_MAP_SERVER_KEY 调腾讯 WebService，server key 绝不下发浏览器；未配置 503/无结果 404/超时 502 均为明确中文报错，绝不返回 (0,0) 或城市中心点当成功）与 GET /api/map/config（仅下发 Web JS Key）。config.py 新增 tencent_map_web_key / tencent_map_server_key（SecretStr，默认空即未配置），.env.example 补申请渠道与白名单说明。
+- **前端**：客户 360 概览右栏"客户信息"与"客户备注"卡之间新增「客户位置」卡（复用 .cd-card/.cd-info 与 --cd-* 设计令牌，零新视觉）：未定位显示"尚未设置"+[设置位置]，已定位显示"已定位"徽标+最后更新时间·修改人+[查看位置][修改位置]；查看=只读 Modal（Marker 不可拖、无表单，Modal 组件加 wide 宽版变体 920px）；编辑=地址搜索（默认填 company_address，搜索结果必须点保存才写库）+地图点击选点（map_click）+拖动 Marker 校正（map_drag），取消不写库；腾讯 JS SDK 按需动态注入（参照 ECharts 动态加载先例，web key 来自 /api/map/config），未配置 Key/加载失败时位置卡与客户详情页完全可用（"地图暂时无法加载，请稍后重试。"降级提示，不白屏）。
+- **测试**：新增 tests/test_customer_location.py 5 例（unset 默认、保存+修改人+时间+审计断言、非法经纬度/来源 422、不存在/越权 404+finance 只读、map config 脱敏+geocode 未配置/成功映射/无结果/超时 mock）；新增 e2e/crm-location.spec.ts（销售工作台建客户→位置卡"尚未设置"→编辑弹窗无 Key 降级提示→同一 PUT API 保存后卡片"已定位"+最后更新+查看弹窗经纬度+无横向溢出/无 pageerror）；全量 pytest 290 过（唯一失败为既有顺序性偶发 test_opportunity_products_roundtrip，隔离重跑通过）、ruff/tsc/next build 绿；本地 dev 库已升 0014。
+- **待老板**：申请腾讯位置服务两个 Key——Web JS Key（配域名白名单，含正式域名与局域网调试地址）与 WebService Key（配服务器 IP 白名单），填入 .env 的 TENCENT_MAP_WEB_KEY / TENCENT_MAP_SERVER_KEY 后即可人工验收真实地图交互（开发文档 Case 3-5：搜索出点、点击选点、拖拽校正）；真实地图用例在无 Key 环境无法自动化，已列入人工验收。
+- **小程序衔接**：PUT 接口已按文档第 38 节预留 location_source=miniapp；未来小程序直接调用同一接口读写同一份 Customer 位置。docs/miniapp/DEV_LOG 提到的坐标字段方案合并拍板按其计划在 Phase 7 前进行。
+
 ## 微信小程序 CRM 启动：Phase 0 基线确认 - 2026-09-19（docs/miniapp，仅文档无业务代码）
 
 - **背景**：老板提供《微信小程序CRM Zcode开发包 V1.0》（PRD/架构/页面设计/UI强约束/API设计/任务拆解 + 6 张高保真参考图），定位销售员移动 CRM 执行工具：今日待办 → 客户 30 秒速览 → 语音/照片记录跟进（AI 整理+人工确认）→ 自动待办 → 附近客户地图导航。已逐条核对与现有代码对齐度：模型/`save_followup`/`customer_scope`/Cookie 认证/目录结构假设全部成立，安全设计与 AGENTS.md 铁律同向（禁止新增客户、密钥仅后端、不存销售轨迹、复用现有业务表）。

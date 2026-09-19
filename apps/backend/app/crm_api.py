@@ -131,6 +131,16 @@ def patch_customer(cid: UUID, payload: dto.CustomerPatch, db: DB, actor: Actor):
     return svc.patch_customer(db,actor,cid,payload)
 
 
+@router.get('/customers/{cid}/location', response_model=dto.CustomerLocationView)
+def customer_location(cid: UUID, db: DB, actor: Actor):
+    return svc.get_customer_location(db, actor, cid)
+
+
+@router.put('/customers/{cid}/location', response_model=dto.CustomerLocationView)
+def customer_location_update(cid: UUID, payload: dto.CustomerLocationUpdate, db: DB, actor: Actor):
+    return svc.update_customer_location(db, actor, cid, payload)
+
+
 @router.post('/customers/{cid}/transfer', response_model=dto.CustomerView)
 def transfer(cid: UUID, payload: dto.Transfer, db: DB, actor: Actor):
     return svc.transfer(db,actor,cid,payload)

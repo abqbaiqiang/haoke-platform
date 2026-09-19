@@ -3,7 +3,7 @@ import uuid
 from datetime import date, datetime
 from decimal import Decimal
 
-from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint, func
+from sqlalchemy import Boolean, Date, DateTime, Double, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -93,6 +93,14 @@ class Customer(Base):
     bound_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     bound_customer_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey('customer.id'), unique=True)
     crm_managed: Mapped[bool] = mapped_column(Boolean, default=False, server_default='false')
+    # 统一客户位置（GCJ-02）：Web 与微信小程序读写同一份，非主档事实、仅记录过程定位。
+    latitude: Mapped[float | None] = mapped_column(Double)
+    longitude: Mapped[float | None] = mapped_column(Double)
+    coordinate_system: Mapped[str | None] = mapped_column(String(20))
+    location_status: Mapped[str] = mapped_column(String(30), default='unset', server_default='unset')
+    location_source: Mapped[str | None] = mapped_column(String(30))
+    location_updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    location_updated_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey('sys_user.id'))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
 

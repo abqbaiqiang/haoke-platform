@@ -24,6 +24,10 @@ class Settings(BaseSettings):
     login_lock_seconds: int = Field(default=900, ge=1)
     upload_root: str = "app-data/uploads"
     import_max_bytes: int = Field(default=12 * 1024 * 1024, ge=1024, le=32 * 1024 * 1024)
+    # 腾讯位置服务（客户位置功能）：Web JS SDK Key 发浏览器（需配域名白名单），
+    # WebService Key 仅服务端代理使用，绝不返回浏览器。
+    tencent_map_web_key: SecretStr = SecretStr("")
+    tencent_map_server_key: SecretStr = SecretStr("")
     cookie_secure: bool = False
 
     @model_validator(mode="after")

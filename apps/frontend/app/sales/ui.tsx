@@ -52,7 +52,7 @@ export function Pager({ offset, total, size = 20, onChange }: { offset: number; 
   );
 }
 
-export function Modal({ title, children, close, locked = false }: { title: string; children: ReactNode; close: () => void; locked?: boolean }) {
+export function Modal({ title, children, close, locked = false, wide = false }: { title: string; children: ReactNode; close: () => void; locked?: boolean; wide?: boolean }) {
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const d = ref.current;
@@ -61,7 +61,7 @@ export function Modal({ title, children, close, locked = false }: { title: strin
     return () => { d?.close(); previous?.focus(); };
   }, []);
   return (
-    <dialog ref={ref} className="sales-modal" aria-label={title} onCancel={e => { e.preventDefault(); if (!locked) close(); }}>
+    <dialog ref={ref} className={"sales-modal" + (wide ? " sales-modal-wide" : "")} aria-label={title} onCancel={e => { e.preventDefault(); if (!locked) close(); }}>
       <div className="sales-modal-head">
         <h2>{title}</h2>
         <button type="button" disabled={locked} aria-label="关闭窗口" onClick={close}>关闭</button>

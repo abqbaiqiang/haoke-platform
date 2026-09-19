@@ -8,6 +8,7 @@ import { Editor } from "../editor";
 import { money, relLabel, text } from "../shared";
 import type { Detail, Profile, Value } from "../types";
 import { currentOppOf, lastFollowOf, nextTaskOf } from "./derive";
+import { CustomerLocationCard } from "./location";
 
 type EditState = { kind: string; id?: string } | null;
 
@@ -109,6 +110,7 @@ export function DetailOverview({ detail, profile, role, processWrite, customerWr
             <div className="weak"><dt>绑定状态</dt><dd>{detail.customer.bound_at ? "已绑定精斗云" : "未绑定精斗云"}</dd></div>
           </dl>
         </section>
+        <CustomerLocationCard customerId={detail.customer.id} customerName={detail.customer.customer_name} companyAddress={detail.customer.company_address} canEdit={customerWrite} setNotice={setNotice} />
         <section className="cd-card" aria-label="客户备注">
           <header><h3>客户备注</h3>{customerWrite && <button className="cd-more" onClick={() => setEdit({ kind: "customer" })}>编辑</button>}</header>
           <p className="cd-note">{detail.customer.remark || "暂无客户备注"}</p>

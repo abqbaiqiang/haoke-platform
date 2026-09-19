@@ -30,6 +30,34 @@ class CustomerPatch(DTO):
     remark: Note | None = None
 
 
+# 客户位置（Web 端客户位置功能开发文档 V1.0）：统一 GCJ-02，Web 与小程序读写同一份。
+LOCATION_SOURCES = Literal['address_search', 'map_click', 'map_drag', 'web_manual', 'miniapp']
+
+
+class CustomerLocationUpdate(DTO):
+    latitude: Annotated[float, Field(ge=-90, le=90)]
+    longitude: Annotated[float, Field(ge=-180, le=180)]
+    coordinate_system: Literal['GCJ-02'] = 'GCJ-02'
+    location_source: LOCATION_SOURCES
+
+
+class LocationUpdater(DTO):
+    id: UUID
+    display_name: str
+
+
+class CustomerLocationView(DTO):
+    customer_id: UUID
+    company_address: str | None
+    latitude: float | None
+    longitude: float | None
+    coordinate_system: str | None
+    location_status: Literal['unset', 'located', 'needs_review']
+    location_source: LOCATION_SOURCES | None
+    location_updated_at: datetime | None
+    location_updated_by: LocationUpdater | None
+
+
 class ClaimView(DTO):
     user_id: UUID
     display_name: str
