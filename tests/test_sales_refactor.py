@@ -1,6 +1,6 @@
 """销售端重构阶段②（docs/32）：全员项目看板、工作台汇总、跟进图片粘贴、作战区阶段。"""
 import base64
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 from uuid import uuid4
 
@@ -209,7 +209,9 @@ def test_followup_attachment_storage_failure_gives_clear_error(db, client, accou
 def test_task_row_carries_customer_project_stage(db, client, accounts, sign_in):
     mine, _ = seed_customers(db, accounts)
     opp(db, accounts, mine, 'S1', '礼盒项目', 'selection')
-    due = datetime.now(crm.TZ) + timedelta(hours=2)
+    # 任务固定落在今天 08:00/09:00，任何时间运行都在 today 视图窗口内；
+    # 原先 now+2h/+3h 在本地时间 21:00—22:00 运行时会跨过午夜掉出 today 窗口。
+    due = datetime.combine(datetime.now(crm.TZ).date(), time(8, 0), tzinfo=crm.TZ)
     task(db, accounts, mine, due)
     sign_in('S1')
     row = client.get('/api/sales/tasks?view=today').json()['rows'][0]
