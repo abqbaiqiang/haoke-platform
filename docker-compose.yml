@@ -11,6 +11,8 @@ x-backend: &backend
     context: .
     dockerfile: apps/backend/Dockerfile
     target: runtime
+    args:
+      PIP_INDEX_URL: ${PIP_INDEX_URL:-https://pypi.org/simple}
   env_file: .env
   environment:
     DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
@@ -87,6 +89,8 @@ services:
     build:
       context: .
       dockerfile: apps/frontend/Dockerfile
+      args:
+        NPM_REGISTRY: ${NPM_REGISTRY:-https://registry.npmjs.org/}
     networks: [internal]
     depends_on:
       backend: {condition: service_healthy}

@@ -2,7 +2,9 @@ FROM node:24-bookworm-slim AS build
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 COPY apps/frontend/package*.json ./
-RUN npm ci
+# 国内部署可通过 .env 设 NPM_REGISTRY 加速（如 npmmirror）；默认官方源
+ARG NPM_REGISTRY=https://registry.npmjs.org/
+RUN npm config set registry "$NPM_REGISTRY" && npm ci
 COPY apps/frontend/ ./
 RUN npm run build
 

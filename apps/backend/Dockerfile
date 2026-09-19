@@ -1,5 +1,7 @@
 FROM python:3.14-slim AS runtime
-ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PYTHONPATH=/app/apps/backend
+# 国内部署可通过 .env 设 PIP_INDEX_URL 加速（如清华源）；默认官方源
+ARG PIP_INDEX_URL=https://pypi.org/simple
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PYTHONPATH=/app/apps/backend PIP_INDEX_URL=${PIP_INDEX_URL}
 WORKDIR /app
 COPY apps/backend/requirements.lock /app/requirements.lock
 RUN pip install --no-cache-dir -r requirements.lock && useradd --uid 10001 --create-home appuser
