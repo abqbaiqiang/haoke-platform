@@ -1,4 +1,5 @@
 import os
+import tempfile
 import uuid
 from pathlib import Path
 
@@ -11,6 +12,9 @@ os.environ["APP_BASE_URL"] = "http://testserver"
 os.environ["DATABASE_URL"] = os.environ.get(
     "TEST_DATABASE_URL", "postgresql+psycopg://test:test@127.0.0.1:55432/songmao_test"
 )
+# 测试上传一律写临时目录：CI 容器内 WORKDIR 属主是 root，默认相对路径 app-data/uploads
+# 不可写导致附件保存 500；也避免测试产物落进本地开发数据目录。
+os.environ["UPLOAD_ROOT"] = os.environ.get("TEST_UPLOAD_ROOT") or tempfile.mkdtemp(prefix="songmao-test-uploads-")
 
 
 @pytest.fixture(scope="session")

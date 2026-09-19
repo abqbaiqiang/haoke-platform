@@ -148,7 +148,9 @@ def test_concurrent_pool_claim_all_claimants_recorded(database_engine):
             assert db.scalar(select(func.count()).select_from(CustomerClaim)) == 2
             assert db.scalar(select(func.count()).select_from(Assignment)) == 1
             row = db.get(Customer, cid)
-            assert row.owner_user_id == ids[0] and row.ownership_status == 'public_pool'
+            # barrier 下两线程真并发，谁先拿到行锁谁成为 owner（另一人走 co-claim 不改 owner），
+            # 断言"owner 是两位认领人之一"才是稳定不变量；此前断言 ids[0] 属于对线程调度的错误假设。
+            assert row.owner_user_id in ids and row.ownership_status == 'public_pool'
     finally:
         with database_engine.begin() as c:
             c.execute(text(f'DROP SCHEMA "{schema}" CASCADE'))

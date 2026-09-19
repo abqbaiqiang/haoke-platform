@@ -560,7 +560,9 @@ def attach_products(db, rows):
         return
     links = db.execute(select(OpportunityProduct.opportunity_id, Product.id, Product.product_name)
         .join(Product, Product.id == OpportunityProduct.product_id)
-        .where(OpportunityProduct.opportunity_id.in_(ids))).all()
+        .where(OpportunityProduct.opportunity_id.in_(ids))
+        # 按推荐时的提交顺序返回；product_id 作同刻并列时的确定性平局裁决。
+        .order_by(OpportunityProduct.created_at, OpportunityProduct.product_id)).all()
     grouped: dict = defaultdict(list)
     for oid, pid, name in links:
         grouped[oid].append(dto.ProductRef(id=pid, name=name))
@@ -656,12 +658,18 @@ def save_opportunity(db, actor, cid, payload, oid=None):
     db.add(obj)
     db.flush()
     existing = set(db.scalars(select(OpportunityProduct.product_id).where(OpportunityProduct.opportunity_id == obj.id)))
-    for pid in set(product_ids):
+    # 按提交顺序去重遍历（遍历 set 顺序随 PYTHONHASHSEED 变化），created_at 单调递增供读取侧稳定排序。
+    seen: set[UUID] = set()
+    for i, pid in enumerate(product_ids):
+        if pid in seen:
+            continue
+        seen.add(pid)
         if not db.get(Product, pid):
             raise HTTPException(422, '推荐产品不存在')
         if pid not in existing:
-            db.add(OpportunityProduct(opportunity_id=obj.id, product_id=pid, created_by=actor.id))
-    for pid in existing - set(product_ids):
+            db.add(OpportunityProduct(opportunity_id=obj.id, product_id=pid, created_by=actor.id,
+                                      created_at=utcnow() + timedelta(microseconds=i)))
+    for pid in existing - seen:
         link = db.get(OpportunityProduct, (obj.id, pid))
         if link:
             db.delete(link)
